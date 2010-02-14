@@ -153,6 +153,11 @@ int con_plot (TCONSOLE *console, int x, int y, char ch) {
 int con_directputch (TCONSOLE *console, char ch) {
   if (console == NULL) return ERR_CON_INVALID_CONSOLE;
 
+#ifdef __DEBUG__
+  // Bochs debug output
+  outb (0xE9, ch);
+#endif
+
   // Plots the char directly to the screen
   con_plot (console, console->px, console->py, ch);
 

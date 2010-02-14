@@ -48,10 +48,8 @@
 
   // ========================================================
   int sys_conwrite (char ch, int autoflush) {
-    if (! _current_task) return 0;
-
     con_putch (_current_task->console_ptr, ch);
-    if (autoflush != 0) con_flush (_current_task->console_ptr);
+    if (autoflush) sys_conflush ();
     return 0;
   }
 
@@ -62,8 +60,6 @@
 
   // ========================================================
   int sys_conflush (void) {
-    if (! _current_task) return 0;
-
     con_flush (_current_task->console_ptr);
     return 0;
   }

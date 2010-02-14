@@ -27,7 +27,7 @@
 ; Data used in the bootsector
 ; --------------------------------
 
-        BootMsg         db 13,10,'Loading CybOS V0.01 ',0
+        BootMsg         db 13,10,'Loading CybOS V0.01... ',0
 
         BootDriveID     db 0
         CurS            db 0    ; Current Sector

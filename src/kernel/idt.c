@@ -133,7 +133,9 @@ int idt_init (void) {
   // Assign all interrupts to the default interrupt handler.
   for (i=0; i!=256; i++) {
     idt = idt_create_descriptor ((Uint32)&handle_default_int, SEL(KERNEL_CODE_DESCR, TI_GDT+RPL_RING0), IDT_PRESENT+IDT_DPL0+IDT_INTERRUPT_GATE);
-//    idt_set (i, idt);
+// TODO: Remove me
+    if (i == 8 || i == 13 || i == 14) continue;
+    idt_set (i, idt);
   }
 
   // Add standard IRQ handlers (0x50..0x5F)
@@ -145,16 +147,18 @@ int idt_init (void) {
   // Add exception handlers (0..31)
   for (i=0; i!=32; i++) {
     idt = idt_create_descriptor (exception_handlers[i], SEL(KERNEL_CODE_DESCR, TI_GDT+RPL_RING0), IDT_PRESENT+IDT_DPL0+IDT_INTERRUPT_GATE);
-//    idt_set (i, idt);
+// TODO: Remove me
+    if (i == 8 || i == 13 || i == 14) continue;
+    idt_set (i, idt);
   }
 
   // Add syscall interrupt
-  idt = idt_create_descriptor ((Uint32)&handle_syscall_int, SEL(KERNEL_CODE_DESCR, TI_GDT+RPL_RING0), IDT_PRESENT + IDT_DPL3 + IDT_TRAP_GATE);
+  idt = idt_create_descriptor ((Uint32)&handle_syscall_int, SEL(KERNEL_CODE_DESCR, TI_GDT+RPL_RING0), IDT_PRESENT+IDT_DPL3+IDT_TRAP_GATE);
   idt_set (SYSCALL_INT, idt);
 
   // Setup idtr structure
   idtr.limit = (256*8)-1;
-  idtr.base  = phys_idt_addr;  // IDT has to be loaded through the physical address
+  idtr.base  = phys_idt_addr;  // IDT has to be loaded through the physical address (?)
   idtr.base += 0xC0000000;
 
   // Disable all IRQ's
@@ -165,9 +169,6 @@ int idt_init (void) {
 
   // Enable all IRQ's
   pic_mask_irq (0x0000);
-
-  // Start accepting interrupts
-  sti ();
 
   return ERR_OK;
 }
@@ -185,7 +186,7 @@ void do_handle_irq (TREGS r) {
     case 0 :
              // CS is selector, first 2 bits is the RPL so the timer function knows
              // in which context it is being called.
-             timer_interrupt (r.cs & 3);
+             timer_interrupt (r.cs & 0x3);
              break;
     case 1 :
              keyboard_interrupt ();

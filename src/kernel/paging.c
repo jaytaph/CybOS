@@ -386,21 +386,16 @@ int stack_init (Uint32 src_stack_top) {
   Uint32 stacklength, kernel_stack_top;
   int i;
 
-  cli ();
-
-//  kprintf ("Moving to new stack...\n");
-
   // Allocate room for a new stack
+  // @TODO: THIS ALREADY WORKS, BUT WE USE 0xCF000000 for easy debugging!
 //  _kernel_stack = (unsigned int *)kmalloc (KERNEL_STACK_SIZE);
 
-  _kernel_stack = (unsigned int *)0xE0000000;
+  _kernel_stack = (unsigned int *)0xCF000000;
 
   // Allocate some space for the new stack.
   for(i=0; i< KERNEL_STACK_SIZE; i += 0x1000) {
-    create_pageframe (_current_pagedirectory, 0xE0000000+i, PAGEFLAG_PRESENT+PAGEFLAG_READWRITE+PAGEFLAG_USER);
+    create_pageframe (_current_pagedirectory, 0xCF000000+i, PAGEFLAG_PRESENT+PAGEFLAG_READWRITE+PAGEFLAG_USER);
   }
-
-//  kprintf ("Whoohooo");
 
   // Work with 2 stack-tops instead of kernel-stack-bottom and src-stack-bottom
   kernel_stack_top = (Uint32)_kernel_stack+KERNEL_STACK_SIZE;
@@ -422,15 +417,11 @@ int stack_init (Uint32 src_stack_top) {
   // overwritten later on. We don't care about that..
   memcpy ((void *)(kernel_stack_top-stacklength), (void *)(src_stack_top-stacklength), stacklength);
 
-//  kprintf ("moved stack to %08X\n", new_esp);
-
   // Set the new ESP and EBP. Note that EBP might not be valid at the moment but we can't be sure.
   __asm__ __volatile__ ("mov %0, %%esp" : : "r" (new_esp));
   __asm__ __volatile__ ("mov %0, %%ebp" : : "r" (new_ebp));
 
   flush_pagedirectory ();
-
-  sti ();
 
   return ERR_OK;
 }
@@ -450,7 +441,7 @@ int paging_init () {
   memset (framebitmap->map, 0, framebitmap->size);            // And clear all bits
 
 
-  // Lets's setup paging from scratch. We are still running on 0xC0000000, which we should not change obviously. We create a new
+  // Let's setup paging from scratch. We are still running on 0xC0000000, which we should not change obviously. We create a new
   // page directory that maps 0x0 to 0xC0000000. We should stop at: end of kernel data + kernel heap (from kmalloc). This is
   // located in the k_heap_top variable. The 0xD00000 will be the heap, 0xE00000 something else and 0xF0000000 will be mapped
   // 1:1 to the lowest 16MB of the physical memory (don't even care if we do not have so much). It's used for direct BIOS access
@@ -461,15 +452,11 @@ int paging_init () {
   // Actually, we should start at the beginning of the kernel (.text), not start of memory, but alas
   i = (unsigned int)0xC0000000;
   while (i < 0xC00FFFFF ) {    // k_heap_top will change during this run. No for() loops or constants!
-
-    // map_virtual_memory (_kernel_pagedirectory, (i - 0xC0000000), i, PAGEFLAG_SUPERVISOR | PAGEFLAG_PRESENT | PAGEFLAG_READWRITE, SET_BITMAP);
+    // @TODO: Change this to PAGEFLAG_KERNEL WHEN READY!
     map_virtual_memory (_kernel_pagedirectory, (i - 0xC0000000), i, PAGEFLAG_USER | PAGEFLAG_PRESENT | PAGEFLAG_READWRITE, SET_BITMAP);
-
-//    // Linear mapping. Not used anymore.
-//    map_virtual_memory (_kernel_pagedirectory, (i - 0xC0000000), (i - 0xC0000000), PAGEFLAG_USER | PAGEFLAG_PRESENT | PAGEFLAG_READWRITE, SET_BITMAP);
-
     i += 0x1000;
   }
+
 
   // Manually have to set some BIOS stuff in the bitmap that cannot be used by the memory allocator.
   bm_set (framebitmap, 0x0);  // Page 0 (0x0000 - 0x0FFF)
@@ -478,7 +465,6 @@ int paging_init () {
   // On 0xF0000000 we map the 1:1 the lower 16Mb, 0xF00B8000 therefor should point to vga vidmem. We do not reserve the room in the bitmap since
   // that would mean the allocator cannot use the whole low 16MB.
   for (i=0; i < (16*1024*1024); i+= 0x1000) {
-    // map_virtual_memory (_kernel_pagedirectory, i, (i + 0xF0000000), PAGEFLAG_SUPERVISOR + PAGEFLAG_PRESENT + PAGEFLAG_READWRITE, DONT_SET_BITMAP);
     map_virtual_memory (_kernel_pagedirectory, i, (i + 0xF0000000), PAGEFLAG_USER | PAGEFLAG_PRESENT | PAGEFLAG_READWRITE, DONT_SET_BITMAP);
   }
 

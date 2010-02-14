@@ -45,9 +45,6 @@ void tprintf (const char *fmt, ...);
 int sched_init () {
   // We initialize the idle task and make it the base of our task_list.
 
-  // No interruptions please
-  cli ();
-
   // The idle task is the first task. We need to set this because create_user_task()
   // calls allocate_pid, which scans through the _task_list. We need to make sure it's
   // set to "something" (or in this case, the (uninitialized) idle-task itself, which
@@ -55,9 +52,10 @@ int sched_init () {
   _task_list = &idle_task;
   memset (&idle_task, 0, sizeof (CYBOS_TASK));
 
-  // Note that the idle-task has a EIP of 0. On the first taskswitch, the data in this idle-task
-  // tss will be overwritten by the current CPU info.
-  sched_create_kernel_task (&idle_task, 0x12345678, "Idle task", NO_CREATE_CONSOLE);
+  // Note that the idle-task has an illegal EIP. On the first taskswitch, the data in this
+  // idle-task tss will be overwritten by the current CPU info so the eip will be correct
+  // again. This is the only task that has an illegal EIP.
+  sched_create_kernel_task (&idle_task, 0x12345678, "Idle (init) task", NO_CREATE_CONSOLE);
   idle_task.priority = PRIO_LOWEST;         // It has the lowest priority
   idle_task.console_ptr = _kconsole;
 
@@ -76,8 +74,6 @@ int sched_init () {
   __asm__ __volatile__ ( "ltrw %%ax\n\t" : : "a" (TSS_TASK_SEL));
   __asm__ __volatile__ ( "lldt %%ax\n\t" : : "a" (LDT_TASK_SEL));
 
-  // Interrupt us, please...
-  sti ();
 
   return ERR_OK;
 }
@@ -538,7 +534,6 @@ void switch_task (void) {
 
 //  kprintf (">>> SCHED Switching from task %d to task %d\n", previous_task->pid, next_task->pid);
 
-
 //  sti ();
 
   // Switch to a new task (start right after read_eip()).
@@ -563,15 +558,10 @@ void switch_task (void) {
 // to switch after interrupts. We set the IF-flag in the flags
 // so after IRET the interrupts are back on again.
 void switch_to_usermode (void) {
-
-  // Make sure we don't get interrupted
-  cli ();
-
   // current_task points to idle_task. This also allows the scheduler (sched_switch) to
   // see that we are up and running. As soon as _current_task != NULL, it can switch
   // to other tasks (if there are any of course)
-  // _current_task = _task_list;
-
+  _current_task = _task_list;
 
   // Move from kernel ring0 to usermode ring3 AND start interrupts at the same time.
   // This is needed because we cannot use sti() inside usermode. Since there is no 'real'
@@ -579,24 +569,24 @@ void switch_to_usermode (void) {
   // we return from. When the IRET we return to the same spot, but in a different ring.
 
   // @TODO Set up a stack structure for switching to user mode.
+  asm volatile("  movw   %%cx, %%ds; \n\t" \
+               "  movw   %%cx, %%es; \n\t" \
+               "  movw   %%cx, %%fs; \n\t" \
+               "  movw   %%cx, %%gs; \n\t" \
 
-  asm volatile("  mov %%cx, %%ds; \n\t" \
-               "  mov %%cx, %%es; \n\t" \
-               "  mov %%cx, %%fs; \n\t" \
-               "  mov %%cx, %%gs; \n\t" \
-
-               "  mov %%esp, %%eax; \n\t" \
-               "  pushl %%ecx; \n\t" \
-               "  pushl %%esp; \n\t" \
-               "  pushf; \n\t" \
-               "  pushl %%ebx; \n\t" \
-               "  pushl $1f; \n\t" \
+               "  movl   %%esp, %%eax\n\t" \
+               "  pushl  %%ecx; \n\t" \
+               "  pushl  %%eax; \n\t" \
+               "  pushfl; \n\t" \
+               "  popl   %%eax\n\t" \
+               "  or     $0x200, %%eax\n\t" \
+               "  pushl  %%eax\n\t" \
+               "  pushl  %%ebx; \n\t" \
+               "  pushl  $1f; \n\t" \
                "  iret; \n\t" \
                "1: \n\t" \
-               "  popl %%ebx \n\t" \
-               "  nop; \n\t" \
   			       ::"b"(SEL(KUSER_CODE_DESCR,TI_GDT+RPL_RING3)),
-			           "c"(SEL(KUSER_DATA_DESCR,TI_GDT+RPL_RING3)));
+			           "c"(SEL(KUSER_DATA_DESCR,TI_GDT+RPL_RING3)):"eax");
   // @TODO: I have no idea why the extra popl %%ebx is needed. probably iret or __cdecl?
 
   // @TODO need to OR 0x200 to set STI during IRE
@@ -630,7 +620,6 @@ int allocate_new_pid (void) {
 // ========================================================================================
 int sys_sleep (int ms) {
 //  kprintf ("sys_sleep (PID: %d,  MS: %d)\n", _current_task->pid, ms);
-BOCHS_BREAKPOINT
 
   if (_current_task == &idle_task) kpanic ("Cannot sleep idle task!");
 
@@ -647,6 +636,8 @@ BOCHS_BREAKPOINT
 // ========================================================================================
 int fork (void) {
   int ret;
+
+BOCHS_BREAKPOINT
   __asm__ __volatile__ ("int	$" SYSCALL_INT_STR " \n\t" : "=a" (ret) : "a" (SYS_FORK) );
   return ret;
 }
@@ -654,7 +645,6 @@ int fork (void) {
 // ========================================================================================
 int sleep (int ms) {
   int ret;
-  BOCHS_BREAKPOINT
   __asm__ __volatile__ ("int	$" SYSCALL_INT_STR " \n\t" : "=a" (ret) : "a" (SYS_SLEEP) );
   return ret;
 }
@@ -667,25 +657,13 @@ int sys_fork (void) {
   // The current task will be the parent task
   parent_task = _current_task;
 
-kprintf ("sysFork()");
-
   // Create a child task, and copy all data from the parent into the child
   child_task = (CYBOS_TASK *)kmalloc (sizeof (CYBOS_TASK));
 
-kprintf ("S: %08x\n", sizeof (CYBOS_TASK));
-kprintf ("C: %08x\n", child_task);
-kprintf ("P: %08x\n", parent_task);
-
-if (parent_task == NULL) parent_task = &idle_task;
-
-  kprintf ("P: %08x\n", parent_task);
-
-BOCHS_BREAKPOINT
   memcpy (child_task, parent_task, sizeof (CYBOS_TASK));
 
   // Available for scheduling
   child_task->state = TASK_STATE_INITIALISING;
-
 
   child_task->pid  = allocate_new_pid ();           // Make new PID
   child_task->ppid = parent_task->pid;              // Set parent pid
@@ -709,14 +687,16 @@ BOCHS_BREAKPOINT
   // We set the child task to start right after read_eip.
   Uint32 eip = read_eip();
 
-  // From this point on, 2 tasks will be executing this code. The parent and the child. We can
-  // distinquish between those two by looking at the _current_task. If the _current_task is
-  // the same as the parent_task, this is the parent, otherwise it's the child.
+  // From this point on, 2 tasks will be executing this code. The parent will come first and
+  // will set the child_task stuff we need. After that it will set the child_task state to
+  // TASK_STATE_RUNNABLE. From that point only we could run this code again. Since the
+  // current task is at that point NOT the same as the parent_task, we can actually distinguish
+  // between parent en child.
   if (_current_task == parent_task) {
     Uint32 esp; asm volatile("mov %%esp, %0" : "=r"(esp));
     Uint32 ebp; asm volatile("mov %%ebp, %0" : "=r"(ebp));
-    child_task->esp = esp;
-    child_task->ebp = ebp;
+    child_task->esp = esp;    // The stacks for the child are the same (virtual) address.
+    child_task->ebp = ebp;    // The clone page directory already took care of copying userdata.
     child_task->eip = eip;
 
     // Available for scheduling

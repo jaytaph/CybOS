@@ -15,7 +15,10 @@ void timer_interrupt (int rpl) {
   // Increase the first character on the screen so we can see we are running
 #ifdef __DEBUG__
   char *vga = (char *)0xF00B8000;
+  (*vga) = rpl+65;
+  vga+=2;
   (*vga)++;
+
 #endif
 
   // Increase main kernel timer tick counter

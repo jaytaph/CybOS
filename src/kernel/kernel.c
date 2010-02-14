@@ -32,16 +32,13 @@
   void tprintf (const char *fmt, ...);
 
 
-  CYBOS_TASK task1;                    // Dummy user task 1. Remove later.
-  void task_1 (void);                  // Dummy Test task 1. Remove later.
-  CYBOS_TASK task2;                    // Dummy user task 2. Remove later.
-  void task_2 (void);                  // Dummy Test task 2. Remove later.
-
-
 /****************************************************************************
  * Startup of the kernel.
  */
 void kernel_entry (int stack_start, int total_sys_memory) {
+  // No interruptions until we decide it
+  cli ();
+
   // Number of times the timer-interrupts is called.
   _kernel_ticks = 0;
 
@@ -92,80 +89,40 @@ void kernel_entry (int stack_start, int total_sys_memory) {
   sched_init ();
 
   kprintf ("]\n");
-  kprintf ("Kernel initialization done. Unable to free %d bytes.\nTransfering control to user mode.\n", _unfreeable_kmem);
+  kprintf ("Kernel initialization done. Unable to free %d bytes.\nTransfering control to user mode.\n\n\n", _unfreeable_kmem);
 
-  // Switch to ring3
+  // Switch to ring3 and start interrupts at the same time
   switch_to_usermode ();
 
-  // Hello world.. we are in usermode!
+  tprintf ("Hello userworld!");
 
-  int pid = fork ();
+
+  // Hello world.. we are in usermode!
+  int pid = sys_fork ();
+  tprintf ("\nPID: %d\n", pid);
+
+//  tprintf ("It looks like this site is working correctly. This means it's not really this code, but the interrupt handler that gets screwed up. That's possible since from this point on the IRQ0 timer has to switch to ring3. I don't know if that makes a difference.. probably it will");
+
   if (pid == 0) {
-      while (1) {
-        tprintf ("z");
-        sleep (300);
-        tprintf ("Z");
-        sleep (300);
-      }
+    tprintf ("We are stil l kernel???\n");
+    sys_sleep (2500);
+    BOCHS_BREAKPOINT
+    tprintf ("Yes,, this worked...\n");
+    while (1) {
+      tprintf ("z");
+      sys_sleep (300);
+      tprintf ("Z");
+      sys_sleep (300);
+    }
   }
+
+    cli();
+
+  tprintf ("goint to idle()\n");
   // From here, we should become the inittask..
   user_idle ();
 }
 
-/*
- *   int pid = sys_fork ();
-
-  if (pid == 0) {
-    kprintf ("PID[%05d] After first fork() : Child says %d\n", _current_task->pid, pid);
-
-    strncpy (_current_task->name, "Test process 1\0", 15);
-
-    while (1) {
-
-//      // Just something that takes a long time so we can see if UTIME is actually moving
-//      int i,j,x,y,z;
-//      for (i=0; i!=1000; i++) {
-//        for (j=0; j!=1000; j++) {
-//          x = i * j;
-//          y = i * x;
-//          z = x / 1241;
-//       }
-//      }
-
-      sys_sleep (5000);
-
-      kprintf ("\n\n");
-      kprintf ("PID  PPID TASK                 STAT  PRIO  KTIME     UTIME\n", _current_task->pid);
-      CYBOS_TASK *t;
-      for (t=_task_list; t!=NULL; t=t->next) {
-        kprintf (" %04d %04d %-17s     %c   %4d  %08X  %08X\n", t->pid, t->ppid, t->name, t->state, t->priority, t->ringticks[0], t->ringticks[3]);
-      }
-      kprintf ("\n");
-
-    }
-  }
-
-
-  pid = sys_fork ();
-  if (pid == 0) {
-    kprintf ("PID[%05d] After second fork() : Child says %d\n", _current_task->pid, pid);
-
-    strncpy (_current_task->name, "Test process 2\0", 15);
-
-    while (1) {
-      kprintf ("Y");
-      sys_sleep (300);
-      kprintf ("y");
-      sys_sleep (300);
-    }
-  }
-
-
-  // This is the idle-process from now on.
-  kprintf ("user_idle() on main pid (%d)\n", _current_task->pid);
-  user_idle ();
-}
-*/
 
 /************************************
  * Switch to construct and deadlock the system
@@ -179,8 +136,9 @@ void kdeadlock (void) {
   hlt ();
 
   // We should not be here. But in case we do, just "hang"
-  while (1) ;
+  for (;;) ;
 }
+
 
 /************************************
  * Only print when we can print
@@ -262,7 +220,7 @@ void construct (void) {
   kprintf ("Welcome to the construct. deadlocking\n");
 
   // Remove me...
-  while (1) ;
+  for (;;) ;
 
 
   // Repeat until heel lang
@@ -306,29 +264,6 @@ void construct (void) {
     } else {
       con_printf (_kconsole, "Command not found. Type 'help' for commands.\n");
     }
-  }
-}
-
-/*******************************************************
- * Prints a numeric counter in an endless loop
- */
-void task_2 (void) {
-  int t2c = 0;
-
-  while (1) {
-    tprintf ("I: %d\n", t2c++);
-  }
-}
-
-/*******************************************************
- * Prints 'A-Z' in an endless loop
- */
-void task_1 (void) {
-  char t1c = 'A';
-
-  while (1) {
-    if (++t1c >= 'Z') t1c = 'A';
-    tprintf ("%c", t1c);
   }
 }
 
