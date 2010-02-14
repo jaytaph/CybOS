@@ -22,19 +22,19 @@
         BOOT_OFF        equ        0x0000
         BOOT_ABS        equ        (BOOT_SEG*16)+BOOT_OFF
 
-        ; Kernel loader (prob 1024 bytes)
-        KRNL_LDR_SEG    equ        0x0800
+        ; Kernel loader (max 4KB)
+        KRNL_LDR_SEG    equ        0x0500
         KRNL_LDR_OFF    equ        0x0000
         KRNL_LDR_ABS    equ        (KRNL_LDR_SEG*16)+KRNL_LDR_OFF
 
-        ; Stack in realmode (very small, from 0x8FFF down to 0x8000)
-        STACK_RM_SEG    equ        0x0800
-        STACK_RM_OFF    equ        0x0FFF
+        ; Stack in realmode (only 4KB, from 0x9FFF down to 0x9000)
+        STACK_RM_SEG    equ        0x0900
+        STACK_RM_OFF    equ        0x0000
         STACK_RM_ABS    equ        (STACK_RM_SEG*16)+STACK_RM_OFF
         STACK_RM_SIZE   equ        0x0FFF
 
         ; Stack in pmode
-        STACK_PM_ABS    equ        0x7FFFF
+        STACK_PM_ABS    equ        0xC007FFFF     ; This is the VIRTUAL memory stack
 
         ; Kernel Starts at 1MB
         KERNEL_SEG      equ        0x1000

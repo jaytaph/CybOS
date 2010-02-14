@@ -71,7 +71,7 @@ void kernel_entry (int stack_start, int total_sys_memory) {
 
   // Create interrupt and exception handlers
   kprintf ("IDT ");
-//  idt_init();
+  idt_init();
 
   // Setup paging
   kprintf ("PAG ");
@@ -94,32 +94,44 @@ void kernel_entry (int stack_start, int total_sys_memory) {
   kprintf ("]\n");
   kprintf ("Kernel initialization done. Unable to free %d bytes.\nTransfering control to user mode.\n", _unfreeable_kmem);
 
-  // Switch to ring3 and continue as being the idle-task
+  // Switch to ring3
   switch_to_usermode ();
-  for (;;) ;
 
-  // Set the current_task. This will tell the scheduler to start task-switching
-  _current_task = _task_list;
+  // Hello world.. we are in usermode!
 
+  int pid = fork ();
+  if (pid == 0) {
+      while (1) {
+        tprintf ("z");
+        sleep (300);
+        tprintf ("Z");
+        sleep (300);
+      }
+  }
+  // From here, we should become the inittask..
+  user_idle ();
+}
 
-  int pid = sys_fork ();
+/*
+ *   int pid = sys_fork ();
+
   if (pid == 0) {
     kprintf ("PID[%05d] After first fork() : Child says %d\n", _current_task->pid, pid);
 
     strncpy (_current_task->name, "Test process 1\0", 15);
 
     while (1) {
-/*
-      // Just something that takes a long time so we can see if UTIME is actually moving
-      int i,j,x,y,z;
-      for (i=0; i!=1000; i++) {
-        for (j=0; j!=1000; j++) {
-          x = i * j;
-          y = i * x;
-          z = x / 1241;
-        }
-      }
-*/
+
+//      // Just something that takes a long time so we can see if UTIME is actually moving
+//      int i,j,x,y,z;
+//      for (i=0; i!=1000; i++) {
+//        for (j=0; j!=1000; j++) {
+//          x = i * j;
+//          y = i * x;
+//          z = x / 1241;
+//       }
+//      }
+
       sys_sleep (5000);
 
       kprintf ("\n\n");
@@ -153,7 +165,7 @@ void kernel_entry (int stack_start, int total_sys_memory) {
   kprintf ("user_idle() on main pid (%d)\n", _current_task->pid);
   user_idle ();
 }
-
+*/
 
 /************************************
  * Switch to construct and deadlock the system
@@ -174,7 +186,6 @@ void kdeadlock (void) {
  * Only print when we can print
  */
 int kprintf_help (char c, void **ptr) {
-
 #ifdef __DEBUG__
   // Bochs debug output
   outb (0xE9, c);

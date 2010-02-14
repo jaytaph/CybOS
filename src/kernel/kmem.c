@@ -55,8 +55,10 @@ int kmem_init (int total_sys_memory) {
   // memory cannot be freed at this moment so use wisely!
   _unfreeable_kmem = 0;
 
-  // This will setup the heap. We grow upwards.
-  k_heap_start = (unsigned int)&end;
+  // This will setup the heap.
+  k_heap_start = (unsigned int)&end;    // k_heap_start will start immediatly after the end of the code. No need to align (actually, we should maybe?)
+
+  // Top of the heap is the start of the heap.. nothing used..
   k_heap_top = k_heap_start;
 
   // Heap is not yet initialized

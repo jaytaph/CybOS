@@ -95,7 +95,9 @@
   int sched_create_user_task (CYBOS_TASK *task, Uint32 eip, char *taskname, int console);
 
   int sys_fork (void);
-  void sys_sleep (int ms);
+  int sys_sleep (int ms);
+
+  int sleep (int ms);
 
 
 #endif    // __SCHEDULE_H__

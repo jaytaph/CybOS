@@ -57,7 +57,7 @@ int sched_init () {
 
   // Note that the idle-task has a EIP of 0. On the first taskswitch, the data in this idle-task
   // tss will be overwritten by the current CPU info.
-  sched_create_kernel_task (&idle_task, 0x12345678, "Kernel idle task", NO_CREATE_CONSOLE);
+  sched_create_kernel_task (&idle_task, 0x12345678, "Idle task", NO_CREATE_CONSOLE);
   idle_task.priority = PRIO_LOWEST;         // It has the lowest priority
   idle_task.console_ptr = _kconsole;
 
@@ -71,7 +71,6 @@ int sched_init () {
   // Manually load the TSS and LDT. On next taskswitch, this is done by the scheduler.
   tss_set (TSS_TASK_DESCR, idle_task.tss_entry);
   ldt_set (LDT_TASK_DESCR, idle_task.ldt_entry);
-
 
   // Load task and ldt registers
   __asm__ __volatile__ ( "ltrw %%ax\n\t" : : "a" (TSS_TASK_SEL));
@@ -225,7 +224,7 @@ int _create_task (CYBOS_TASK *task, int kernel_or_usertask,
     task->ldt[USER_DATA_DESCR] = 0x00cf82000000ffffULL;  // Full 4GW data segment (ring0)
   }
 
-  // No permission to use IO on ring 1 or above
+  // @TODO: No permission to use IO on ring 1 or above
 //  for (i=0; i!=8192; i++) task->iomap[i]=0;
 
   // Default priority
@@ -311,11 +310,6 @@ void kernel_idle (void) {
   kprintf ("kernel_idle()\n");
   __asm__ __volatile__ ("1: \n\t" \
                         "   jmp 1b");
-/*
-  __asm__ __volatile__ ("1: \n\t" \
-                        "   hlt\n\t" \
-                        "   jmp 1b");
-*/
 }
 
 
@@ -379,6 +373,7 @@ void sys_signal (CYBOS_TASK *task, int signal) {
 // Checks for signals in the current task, and act accordingly
 void handle_pending_signals (void) {
 //  kprintf ("sign handling (%d)\n", _current_task->pid);
+  if (_current_task == NULL) return;
 
   // No pending signals for this task. Do nothing
   if (_current_task->signal == 0) return;
@@ -461,6 +456,8 @@ void switch_task (void) {
   CYBOS_TASK *previous_task;
   CYBOS_TASK *next_task;
   Uint32 esp, ebp, eip, cr3;
+
+  if (_current_task == NULL) return;
 
 //  kprintf ("sched swith (%d)\n", _current_task->pid);
 
@@ -581,7 +578,6 @@ void switch_to_usermode (void) {
   // way of reaching usermode, we have to 'jumpstart' to it by creating a stackframe which
   // we return from. When the IRET we return to the same spot, but in a different ring.
 
-
   // @TODO Set up a stack structure for switching to user mode.
 
   asm volatile("  mov %%cx, %%ds; \n\t" \
@@ -594,12 +590,14 @@ void switch_to_usermode (void) {
                "  pushl %%esp; \n\t" \
                "  pushf; \n\t" \
                "  pushl %%ebx; \n\t" \
-               "  push $1f; \n\t" \
+               "  pushl $1f; \n\t" \
                "  iret; \n\t" \
                "1: \n\t" \
+               "  popl %%ebx \n\t" \
                "  nop; \n\t" \
   			       ::"b"(SEL(KUSER_CODE_DESCR,TI_GDT+RPL_RING3)),
 			           "c"(SEL(KUSER_DATA_DESCR,TI_GDT+RPL_RING3)));
+  // @TODO: I have no idea why the extra popl %%ebx is needed. probably iret or __cdecl?
 
   // @TODO need to OR 0x200 to set STI during IRE
   // Note that STI() is done during the IRET
@@ -630,8 +628,9 @@ int allocate_new_pid (void) {
 
 
 // ========================================================================================
-void sys_sleep (int ms) {
+int sys_sleep (int ms) {
 //  kprintf ("sys_sleep (PID: %d,  MS: %d)\n", _current_task->pid, ms);
+BOCHS_BREAKPOINT
 
   if (_current_task == &idle_task) kpanic ("Cannot sleep idle task!");
 
@@ -640,6 +639,8 @@ void sys_sleep (int ms) {
 
   // We're sleeping. So go to a next task.
   scheduler ();
+
+  return 0;
 }
 
 
@@ -647,6 +648,14 @@ void sys_sleep (int ms) {
 int fork (void) {
   int ret;
   __asm__ __volatile__ ("int	$" SYSCALL_INT_STR " \n\t" : "=a" (ret) : "a" (SYS_FORK) );
+  return ret;
+}
+
+// ========================================================================================
+int sleep (int ms) {
+  int ret;
+  BOCHS_BREAKPOINT
+  __asm__ __volatile__ ("int	$" SYSCALL_INT_STR " \n\t" : "=a" (ret) : "a" (SYS_SLEEP) );
   return ret;
 }
 
@@ -658,8 +667,20 @@ int sys_fork (void) {
   // The current task will be the parent task
   parent_task = _current_task;
 
+kprintf ("sysFork()");
+
   // Create a child task, and copy all data from the parent into the child
   child_task = (CYBOS_TASK *)kmalloc (sizeof (CYBOS_TASK));
+
+kprintf ("S: %08x\n", sizeof (CYBOS_TASK));
+kprintf ("C: %08x\n", child_task);
+kprintf ("P: %08x\n", parent_task);
+
+if (parent_task == NULL) parent_task = &idle_task;
+
+  kprintf ("P: %08x\n", parent_task);
+
+BOCHS_BREAKPOINT
   memcpy (child_task, parent_task, sizeof (CYBOS_TASK));
 
   // Available for scheduling

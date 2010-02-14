@@ -19,20 +19,6 @@
   #include "tss.h"
   #include "signal.h"
 
-
-  // NOTE THAT THESE VALUES SHOULD BE THE SAME VALES AS USED IN THE BOOTSECTOR.
-  // THIS IS BECAUSE THE BOOTSECTOR INITIALIZES THE DATA AND THE C-KERNEL USES
-  // THIS DATA. IT WOULD BE NICER IF WE COULD REINITIALIZE THE WHOLE THING FROM
-  // SCRATCH AS SOON AS WE ENTER THE C-KERNEL, BUT FOR NOW WE DO NOT DO THAT.
-
-
-  // IDT and GDT places (the GDT starts right after the IDT)
-//  #define _KERNEL_IDT_ADDR    0x9C000
-//  #define _KERNEL_IDT_SIZE    (256*8)
-
-//  #define _KERNEL_GDT_ADDR    (_KERNEL_IDT_ADDR+_KERNEL_IDT_SIZE)
-//  #define _KERNEL_GDT_SIZE    (5*8)
-
   // GDT Descriptors (fixed)
   #define NULL_DESCR              0x0     // Cannot use
   #define KERNEL_CODE_DESCR       0x1     // Global kernel code descriptor (whole memory range)
@@ -53,7 +39,7 @@
 
   // This instruction does nothing, however, it triggers a breakpoint in the bochs debugger.
   // Very handy for testing purposes. You must have "magic_break: enabled=1" in your bochsrc
-  #define BOCHS_MAGIC_SWITCH      __asm__ __volatile__ ( "xchg %bx,%bx\n\t");
+  #define BOCHS_BREAKPOINT      __asm__ __volatile__ ( "xchg %bx,%bx\n\t");
 
   extern char end;             // Defined by the linker. This is the end of the code cq start of the heap (sbrk)
 

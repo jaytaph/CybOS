@@ -24,14 +24,10 @@ void timer_interrupt (int rpl) {
   // Nothing left to do when we do not have tasks initialized yet
   if (! _current_task) return;
 
-
-  if (_kernel_ticks & 1) {
-//    kprintf ("TI: PID %d\n", _current_task->pid);
-  }
-
   // Increase the time spend on this ring for this process
   _current_task->ringticks[rpl]++;
 
-   if (_kernel_ticks & 1) scheduler ();
+  // TODO: Why not schedule() on every tick?
+  if (_kernel_ticks & 1) scheduler ();
 }
 

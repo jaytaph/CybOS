@@ -120,7 +120,7 @@ void gdt_init (void) {
 
    // Set the correct base and load this GDT
    gdtr.base = phys_gdt_addr;
+   gdtr.base += 0xC0000000;     // Need to adjust. The GDT must be available from virtual memory, not physical memory
    __asm__ __volatile__ ("lgdt %0" : "=m" (gdtr) : );
-
 }
 

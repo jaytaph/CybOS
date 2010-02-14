@@ -162,9 +162,6 @@ void obsolete_free_frame (TPAGE *page) {
       stack on 0xE00000
       heap on 0xD00000
       kernel prints on 0xF00B8000
-
-
-
 */
 
 
@@ -459,21 +456,18 @@ int paging_init () {
   // 1:1 to the lowest 16MB of the physical memory (don't even care if we do not have so much). It's used for direct BIOS access
   // and DMA stuff later on.
 
-
-  // The kernel is loaded from 0x10000 (physical) to k_heap_top. So we just as well start from 0 to k_heap_top.
   _kernel_pagedirectory = create_pagedirectory ();
 
   // Actually, we should start at the beginning of the kernel (.text), not start of memory, but alas
-  i = (unsigned int)0x10000 + 0xC0000000;
-  while (i < 0xFFFFF + 0xC0000000) {    // k_heap_top will change during this run. No for() loops or constants!
-  // while (i < k_heap_top) {    // k_heap_top will change during this run. No for() loops or constants!
+  i = (unsigned int)0xC0000000;
+  while (i < 0xC00FFFFF ) {    // k_heap_top will change during this run. No for() loops or constants!
 
     // map_virtual_memory (_kernel_pagedirectory, (i - 0xC0000000), i, PAGEFLAG_SUPERVISOR | PAGEFLAG_PRESENT | PAGEFLAG_READWRITE, SET_BITMAP);
     map_virtual_memory (_kernel_pagedirectory, (i - 0xC0000000), i, PAGEFLAG_USER | PAGEFLAG_PRESENT | PAGEFLAG_READWRITE, SET_BITMAP);
 
-    // Linear mapping as well (TODO: remove this one later?)
-    // map_virtual_memory (_kernel_pagedirectory, (i - 0xC0000000), (i - 0xC0000000), PAGEFLAG_SUPERVISOR | PAGEFLAG_PRESENT | PAGEFLAG_READWRITE, SET_BITMAP);
-    map_virtual_memory (_kernel_pagedirectory, (i - 0xC0000000), (i - 0xC0000000), PAGEFLAG_USER | PAGEFLAG_PRESENT | PAGEFLAG_READWRITE, SET_BITMAP);
+//    // Linear mapping. Not used anymore.
+//    map_virtual_memory (_kernel_pagedirectory, (i - 0xC0000000), (i - 0xC0000000), PAGEFLAG_USER | PAGEFLAG_PRESENT | PAGEFLAG_READWRITE, SET_BITMAP);
+
     i += 0x1000;
   }
 
@@ -488,9 +482,9 @@ int paging_init () {
     map_virtual_memory (_kernel_pagedirectory, i, (i + 0xF0000000), PAGEFLAG_USER | PAGEFLAG_PRESENT | PAGEFLAG_READWRITE, DONT_SET_BITMAP);
   }
 
-
   // We mapped all important kernel area's. Later on, we add a heap, stack and more stuff.
   set_pagedirectory (_kernel_pagedirectory);
+
 
   return ERR_OK;
 }

@@ -133,7 +133,7 @@ int idt_init (void) {
   // Assign all interrupts to the default interrupt handler.
   for (i=0; i!=256; i++) {
     idt = idt_create_descriptor ((Uint32)&handle_default_int, SEL(KERNEL_CODE_DESCR, TI_GDT+RPL_RING0), IDT_PRESENT+IDT_DPL0+IDT_INTERRUPT_GATE);
-    idt_set (i, idt);
+//    idt_set (i, idt);
   }
 
   // Add standard IRQ handlers (0x50..0x5F)
@@ -145,16 +145,17 @@ int idt_init (void) {
   // Add exception handlers (0..31)
   for (i=0; i!=32; i++) {
     idt = idt_create_descriptor (exception_handlers[i], SEL(KERNEL_CODE_DESCR, TI_GDT+RPL_RING0), IDT_PRESENT+IDT_DPL0+IDT_INTERRUPT_GATE);
-    idt_set (i, idt);
+//    idt_set (i, idt);
   }
 
   // Add syscall interrupt
-  idt = idt_create_descriptor ((Uint32)&handle_syscall_int, SEL(KERNEL_CODE_DESCR, TI_GDT+RPL_RING0), IDT_PRESENT + IDT_DPL3 + IDT_INTERRUPT_GATE);
+  idt = idt_create_descriptor ((Uint32)&handle_syscall_int, SEL(KERNEL_CODE_DESCR, TI_GDT+RPL_RING0), IDT_PRESENT + IDT_DPL3 + IDT_TRAP_GATE);
   idt_set (SYSCALL_INT, idt);
 
   // Setup idtr structure
   idtr.limit = (256*8)-1;
   idtr.base  = phys_idt_addr;  // IDT has to be loaded through the physical address
+  idtr.base += 0xC0000000;
 
   // Disable all IRQ's
   pic_mask_irq (0x1111);

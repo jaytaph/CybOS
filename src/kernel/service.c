@@ -33,6 +33,9 @@
       case  SYS_FORK :
                       retval = sys_fork ();
                       break;
+      case  SYS_SLEEP :
+                      retval = sys_sleep (p1);
+                      break;
     }
     return retval;
   }

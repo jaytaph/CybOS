@@ -8,11 +8,11 @@
 
 
 [bits 16]
-[org 0x8000]
+[org 0x5000]
 
 ; Do not add code before this label
 KRNL_LDR_START:
-        ; We are loaded on 0800:0000
+        ; We are loaded on 0500:0000
         jmp Start                ; Jump over the data
 
 ; --------------------------------
@@ -28,6 +28,7 @@ KRNL_LDR_START:
 
         PAGEDIR           equ 0x9F000    ; Pointer to page directory
         PAGETABLE_1MB     equ 0x9E000    ; Pointer to pagetable of 1:1 mapping of 1st MB
+                                         ; missing 0x9D0000 ?
         KERNEL_IDT_ADDR   equ 0x9C000    ; Pointer to idt addr (this should be enough room for IDT and GDT)
 
         NULL_SELECTOR            equ 0x0
@@ -40,6 +41,8 @@ KRNL_LDR_START:
           dq 0x00cf92000000ffff    ; kernel data (complete memory)
           dq 0x0000000000000000    ; TSS selector (filled later on)
           dq 0x0000000000000000    ; LDT selector (filled later on)
+          dq 0x00cffa000000ffff    ; user code (ring 3)
+          dq 0x00cff2000000ffff    ; user data (ring 3)
 
         gdt_size EQU $-GDT_TABLE    ; Size of the GDT table
 
