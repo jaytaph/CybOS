@@ -24,8 +24,9 @@
 #include "pic.h"
 #include "io.h"
 
+
   // 64bit tick counter (we assume this OS will have decent uptimes :) )
-  unsigned long long _kernel_ticks;
+  Uint64 _kernel_ticks;
 
   CYBOS_TASK construct_task;           // Construct() task
 
@@ -91,36 +92,58 @@ void kernel_entry (int stack_start, int total_sys_memory) {
   kprintf ("]\n");
   kprintf ("Kernel initialization done. Unable to free %d bytes.\nTransfering control to user mode.\n\n\n", _unfreeable_kmem);
 
-  // Switch to ring3 and start interrupts at the same time
+  // Switch to ring3
   switch_to_usermode ();
 
-  tprintf ("Hello userworld!");
+  tprintf ("Hello userworld!\n");
 
+BOCHS_BREAKPOINT;
 
   // Hello world.. we are in usermode!
-  int pid = sys_fork ();
+  int pid = fork ();
   tprintf ("\nPID: %d\n", pid);
 
-//  tprintf ("It looks like this site is working correctly. This means it's not really this code, but the interrupt handler that gets screwed up. That's possible since from this point on the IRQ0 timer has to switch to ring3. I don't know if that makes a difference.. probably it will");
+  for (;;) ;
 
   if (pid == 0) {
-    tprintf ("We are stil l kernel???\n");
-    sys_sleep (2500);
-    BOCHS_BREAKPOINT
-    tprintf ("Yes,, this worked...\n");
+    strncpy (_current_task->name, "Init", 4);
+
     while (1) {
-      tprintf ("z");
-      sys_sleep (300);
-      tprintf ("Z");
-      sys_sleep (300);
+      sys_sleep (2500);
+
+      // This is not allowed... we are still in ring0!
+      cli ();
+      sti ();
+
+      tprintf ("\n\n");
+      tprintf ("PID  PPID TASK                STAT  PRIO  KTIME             UTIME\n", _current_task->pid);
+      CYBOS_TASK *t;
+      for (t=_task_list; t!=NULL; t=t->next) {
+        tprintf ("%04d %04d %-17s      %c  %4d  %08X  %08X\n", t->pid, t->ppid, t->name, t->state, t->priority, t->ringticksLo[0], t->ringticksLo[3]);
+      }
+      tprintf ("\n");
     }
   }
 
-    cli();
+/*
+    pid = sys_fork ();
+    if (pid == 0) {
+      strncpy (_current_task->name, "Application 1", 4);
+      while (1) {
+        sys_sleep (1500);
+        tprintf ("XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX\n");
+        tprintf ("XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX\n");
+        tprintf ("XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX\n");
+        tprintf ("XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX\n");
+        tprintf ("XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX\n");
+      }
+    }
+*/
 
-  tprintf ("goint to idle()\n");
   // From here, we should become the inittask..
-  user_idle ();
+  tprintf ("going to idle()\n");
+  for (;;) {
+  }
 }
 
 
@@ -144,8 +167,8 @@ void kdeadlock (void) {
  * Only print when we can print
  */
 int kprintf_help (char c, void **ptr) {
-#ifdef __DEBUG__
   // Bochs debug output
+#ifdef __DEBUG__
   outb (0xE9, c);
 #endif
 
@@ -153,7 +176,7 @@ int kprintf_help (char c, void **ptr) {
   con_putch (_kconsole, c); // Write to the construct
 
   // Also write to the current screen if it's not already on the main screen
-  if (_current_task && _current_task->console_ptr->index != CON_KERNEL_IDX) con_putch (_current_task->console_ptr, c);
+  if (_current_task && _current_task->console->index != CON_KERNEL_IDX) con_putch (_current_task->console, c);
   return 0;
 }
 
@@ -195,7 +218,11 @@ void kpanic (const char *fmt, ...) {
  * Prints on the construct console (but we don't switch to it)
  */
 int tprintf_help (char c, void **ptr) {
-  // Kernel messages go direct the construct
+    // Bochs debug output
+#ifdef __DEBUG__
+  outb (0xE9, c);
+#endif
+
   __asm__ __volatile__ ("int	$" SYSCALL_INT_STR " \n\t" : : "a" (SYS_CONWRITE), "b" (c), "c" (0) );
   return 0;
 }
@@ -250,7 +277,7 @@ void construct (void) {
       con_printf (_kconsole, "-----------------------------------------------------------------\n");
       CYBOS_TASK *t;
       for (t=_task_list; t!=NULL; t=t->next) {
-        con_printf (_kconsole, "%5d   %-17s    %1d  %4d   %4d   %04X %04X %04X %04X\n", t->pid, t->name, t->state, t->priority, t->console_ptr->index, t->ringticks[0],t->ringticks[1],t->ringticks[2],t->ringticks[3]);
+        con_printf (_kconsole, "%5d   %-17s    %1d  %4d   %4d   %04X %04X %04X %04X\n", t->pid, t->name, t->state, t->priority, t->console->index, t->ringticksLo[0],t->ringticksLo[1],t->ringticksLo[2],t->ringticksLo[3]);
       }
 
     } else if (strcmp (s, "echo")==0) {

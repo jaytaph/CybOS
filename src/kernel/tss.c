@@ -7,13 +7,11 @@
 
 #include "kernel.h"
 
-/*******************************************************
- * Marks or unmarks the TSS-descriptor BUSY flag.
- */
-void tss_mark_busy (int descriptor, int busy) {
-  unsigned char *b;
 
-  b = (unsigned char *)_kernel_gdt + (descriptor*sizeof (unsigned long long)) + 5;
-  if (busy) *b |= 0x02; else *b &= 0xFD;
+void tss_set_kernel_stack (Uint32 stack_address) {
+  Uint64 tss_descriptor = gdt_get_descriptor (TSS_TASK_DESCR);
+
+  TSS *tss_base = (TSS *)gdt_get_base (tss_descriptor);
+  tss_base->ss0 = SEL(KERNEL_DATA_DESCR, TI_GDT+RPL_RING0);
+  tss_base->esp0 = stack_address;
 }
-

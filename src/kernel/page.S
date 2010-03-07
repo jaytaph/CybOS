@@ -4,8 +4,9 @@ section .text
 
 [GLOBAL read_eip]
 read_eip:
-  pop eax
-  jmp eax
+  pop eax   ; Fetch and remove the return address from the stack
+  jmp eax   ; Jump back to the return address. Since it's in eax,
+            ; it automatically is seen as the return value.
 
 
 [GLOBAL copy_physical_pageframe_data]

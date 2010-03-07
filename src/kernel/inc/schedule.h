@@ -14,34 +14,32 @@
   #define CREATE_CONSOLE                 1
 
 
-  // Standard cybos task. This is basically a raw "process"
+  // Standard cybos task. This is basically a raw process structure
 
   #pragma pack (1)
   typedef struct {
-      void *next;                                     // Pointer to the next CYBOS_TASK task in the linked list.
-      void *prev;                                     // Pointer to the previous CYBOS_TASK task in the LL.
-
-      unsigned long long tss_entry;                   // 64bits descriptor that points to the TSS of the process
-      unsigned long long ldt_entry;                   // 64bits descriptor that points to the LDT of the process
-      TSS tss;                                        // Saved TSS
-      unsigned long long ldt[USERTASK_LDT_SIZE];      // Saved LDT
-      //char   iomap[8192];                           // IO map
+      void *next;                                     // Pointer to the next CYBOS_TASK task in the DLL.
+      void *prev;                                     // Pointer to the previous CYBOS_TASK task in the DLL.
 
       char name[50];                                  // Name of the current task so it shows up inside the task listing
-      TCONSOLE *console_ptr;                          // Pointer to the TCONSOLE were this task is outputted to
+      TCONSOLE *console;                              // Pointer to the TCONSOLE were this task is outputted to
 
       char state;                                     // Status of the current task.
       int  priority;                                  // Priority of the process
-      int  ringticks[4];                              // Time spent in ring 0 to 3 (normally, only ring 0 and 3 are used)
+      int  ringticksHi[4];                            // Time spent in ring 0 to 3 (normally, only ring 0 and 3 are used, lower 32bits)
+      int  ringticksLo[4];                            // Time spent in ring 0 to 3 (normally, only ring 0 and 3 are used, upper 32bits)
 
       int  kstack;                                    // Points to kernel stack
       int  ustack;                                    // Points to user stack
 
-      int  eip, ebp, esp;
+      Uint32 eip;
+      Uint32 ebp;
+      Uint32 esp;                                     // Current kernel stack ESP
+      Uint32 ss;                                      // Current kernel stack SS (needed?)
       TPAGEDIRECTORY *page_directory;                 // Points to the page directory of this task
 
-      int  alarm;     // Remaining alarm ticks
-      int  signal;    // Current raised signals (bitfields)
+      int  alarm;                                     // Remaining alarm ticks
+      int  signal;                                    // Current raised signals (bitfields)
 
       int  pid;                                       // PID of the task
       int  ppid;                                      // PID of the parent task
@@ -75,7 +73,7 @@
   extern CYBOS_TASK *_task_list;               // Points to the first task in the tasklist (idle_task)
   extern int current_pid;                      // Last PID returned by allocate_pid()
 
-  extern unsigned int *_kernel_stack;          // Pointer to the kernel stack
+//  extern unsigned int *_kernel_stack;          // Pointer to the kernel stack
 
 
   int read_eip (void);

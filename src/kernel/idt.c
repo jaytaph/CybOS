@@ -22,7 +22,7 @@
 
 
 // Pointer to the kernel IDT
-unsigned long long *_kernel_idt;
+Uint64 *_kernel_idt;
 
 // Default int handler
 extern void handle_default_int (void);
@@ -117,11 +117,22 @@ Uint32 exception_handlers[32] = { (Uint32)&handle_exception0,  (Uint32)&handle_e
   typedef struct { Uint16 limit; Uint32 base; } TIDTR;
 
 
+// =================================================================================
+void idt_set_descriptor (int index, Uint64 descriptor) {
+  _kernel_idt[index] = descriptor;
+}
+
+// =================================================================================
+Uint64 idt_get_descriptor (int index) {
+	return _kernel_idt[index];
+}
+
+
 /********************************************************
  * Sets up the Interrupt Descriptor Table.
  */
 int idt_init (void) {
-  unsigned long long idt;
+  Uint64 idt;
   TIDTR idtr;
   int i;
   Uint32 phys_idt_addr;
@@ -133,28 +144,28 @@ int idt_init (void) {
   // Assign all interrupts to the default interrupt handler.
   for (i=0; i!=256; i++) {
     idt = idt_create_descriptor ((Uint32)&handle_default_int, SEL(KERNEL_CODE_DESCR, TI_GDT+RPL_RING0), IDT_PRESENT+IDT_DPL0+IDT_INTERRUPT_GATE);
-// TODO: Remove me
+// TODO: Remove me. This helps us debugging when bochs handle these interrupts instead of our OS
     if (i == 8 || i == 13 || i == 14) continue;
-    idt_set (i, idt);
+    idt_set_descriptor (i, idt);
   }
 
   // Add standard IRQ handlers (0x50..0x5F)
   for (i=0; i!=16; i++)  {
     idt = idt_create_descriptor (irq_handlers[i], SEL(KERNEL_CODE_DESCR, TI_GDT+RPL_RING0), IDT_PRESENT+IDT_DPL0+IDT_INTERRUPT_GATE);
-    idt_set (IRQINT_START+i, idt);
+    idt_set_descriptor (IRQINT_START+i, idt);
   }
 
   // Add exception handlers (0..31)
   for (i=0; i!=32; i++) {
     idt = idt_create_descriptor (exception_handlers[i], SEL(KERNEL_CODE_DESCR, TI_GDT+RPL_RING0), IDT_PRESENT+IDT_DPL0+IDT_INTERRUPT_GATE);
-// TODO: Remove me
+// TODO: Remove me. This helps us debugging when bochs handle these interrupts instead of our OS
     if (i == 8 || i == 13 || i == 14) continue;
-    idt_set (i, idt);
+    idt_set_descriptor (i, idt);
   }
 
   // Add syscall interrupt
   idt = idt_create_descriptor ((Uint32)&handle_syscall_int, SEL(KERNEL_CODE_DESCR, TI_GDT+RPL_RING0), IDT_PRESENT+IDT_DPL3+IDT_TRAP_GATE);
-  idt_set (SYSCALL_INT, idt);
+  idt_set_descriptor (SYSCALL_INT, idt);
 
   // Setup idtr structure
   idtr.limit = (256*8)-1;

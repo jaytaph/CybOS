@@ -388,9 +388,11 @@ int stack_init (Uint32 src_stack_top) {
 
   // Allocate room for a new stack
   // @TODO: THIS ALREADY WORKS, BUT WE USE 0xCF000000 for easy debugging!
-//  _kernel_stack = (unsigned int *)kmalloc (KERNEL_STACK_SIZE);
+  _kernel_stack = (unsigned int *)kmalloc (KERNEL_STACK_SIZE);
+  kprintf ("\nKernel stack based on %08X\n", _kernel_stack);
 
-  _kernel_stack = (unsigned int *)0xCF000000;
+//  // TODO: IS IT REALLY A KERNEL-STACK??? IS IT!???? YOU SURE!???
+//  _kernel_stack = (unsigned int *)0xCF000000;
 
   // Allocate some space for the new stack.
   for(i=0; i< KERNEL_STACK_SIZE; i += 0x1000) {
@@ -452,7 +454,7 @@ int paging_init () {
   // Actually, we should start at the beginning of the kernel (.text), not start of memory, but alas
   i = (unsigned int)0xC0000000;
   while (i < 0xC00FFFFF ) {    // k_heap_top will change during this run. No for() loops or constants!
-    // @TODO: Change this to PAGEFLAG_KERNEL WHEN READY!
+    // @TODO: Change this to PAGEFLAG_KERNEL WHEN READY (!?)
     map_virtual_memory (_kernel_pagedirectory, (i - 0xC0000000), i, PAGEFLAG_USER | PAGEFLAG_PRESENT | PAGEFLAG_READWRITE, SET_BITMAP);
     i += 0x1000;
   }

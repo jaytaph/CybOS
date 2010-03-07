@@ -40,7 +40,6 @@
     Uint16 T;             // Only the first bit!
   } TSS;
 
-
-  void tss_mark_busy (int selector, int busy);
+  void tss_set_kernel_stack (Uint32 stack_address);
 
 #endif // __TSS_H__

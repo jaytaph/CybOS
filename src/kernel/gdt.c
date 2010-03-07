@@ -13,87 +13,73 @@
 typedef struct { Uint16 limit; Uint32 base; } TGDTR;
 
 // Pointer to the kernel GDT
-unsigned long long *_kernel_gdt;
+Uint64 *_kernel_gdt;
 
 
 
 // =================================================================================
-unsigned long long tss_set (int index, unsigned long long tss) {
-  return _kernel_gdt[index] = tss;
+void gdt_set_descriptor (int index, Uint64 descriptor) {
+  _kernel_gdt[index] = descriptor;
 }
 
-
 // =================================================================================
-unsigned long long ldt_set (int index, unsigned long long ldt) {
-	return _kernel_gdt[index] = ldt;
-}
-
-
-// =================================================================================
-unsigned long long gdt_set (int index, unsigned long long gdt) {
-	return _kernel_gdt[index] = gdt;
-}
-
-
-// =================================================================================
-unsigned long long idt_set (int index, unsigned long long idt) {
-	return _kernel_idt[index] = idt;
-}
-
-
-// =================================================================================
-unsigned long long tss_get (int index) {
+Uint64 gdt_get_descriptor (int index) {
 	return _kernel_gdt[index];
 }
 
-
 // =================================================================================
-unsigned long long ldt_get (int index) {
-	return _kernel_gdt[index];
+Uint32 gdt_get_base (Uint64 descriptor) {
+  Uint64 tmp = descriptor;
+  Uint32 base = ((tmp>>48) & 0x0000FFFF) << 16;
+  tmp = descriptor;
+  base |= (tmp>>16) & 0x0000FFFFFF;
+  return base;
 }
 
-
 // =================================================================================
-unsigned long long gdt_get (int index) {
-	return _kernel_gdt[index];
+Uint32 gdt_get_limit (Uint64 descriptor) {
+  Uint64 tmp = descriptor;
+  Uint32 limit = ((tmp >> 48) & 0x000000FF) << 16;
+  tmp = descriptor;
+  limit |= (tmp & 0x0000FFFF);
+  return limit;
 }
 
-
 // =================================================================================
-unsigned long long idt_get (int index) {
-	return _kernel_idt[index];
+Uint16 gdt_get_flags (Uint64 descriptor) {
+  return (Uint16)(descriptor >> 40);
 }
 
 
 // =================================================================================
 // Creates a GDT descriptor (either a normal gdt code/data, a TSS or a LDT descriptor)
-unsigned long long gdt_create_descriptor (Uint32 base, Uint32 limit, Uint8 flags1, Uint8 flags2) {
-  unsigned long long descriptor = 0;
+Uint64 gdt_create_descriptor (Uint32 base, Uint32 limit, Uint8 flags1, Uint8 flags2) {
+  Uint64 descriptor = 0;
 
-  descriptor |= (unsigned long long)limit;
-  descriptor |= (unsigned long long)LO16(base)<<16;
-  descriptor |= (unsigned long long)LO8(HI16(base))<<32;
-  descriptor |= (unsigned long long)flags1<<40;
+  descriptor |= (Uint64)limit;
+  descriptor |= (Uint64)LO16(base)<<16;
+  descriptor |= (Uint64)LO8(HI16(base))<<32;
+  descriptor |= (Uint64)flags1<<40;
 
   // The bits in Flags2 are already shifted (granularity = 0x80 instead of 0x8)
   // We mask both sides of the byte off since these 2 items share the same byte
-  descriptor |= (unsigned long long)(LO8(HI16(limit))&0x0F)<<48;
-  descriptor |= (unsigned long long)((flags2)&0x0F)<<48;
+  descriptor |= (Uint64)(LO8(HI16(limit))&0x0F)<<48;
+  descriptor |= (Uint64)((flags2)&0x0F)<<48;
 
-  descriptor |= (unsigned long long)HI8(HI16(base))<<56;
+  descriptor |= (Uint64)HI8(HI16(base))<<56;
   return descriptor;
 }
 
 
 // =================================================================================
 // Creates a IDT descriptor.
-unsigned long long idt_create_descriptor (Uint32 offset, Uint16 selector, Uint8 flags) {
-  unsigned long long descriptor = 0;
+Uint64 idt_create_descriptor (Uint32 offset, Uint16 selector, Uint8 flags) {
+  Uint64 descriptor = 0;
 
-  descriptor |= (unsigned long long)LO16(offset);
-  descriptor |= (unsigned long long)HI16(offset) << 48;
-  descriptor |= (unsigned long long)selector << 16;
-  descriptor |= (unsigned long long)flags << 40;
+  descriptor |= (Uint64)LO16(offset);
+  descriptor |= (Uint64)HI16(offset) << 48;
+  descriptor |= (Uint64)selector << 16;
+  descriptor |= (Uint64)flags << 40;
   return descriptor;
 }
 

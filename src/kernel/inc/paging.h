@@ -64,8 +64,10 @@
   #define SET_BITMAP                 1
 
 
-#define USER_STACK_SIZE         0x8000      // Initial user stack size
-#define KERNEL_STACK_SIZE       0x1000      // Initial kernel stack size
+// #define USER_STACK_SIZE        0x8000      // Initial user stack size
+// #define KERNEL_STACK_SIZE      0x1000      // Initial kernel stack size
+#define USER_STACK_SIZE         0x0200      // Initial user stack size
+#define KERNEL_STACK_SIZE       0x0200      // Initial kernel stack size
 
 
   TBITMAP *framebitmap;       // Bitmap of physical computer memory for allocated frames

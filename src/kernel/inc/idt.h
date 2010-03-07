@@ -57,7 +57,10 @@
 
   // Functions
   int idt_init (void);
-  unsigned long long idt_create_descriptor (Uint32 offset, Uint16 selector, Uint8 flags);
+  Uint64 idt_create_descriptor (Uint32 offset, Uint16 selector, Uint8 flags);
+
+  void idt_set_descriptor (int index, Uint64 descriptor);
+  Uint64 idt_get_descriptor (int index);
 
   void print_cpu_info (TREGS *r);
 

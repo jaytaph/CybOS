@@ -9,9 +9,10 @@
 #ifndef __KTYPE_H__
 #define __KTYPE_H__
 
-  typedef unsigned char           Uint8;        // Ditto..
+  typedef unsigned char           Uint8;
   typedef unsigned short int      Uint16;
   typedef unsigned long int       Uint32;
+  typedef unsigned long long      Uint64;
 
   typedef signed char             Sint8;        // 8 bits signed
   typedef signed short int        Sint16;       // ...

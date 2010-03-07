@@ -61,23 +61,22 @@
 
   void gdt_init (void);
 
-  // Functions to set and get descriptors in the IDT/GDT
-  unsigned long long tss_set (int index, unsigned long long tss);
-  unsigned long long tss_get (int index);
+  // Functions to set and get descriptors in the IDT or GDT
+  void gdt_set_descriptor (int index, Uint64 descriptor);
+  Uint64 gdt_get_descriptor (int index);
 
-  unsigned long long ldt_set (int index, unsigned long long ldt);
-  unsigned long long ldt_get (int index);
-
-  unsigned long long gdt_set (int index, unsigned long long gdt);
-  unsigned long long gdt_get (int index);
-
-  unsigned long long idt_set (int index, unsigned long long idt);
-  unsigned long long idt_get (int index);
+  void ldt_set_descriptor (int index, Uint64 descriptor);
+  Uint64 ldt_get_descriptor (int index);
 
   // Create a descriptor in the GDT (could be a normal GDT descriptor but also a TSS or LDT descriptor!)
-  unsigned long long gdt_create_descriptor (Uint32 base, Uint32 limit, Uint8 flags1, Uint8 flags2);
+  Uint64 gdt_create_descriptor (Uint32 base, Uint32 limit, Uint8 flags1, Uint8 flags2);
 
   // Creates a IDT descriptor
-  unsigned long long idt_create_descriptor (Uint32 offset, Uint16 selector, Uint8 flags);
+  Uint64 idt_create_descriptor (Uint32 offset, Uint16 selector, Uint8 flags);
+
+  // Return base/limit from a descriptor
+  Uint32 gdt_get_base (Uint64 descriptor);
+  Uint32 gdt_get_limit (Uint64 descriptor);
+  Uint16 gdt_get_flags (Uint64 descriptor);
 
 #endif //__GDT_H__

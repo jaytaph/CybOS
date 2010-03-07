@@ -10,9 +10,9 @@
 #define __VERSION_H__
 
   #define KERNEL_VERSION_MAJOR   "0"
-  #define KERNEL_VERSION_MINOR   "02"
+  #define KERNEL_VERSION_MINOR   "01"
 
-  #define KERNEL_COMPILER       "Joshua Thijssen"
+  #define KERNEL_COMPILER       "jthijssen@noxlogic.nl"
 
   #define KERNEL_COMPILE_TIME   __TIME__
   #define KERNEL_COMPILE_DATE   __DATE__

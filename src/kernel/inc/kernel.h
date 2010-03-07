@@ -43,11 +43,11 @@
 
   extern char end;             // Defined by the linker. This is the end of the code cq start of the heap (sbrk)
 
-  extern unsigned long long *_kernel_idt;       // Pointer to the IDT of the kernel
-  extern unsigned long long *_kernel_gdt;       // Pointer to the GDT of the kernel
+  extern Uint64 *_kernel_idt;       // Pointer to the IDT of the kernel
+  extern Uint64 *_kernel_gdt;       // Pointer to the GDT of the kernel
 
-  extern unsigned long long _kernel_ticks;      // Number of ticks that the kernel is running
-  extern TCONSOLE *_kconsole;                   // TConsole for kernel info (first screen)
+  extern Uint64 _kernel_ticks;      // Number of ticks that the kernel is running
+  extern TCONSOLE *_kconsole;       // TConsole for kernel info (first screen)
 
   // Kernel Entry Point
   void kernel_entry (int stack_start, int total_sys_memory);
@@ -63,7 +63,5 @@
 
   // The Construct Console Application
   void construct (void);
-
-
 
 #endif //__KERNEL_H__

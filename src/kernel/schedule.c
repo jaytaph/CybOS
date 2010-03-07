@@ -26,6 +26,9 @@ CYBOS_TASK *_current_task = NULL;    // Current active task on the CPU.
 CYBOS_TASK *_task_list = NULL;       // Points to the first task in the tasklist (idle task)
 
 
+TSS tss_entry;
+//LDT ldt_entry;
+
 //unsigned char charstates[] = "IrRSUZ";
 
 int current_pid = PID_IDLE - 1;      // First call to allocate_pid will return PID_IDLE
@@ -43,6 +46,14 @@ void tprintf (const char *fmt, ...);
  *
  */
 int sched_init () {
+  // Set general TTS in the GDT. This is used for task switching (sort of)
+  Uint64 tss_descriptor = gdt_create_descriptor ((int)&tss_entry, (int)sizeof (TSS), GDT_PRESENT+GDT_DPL_RING0+GDT_NOT_BUSY+GDT_TYPE_TSS, GDT_NO_GRANULARITY+GDT_AVAILABLE);
+  gdt_set_descriptor (TSS_TASK_DESCR, tss_descriptor);
+
+  // Load/flush task register
+  __asm__ __volatile__ ( "ltrw %%ax\n\t" : : "a" (TSS_TASK_SEL));
+
+
   // We initialize the idle task and make it the base of our task_list.
 
   // The idle task is the first task. We need to set this because create_user_task()
@@ -55,25 +66,19 @@ int sched_init () {
   // Note that the idle-task has an illegal EIP. On the first taskswitch, the data in this
   // idle-task tss will be overwritten by the current CPU info so the eip will be correct
   // again. This is the only task that has an illegal EIP.
-  sched_create_kernel_task (&idle_task, 0x12345678, "Idle (init) task", NO_CREATE_CONSOLE);
+  sched_create_kernel_task (&idle_task, 0x0, "Idle task", NO_CREATE_CONSOLE);
   idle_task.priority = PRIO_LOWEST;         // It has the lowest priority
-  idle_task.console_ptr = _kconsole;
 
+  // The idle task gets the main console
+  idle_task.console = _kconsole;
 
   idle_task.ebp = 0;
   idle_task.esp = 0;
   idle_task.eip = 0;
   idle_task.page_directory = _current_pagedirectory;
 
-
-  // Manually load the TSS and LDT. On next taskswitch, this is done by the scheduler.
-  tss_set (TSS_TASK_DESCR, idle_task.tss_entry);
-  ldt_set (LDT_TASK_DESCR, idle_task.ldt_entry);
-
-  // Load task and ldt registers
-  __asm__ __volatile__ ( "ltrw %%ax\n\t" : : "a" (TSS_TASK_SEL));
-  __asm__ __volatile__ ( "lldt %%ax\n\t" : : "a" (LDT_TASK_SEL));
-
+  // Load task register
+  // __asm__ __volatile__ ( "lldt %%ax\n\t" : : "a" (LDT_TASK_SEL));
 
   return ERR_OK;
 }
@@ -153,58 +158,62 @@ int _create_task (CYBOS_TASK *task, int kernel_or_usertask,
   task->state = TASK_STATE_INITIALISING;
 
   // Set backlink and stack values
-  task->tss.link = 0;
+//  task->tss.link = 0;
 
 //  __asm__ __volatile__ ("mov %%esp, %0" : "=r" (esp0));
 //  __asm__ __volatile__ ("mov %%esp, %0" : "=r" (esp3));
 
-  task->tss.esp0 = esp0;      // Ring 0 stack (kernelmode)
-  task->tss.ss0  = ss0;
-  task->tss.esp1 = esp3;      // Ring 1 stack (not used)
-  task->tss.ss1  = ss3;
-  task->tss.esp2 = esp3;      // Ring 2 stack (not used)
-  task->tss.ss2  = ss3;
-  task->tss.esp  = esp3;      // Ring 3 stack (usermode)
-  task->tss.ss   = ss3;
+//  task->tss.esp0 = esp0;      // Ring 0 stack (kernelmode)
+//  task->tss.ss0  = ss0;
+//  task->tss.esp1 = esp3;      // Ring 1 stack (not used)
+//  task->tss.ss1  = ss3;
+//  task->tss.esp2 = esp3;      // Ring 2 stack (not used)
+//  task->tss.ss2  = ss3;
+//  task->tss.esp  = esp3;      // Ring 3 stack (usermode)
+//  task->tss.ss   = ss3;
 
-  // Page directory
-  task->tss.cr3 = (Uint32)page_directory->physical_address;
+//  // Page directory
+//  task->tss.cr3 = (Uint32)page_directory->physical_address;
+//  task->esp =
+//  task->ss =
+  //  task->cr3 = (Uint32)page_directory->physical_address;
   task->page_directory = page_directory;
 
-  // Program counter and flags
-  task->tss.eip    = eip;
-  task->tss.eflags = 0x4202;     // Must be at least 0x0002
-
-  // Initialize the global vars to default values
-  task->tss.eax = 0;
-  task->tss.ebx = 0;
-  task->tss.ecx = 0;
-  task->tss.edx = 0;
-  task->tss.ebp = 0;
-  task->tss.esi = 0;
-  task->tss.edi = 0;
-
-  // Set selectors
-  task->tss.cs = cs_selector;
-  task->tss.ds = ds_selector;
-  task->tss.es = ds_selector;
-  task->tss.fs = ds_selector;
-  task->tss.gs = ds_selector;
-
-
-  // Various TSS stuff
-  task->tss.ldtr = LDT_TASK_SEL;
-  task->tss.iopb_offset = 0;
-  task->tss.T = 0;
-
-
-  // Create TSS descriptor. Don't save it into the GDT, we store it manuallly in our task
-  task->tss_entry = gdt_create_descriptor ((int)&task->tss, (int)sizeof (TSS), GDT_PRESENT+GDT_DPL_RING0+GDT_NOT_BUSY+GDT_TYPE_TSS, GDT_NO_GRANULARITY+GDT_AVAILABLE);
-
-  // Create LDT descriptor and selector. Also store in this task
-  task->ldt_entry = gdt_create_descriptor ((int)&task->ldt, (int)8 * USERTASK_LDT_SIZE, GDT_PRESENT+GDT_DPL_RING0+GDT_NOT_BUSY+GDT_TYPE_LDT, GDT_NO_GRANULARITY+GDT_AVAILABLE);
+//  // Program counter and flags
+//  task->tss.eip    = eip;
+//  task->tss.eflags = 0x4202;     // Must be at least 0x0002
+//
+//  // Initialize the global vars to default values
+//  task->tss.eax = 0;
+//  task->tss.ebx = 0;
+//  task->tss.ecx = 0;
+//  task->tss.edx = 0;
+//  task->tss.ebp = 0;
+//  task->tss.esi = 0;
+//  task->tss.edi = 0;
+//
+//  // Set selectors
+//  task->tss.cs = cs_selector;
+//  task->tss.ds = ds_selector;
+//  task->tss.es = ds_selector;
+//  task->tss.fs = ds_selector;
+//  task->tss.gs = ds_selector;
+//
+//
+//  // Various TSS stuff
+////  task->tss.ldtr = LDT_TASK_SEL;
+//  task->tss.iopb_offset = 0;
+//  task->tss.T = 0;
 
 
+//  // Create TSS descriptor. Don't save it into the GDT, we store it manuallly in our task
+//  task->tss_entry = gdt_create_descriptor ((int)&task->tss, (int)sizeof (TSS), GDT_PRESENT+GDT_DPL_RING0+GDT_NOT_BUSY+GDT_TYPE_TSS, GDT_NO_GRANULARITY+GDT_AVAILABLE);
+
+//  // Create LDT descriptor and selector. Also store in this task
+//  task->ldt_entry = gdt_create_descriptor ((int)&task->ldt, (int)8 * USERTASK_LDT_SIZE, GDT_PRESENT+GDT_DPL_RING0+GDT_NOT_BUSY+GDT_TYPE_LDT, GDT_NO_GRANULARITY+GDT_AVAILABLE);
+
+
+/*
   // Create an LDT
   if (kernel_or_usertask == TASK_USER) {
     // TODO: Use gdt_create_descriptor for this as well..
@@ -219,6 +228,7 @@ int _create_task (CYBOS_TASK *task, int kernel_or_usertask,
     task->ldt[USER_CODE_DESCR] = 0x00cf8a000000ffffULL;  // Full 4GW code segment (ring0)
     task->ldt[USER_DATA_DESCR] = 0x00cf82000000ffffULL;  // Full 4GW data segment (ring0)
   }
+*/
 
   // @TODO: No permission to use IO on ring 1 or above
 //  for (i=0; i!=8192; i++) task->iomap[i]=0;
@@ -232,16 +242,16 @@ int _create_task (CYBOS_TASK *task, int kernel_or_usertask,
   strncpy (task->name, taskname, 49);
 
   // Times spend in each CPL ring (only 0 and 3 are used)
-  task->ringticks[0] = 0;
-  task->ringticks[1] = 0;
-  task->ringticks[2] = 0;
-  task->ringticks[3] = 0;
+  task->ringticksHi[0] = task->ringticksLo[0] = 0;
+  task->ringticksHi[1] = task->ringticksLo[1] = 0;
+  task->ringticksHi[2] = task->ringticksLo[2] = 0;
+  task->ringticksHi[3] = task->ringticksLo[3] = 0;
 
   // Set console pointer
   if (console == CREATE_CONSOLE) {
-    task->console_ptr = create_console (task->name, 1);
+    task->console = create_console (task->name, 1);
   } else {
-    task->console_ptr = NULL;
+    task->console = NULL;
   }
 
   // Add task to schedule-switcher. We are still initialising so it does not run yet.
@@ -256,7 +266,8 @@ int _create_task (CYBOS_TASK *task, int kernel_or_usertask,
 
 // ==========================================================================================
 int sched_create_kernel_task (CYBOS_TASK *task, Uint32 eip, char *taskname, int console) {
-  // Create kernel and user stack
+
+  // Create kernel and user stack (TODO: need a kernel stack to create? no.. i do not think so?)
   task->kstack = (Uint32)kmalloc (KERNEL_STACK_SIZE);
   task->ustack = (Uint32)kmalloc (USER_STACK_SIZE);
 
@@ -293,14 +304,6 @@ int sched_create_user_task (CYBOS_TASK *task, Uint32 eip, char *taskname, int co
                        taskname, console);
 }
 */
-
-/************************************
- * Idle task. Should not return.
- */
-void user_idle (void) {
-  tprintf ("user_idle()\n");
-  __asm__ __volatile__ ("1: jmp 1b");
-}
 
 void kernel_idle (void) {
   kprintf ("kernel_idle()\n");
@@ -453,72 +456,51 @@ void switch_task (void) {
   CYBOS_TASK *next_task;
   Uint32 esp, ebp, eip, cr3;
 
-  if (_current_task == NULL) return;
-
-//  kprintf ("sched swith (%d)\n", _current_task->pid);
-
   // There is a signal pending. Do that first before we actually run code again (TODO: is this really a good idea?)
   if (_current_task->signal != 0) return;
 
-
-
   // This is the task we're running. It will be the old task after this
-  previous_task = _current_task;
-  next_task = _current_task;
+  previous_task = next_task = _current_task;
 
-  // Don't use _current_task from this point on. We define previous_task as the one we are
-  // about to leave, and next_task as the one we are about to enter.
-
-
-//  kprintf ("sched_switch from PID %d: %s\n", previous_task->pid, previous_task->name);
-
-
+  /* Don't use _current_task from this point on. We define previous_task as the one we are
+   * about to leave, and next_task as the one we are about to enter. */
 
   // Read esp, ebp now for saving later on.
   asm volatile("mov %%esp, %0" : "=r"(esp));
   asm volatile("mov %%ebp, %0" : "=r"(ebp));
 
+  // Read the current instruction address.
   eip = read_eip();
-  if (eip == 0x12345) {
-//    kprintf (">>> SCHED Returned from task %d\n", _current_task->pid);
-    return;
-  }
+
+  // We are now called in 2 different states.
+  //  1. as the next task (eip = 0xDEADBEEF), so we're done
+  //  2. as the previous task just wanting to fetch eip (!= 0xDEADBEEF)
+  if (eip == 0xDEADBEEF) return;
 
   // Save registers. The rest is saved by the interrupt call and restored by IRET
   previous_task->eip = eip;
   previous_task->esp = esp;
   previous_task->ebp = ebp;
 
-//  kprintf ("P EIP: %08X\n", eip);
-//  kprintf ("P EBP: %08X\n", ebp);
-//  kprintf ("P ESP: %08X\n", esp);
-
-  // Only set this task to be available again if it was still running. If it's sleeping TASK_STATE_(UN)INTERRUPTIBLE), then don't change this setting
+  // Only set this task to be available again if it was still running. If it's
+  // sleeping TASK_STATE_(UN)INTERRUPTIBLE), then don't change this setting.
   if (previous_task->state == TASK_STATE_RUNNING) {
     previous_task->state = TASK_STATE_RUNNABLE;
   }
 
 
-
-
-
   // Fetch the next available task
   do {
     next_task = get_next_task (next_task);
-  } while (next_task->state != TASK_STATE_RUNNABLE);
+  } while (next_task->state != TASK_STATE_RUNNABLE);    // Hmmz.. When no runnable tasks are found,
+                                                        // we should automatically fetch idletask()?
 
 
   // Old task is available again. New task is running
   next_task->state = TASK_STATE_RUNNING;
 
-//  kprintf ("sched_switch to PID %d: %s\n", next_task->pid, next_task->name);
-
-//  kprintf ("PT: %08X\n", previous_task);
-//  kprintf ("NT: %08X\n", next_task);
-
   // The next task will be the current task..
   _current_task = next_task;
-
 
   // Fetch the new registers
   eip = next_task->eip;
@@ -526,22 +508,16 @@ void switch_task (void) {
   ebp = next_task->ebp;
   cr3 = next_task->page_directory->physical_address;
 
-//  kprintf ("N EIP: %08X\n", eip);
-//  kprintf ("N EBP: %08X\n", ebp);
-//  kprintf ("N ESP: %08X\n", esp);
+  // Set the kernel stack
+  tss_set_kernel_stack (next_task->kstack + KERNEL_STACK_SIZE);
 
-//  if (previous_task != next_task) BOCHS_MAGIC_SWITCH
-
-//  kprintf (">>> SCHED Switching from task %d to task %d\n", previous_task->pid, next_task->pid);
-
-//  sti ();
 
   // Switch to a new task (start right after read_eip()).
-  __asm__ __volatile__ ("         \
+  __asm__ __volatile__ ("cli;                    \
                          mov %%eax, %%esp;       \
                          mov %%ebx, %%ebp;       \
                          mov %%ecx, %%cr3;       \
-                         mov $0x12345, %%eax;    \
+                         mov $0xDEADBEEF, %%eax; \
                          sti;                    \
                          jmp *%%edx  "
                          : : "d"(eip), "a"(esp), "b"(ebp), "c"(cr3));
@@ -553,22 +529,19 @@ void switch_task (void) {
 // but in the RING3 usermode. Make sure we have done all kernel
 // setup before this.
 //
-// Also note that we do a sneaky STI() here as well. We need to set
-// the interrupts back on after switching, but we are not allowed
-// to switch after interrupts. We set the IF-flag in the flags
-// so after IRET the interrupts are back on again.
 void switch_to_usermode (void) {
   // current_task points to idle_task. This also allows the scheduler (sched_switch) to
   // see that we are up and running. As soon as _current_task != NULL, it can switch
   // to other tasks (if there are any of course)
   _current_task = _task_list;
 
+  // Set the kernel stack
+  tss_set_kernel_stack(_current_task->kstack+KERNEL_STACK_SIZE);
+
   // Move from kernel ring0 to usermode ring3 AND start interrupts at the same time.
   // This is needed because we cannot use sti() inside usermode. Since there is no 'real'
   // way of reaching usermode, we have to 'jumpstart' to it by creating a stackframe which
   // we return from. When the IRET we return to the same spot, but in a different ring.
-
-  // @TODO Set up a stack structure for switching to user mode.
   asm volatile("  movw   %%cx, %%ds; \n\t" \
                "  movw   %%cx, %%es; \n\t" \
                "  movw   %%cx, %%fs; \n\t" \
@@ -587,10 +560,6 @@ void switch_to_usermode (void) {
                "1: \n\t" \
   			       ::"b"(SEL(KUSER_CODE_DESCR,TI_GDT+RPL_RING3)),
 			           "c"(SEL(KUSER_DATA_DESCR,TI_GDT+RPL_RING3)):"eax");
-  // @TODO: I have no idea why the extra popl %%ebx is needed. probably iret or __cdecl?
-
-  // @TODO need to OR 0x200 to set STI during IRE
-  // Note that STI() is done during the IRET
 }
 
 
@@ -611,16 +580,12 @@ int allocate_new_pid (void) {
     }
   } while (b == 1);
 
-//  kprintf ("AllocNewPid: %d\n", current_pid);
-
   return current_pid;
 }
 
 
 // ========================================================================================
 int sys_sleep (int ms) {
-//  kprintf ("sys_sleep (PID: %d,  MS: %d)\n", _current_task->pid, ms);
-
   if (_current_task == &idle_task) kpanic ("Cannot sleep idle task!");
 
   _current_task->alarm = ms;
@@ -636,8 +601,6 @@ int sys_sleep (int ms) {
 // ========================================================================================
 int fork (void) {
   int ret;
-
-BOCHS_BREAKPOINT
   __asm__ __volatile__ ("int	$" SYSCALL_INT_STR " \n\t" : "=a" (ret) : "a" (SYS_FORK) );
   return ret;
 }
@@ -657,23 +620,25 @@ int sys_fork (void) {
   // The current task will be the parent task
   parent_task = _current_task;
 
-  // Create a child task, and copy all data from the parent into the child
+  // Create a new task
   child_task = (CYBOS_TASK *)kmalloc (sizeof (CYBOS_TASK));
 
+  // copy all data from the parent into the child
   memcpy (child_task, parent_task, sizeof (CYBOS_TASK));
 
   // Available for scheduling
   child_task->state = TASK_STATE_INITIALISING;
 
   child_task->pid  = allocate_new_pid ();           // Make new PID
-  child_task->ppid = parent_task->pid;              // Set parent pid
+  child_task->ppid = parent_task->pid;              // Set the parent pid
 
   // Reset task times for the child
-  child_task->ringticks[0] = 0;
-  child_task->ringticks[1] = 0;
-  child_task->ringticks[2] = 0;
-  child_task->ringticks[3] = 0;
+  child_task->ringticksHi[0] = child_task->ringticksLo[0] = 0;
+  child_task->ringticksHi[1] = child_task->ringticksLo[1] = 0;
+  child_task->ringticksHi[2] = child_task->ringticksLo[2] = 0;
+  child_task->ringticksHi[3] = child_task->ringticksLo[3] = 0;
 
+  // The page directory is the cloned space
   child_task->page_directory = clone_pagedirectory (parent_task->page_directory);
   child_task->esp = 0;
   child_task->ebp = 0;
@@ -681,8 +646,6 @@ int sys_fork (void) {
 
   // Add task to schedule-switcher. We are still initialising so it does not run yet.
   sched_add_task (child_task);
-
-
 
   // We set the child task to start right after read_eip.
   Uint32 eip = read_eip();
@@ -697,7 +660,7 @@ int sys_fork (void) {
     Uint32 ebp; asm volatile("mov %%ebp, %0" : "=r"(ebp));
     child_task->esp = esp;    // The stacks for the child are the same (virtual) address.
     child_task->ebp = ebp;    // The clone page directory already took care of copying userdata.
-    child_task->eip = eip;
+    child_task->eip = eip;    // This is the place we we left of (just right after read_eip() a few lines above)
 
     // Available for scheduling
     child_task->state = TASK_STATE_RUNNABLE;
@@ -714,10 +677,6 @@ int sys_fork (void) {
 
 // ================================================================================
 void scheduler (void) {
-  // No current task, means we're not initialized properly. It's already checked, but once
-  // more just to be on the safe side.
-  if (_current_task == NULL) return;
-
   global_task_administration ();       /* Sort priorities, alarms, wake-up-on-signals etc */
   switch_task ();                      /* Switch to another task */
   handle_pending_signals ();           /* Handle pending signals for current task */
