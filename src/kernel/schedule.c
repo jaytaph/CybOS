@@ -54,12 +54,13 @@ int sched_init () {
   __asm__ __volatile__ ( "ltrw %%ax\n\t" : : "a" (TSS_TASK_SEL));
 
 
-  // We initialize the idle task and make it the base of our task_list.
+  /* We initialize the idle task and make it the base of our task_list. Basically,
+   * the thing we are running now is the idle_task. */
 
-  // The idle task is the first task. We need to set this because create_user_task()
-  // calls allocate_pid, which scans through the _task_list. We need to make sure it's
-  // set to "something" (or in this case, the (uninitialized) idle-task itself, which
-  // would be the only task. This will make allocate_pid behave correctly).
+  /* The idle task is the first task. We need to set this because create_user_task()
+   * calls allocate_pid, which scans through the _task_list. We need to make sure it's
+   * set to "something" (or in this case, the (uninitialized) idle-task itself, which
+   * would be the only task. This will make allocate_pid behave correctly). */
   _task_list = &idle_task;
   memset (&idle_task, 0, sizeof (CYBOS_TASK));
 
@@ -495,7 +496,6 @@ void switch_task (void) {
   } while (next_task->state != TASK_STATE_RUNNABLE);    // Hmmz.. When no runnable tasks are found,
                                                         // we should automatically fetch idletask()?
 
-
   // Old task is available again. New task is running
   next_task->state = TASK_STATE_RUNNING;
 
@@ -640,6 +640,7 @@ int sys_fork (void) {
 
   // The page directory is the cloned space
   child_task->page_directory = clone_pagedirectory (parent_task->page_directory);
+
   child_task->esp = 0;
   child_task->ebp = 0;
   child_task->eip = 0;
@@ -664,12 +665,8 @@ int sys_fork (void) {
 
     // Available for scheduling
     child_task->state = TASK_STATE_RUNNABLE;
-
-//    sti ();
     return child_task->pid;   // Return the PID of the child
-
   } else {
-//    sti ();
     return 0;     // This is the child. Return 0
   }
 }

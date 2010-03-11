@@ -1,13 +1,17 @@
 
  (*) High level paging support
- ( ) Virtual Memory Manager
+ (*) Virtual Memory Manager
  (*) Freeing unused memory between 0x90000 and 0x9FFFF after init
         * PAGEDIR         0x9F000
         * PAGETABLE_1MB   0x9E000
         * KERNEL_IDT_ADDR 0x9C000
  (*) IDT GDT through kmalloc instead of fixed addresses
  (*) Fork()
- ( ) idletask (and others) on ring3
- ( ) Signals
- ( ) Stack onto heap instead of 0xE0000000
+ (*) idletask (and others) on ring3
+ (*) Signals
+ (*) Stack onto heap instead of 0xE0000000
  ( ) VFS
+ ( ) ext2
+ ( ) fat16
+ ( ) Network driver
+ ( ) IPv4 Stack

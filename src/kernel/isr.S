@@ -89,7 +89,8 @@ handle_syscall_int:
                                   ; it gets popped by popa below. This is our way of returning a code back to the
                                   ; caller.
 
-   add    esp, 4         ; Dummy-pop ss, we don't need it (TODO: can't we just pop it? it's the same right?)
+   ; add    esp, 4         ; Dummy-pop ss, we don't need it (TODO: can't we just pop it? it's the same right?)
+   pop    ss
    pop    gs
    pop    fs
    pop    es
@@ -163,7 +164,7 @@ irq_common_stub:
    push es
    push fs
    push gs
-;   push ss
+   push ss
 
    mov   ax, 0x10
    mov   ds, ax
@@ -171,15 +172,16 @@ irq_common_stub:
    mov   fs, ax
    mov   gs, ax
 
-   push esp
+;   push esp
 
    ; TODO: Why don't we need to push the ESP? we are calling instead of jumping?
    extern do_handle_irq
    call do_handle_irq
 
-   pop esp
+;   pop esp
 
-;   add    esp, 4            ; Dummy-pop ss, we don't need it
+   ; add    esp, 4            ; Dummy-pop ss, we don't need it
+   pop    ss
    pop    gs
    pop    fs
    pop    es
@@ -192,7 +194,7 @@ irq_common_stub:
    popa                     ; Pops edi,esi,ebp...
    add esp, 8               ; Cleans up the pushed error code and pushed IRQ number
 
-;   sti
+   sti
    iret                     ; pops 5 things at once: CS, EIP, EFLAGS, SS, and ESP
 
 
@@ -205,7 +207,7 @@ isr_common_stub:
    push es
    push fs
    push gs
-;   push ss
+   push ss
 
    mov   ax, 0x10
    mov   ds, ax
@@ -219,7 +221,7 @@ isr_common_stub:
 
    pop   esp
 
-;   add    esp, 4            ; Dummy-pop ss, we don't need it
+   add    esp, 4            ; Dummy-pop ss, we don't need it
    pop    gs
    pop    fs
    pop    es
@@ -231,7 +233,7 @@ isr_common_stub:
 
    popa                     ; Pops edi,esi,ebp...
    add esp, 8               ; Cleans up the pushed error code and pushed ISR number
-;   sti
+   sti
    iret                     ; pops 5 things at once: CS, EIP, EFLAGS, SS, and ESP
 
 

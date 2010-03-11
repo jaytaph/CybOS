@@ -92,18 +92,18 @@ void kernel_entry (int stack_start, int total_sys_memory) {
   kprintf ("]\n");
   kprintf ("Kernel initialization done. Unable to free %d bytes.\nTransfering control to user mode.\n\n\n", _unfreeable_kmem);
 
-  // Switch to ring3
+  // Switch to ring3 and start interrupts
   switch_to_usermode ();
 
   tprintf ("Hello userworld!\n");
 
-BOCHS_BREAKPOINT;
-
   // Hello world.. we are in usermode!
+  tprintf ("\FORK\n");
   int pid = fork ();
   tprintf ("\nPID: %d\n", pid);
 
-  for (;;) ;
+for (;;) ;
+
 
   if (pid == 0) {
     strncpy (_current_task->name, "Init", 4);

@@ -197,17 +197,16 @@ TPAGEDIRECTORY *clone_pagedirectory (TPAGEDIRECTORY *src) {
   memset (dst, 0, sizeof (TPAGEDIRECTORY));     // Zero it out
   dst->physical_address = phys_addr;            // We need to know the physical address of the pagedir so we can load it into CR3 register
 
-
-//  kprintf ("Cloning page directory to %08X\n", phys_addr);
+kprintf ("Cloning page directory to %08X\n", phys_addr);
 
 
   for (i=0; i!=1024; i++) {
     if (src->phystables[i] == NULL) continue;    // Don't copy zero table
 
-//    kprintf ("clone_pd(): phystables[%d] = %08X\n", i, src->phystables[i]);
+    kprintf (" clone_pd(): phystables[%d] = %08X\n", i, src->phystables[i]);
 
     if ((src->phystables[i] & 0xFFFFF000) != (_kernel_pagedirectory->phystables[i] & 0xFFFFF000)) {
-//      kprintf ("*** COPY *** table: %08X\n", (src->phystables[i] & 0xFFFFF000));
+      kprintf (" [C] %08X\n", (src->phystables[i] & 0xFFFFF000));
       // COPY the table since it's not in the kernel directory
 
       // Create table at new memory address
@@ -220,11 +219,11 @@ TPAGEDIRECTORY *clone_pagedirectory (TPAGEDIRECTORY *src) {
         if (src->tables[i]->pages[j] == NULL) continue;    // Empty frame, don't copy
 
         // Create new page
-//        kprintf ("PRE: %08X\n", src->tables[i]->pages[j]);
-//        kprintf ("PRE: %08X\n", dst->tables[i]->pages[j]);
+        kprintf ("PRE: %08X\n", src->tables[i]->pages[j]);
+        kprintf ("PRE: %08X\n", dst->tables[i]->pages[j]);
         allocate_pageframe (&dst->tables[i]->pages[j], 0, 0);
-//        kprintf ("POST: %08X\n", src->tables[i]->pages[j]);
-//        kprintf ("POST: %08X\n", dst->tables[i]->pages[j]);
+        kprintf ("POST: %08X\n", src->tables[i]->pages[j]);
+        kprintf ("POST: %08X\n", dst->tables[i]->pages[j]);
 
         // Copy pageflag bits from source to destination
         if (src->tables[i]->pages[j] & PAGEFLAG_PRESENT)   dst->tables[i]->pages[j] |= PAGEFLAG_PRESENT;
@@ -233,18 +232,18 @@ TPAGEDIRECTORY *clone_pagedirectory (TPAGEDIRECTORY *src) {
         if (src->tables[i]->pages[j] & PAGEFLAG_ACCESSED)  dst->tables[i]->pages[j] |= PAGEFLAG_ACCESSED;
         if (src->tables[i]->pages[j] & PAGEFLAG_DIRTY)     dst->tables[i]->pages[j] |= PAGEFLAG_DIRTY;
 
-
-//        kprintf ("    COPY from phys table : %08X\n", (src->phystables[i] & 0xFFFFF000));
-//        kprintf ("    COPY to phys table   : %08X\n", (dst->phystables[i] & 0xFFFFF000));
+        kprintf ("    COPY from phys table : %08X\n", (src->phystables[i] & 0xFFFFF000));
+        kprintf ("    COPY to phys table   : %08X\n", (dst->phystables[i] & 0xFFFFF000));
 
         // We need to copy the physical frame data. TODO: Don't use 0xF0000000, but map these 2 frames
         // to anywhere so we know their virtual location. Copy them and unmap again.
-        memmove ((void *)((dst->tables[i]->pages[j] & 0xFFFFF000) + 0xF0000000), (void *)((src->tables[i]->pages[j] & 0xFFFFF000) + 0xF0000000), 0x1000);
+        copy_physical_pageframe_data(src->phystables[i] & 0xFFFFF000, dst->phystables[i] & 0xFFFFF000);
+        // memmove ((void *)((dst->tables[i]->pages[j] & 0xFFFFF000) + 0xF0000000), (void *)((src->tables[i]->pages[j] & 0xFFFFF000) + 0xF0000000), 0x1000);
 
       }
     } else {
       // LINK the table since it's also in the kernel directory
-//      kprintf ("*** LINK *** table: %08X\n", (src->phystables[i] & 0xFFFFF000));
+      kprintf (" [L] %08X\n", (src->phystables[i] & 0xFFFFF000));
 
       // We LINK the tables so we don't need to kmalloc new memory
       dst->phystables[i] = src->phystables[i];
@@ -254,7 +253,7 @@ TPAGEDIRECTORY *clone_pagedirectory (TPAGEDIRECTORY *src) {
     }
   }
 
-//  kprintf ("CLoning done...\n");
+kprintf ("done...\n");
 
   return dst;
 }
@@ -455,6 +454,7 @@ int paging_init () {
   i = (unsigned int)0xC0000000;
   while (i < 0xC00FFFFF ) {    // k_heap_top will change during this run. No for() loops or constants!
     // @TODO: Change this to PAGEFLAG_KERNEL WHEN READY (!?)
+    map_virtual_memory (_kernel_pagedirectory, (i - 0xC0000000), (i - 0xC0000000), PAGEFLAG_USER | PAGEFLAG_PRESENT | PAGEFLAG_READWRITE, SET_BITMAP);
     map_virtual_memory (_kernel_pagedirectory, (i - 0xC0000000), i, PAGEFLAG_USER | PAGEFLAG_PRESENT | PAGEFLAG_READWRITE, SET_BITMAP);
     i += 0x1000;
   }
@@ -472,7 +472,6 @@ int paging_init () {
 
   // We mapped all important kernel area's. Later on, we add a heap, stack and more stuff.
   set_pagedirectory (_kernel_pagedirectory);
-
 
   return ERR_OK;
 }
