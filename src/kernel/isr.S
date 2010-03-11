@@ -36,6 +36,7 @@ section .text
 
       handle_irq%1:
         cli
+
         push byte 0
         push byte %1
         jmp irq_common_stub
@@ -46,10 +47,29 @@ section .text
 ; Handler for default interrupts
 handle_default_int:
    cli
+
    pusha
+
+   ; No need to setup our REGS
+
+   xor  eax, eax
+   mov  ax, ds
+   push eax
+
+   mov   ax, 0x10   ; Set kernel data descriptor (SS and CS are automatically set because this interrupt is
+   mov   ds, ax     ; made through a call-gate (which changes DPL and thus CS and SS, but not the others)
+   mov   es, ax
+   mov   fs, ax
+   mov   gs, ax
 
    extern do_handle_default_int
    call do_handle_default_int
+
+   pop    ebx
+   mov    ds, bx
+   mov    es, bx
+   mov    fs, bx
+   mov    gs, bx
 
    popa
    sti
@@ -60,6 +80,7 @@ handle_default_int:
 handle_syscall_int:
    cli
 
+
 ; Things here must be pushed the same way onto the stack. Needed because "TREGS *"
 ; structure in idth.h depends on this.
 
@@ -68,11 +89,9 @@ handle_syscall_int:
 
    pusha          ; push all registers and flags
 
-   push ds        ; Push segments, we are changing them here to kernel descriptors
-   push es
-   push fs
-   push gs
-   push ss
+   xor  eax, eax
+   mov  ax, ds
+   push eax
 
    mov   ax, 0x10   ; Set kernel data descriptor (SS and CS are automatically set because this interrupt is
    mov   ds, ax     ; made through a call-gate (which changes DPL and thus CS and SS, but not the others)
@@ -85,16 +104,15 @@ handle_syscall_int:
    call  do_handle_syscall        ; call C-level handler
    add    esp, 4                  ; remove the old ESP
 
-   mov    dword [esp+48], eax     ; We move the return-value from do_handle_syscall() into the stack. This way,
+   mov    dword [esp+32], eax     ; We move the return-value from do_handle_syscall() into the stack. This way,
                                   ; it gets popped by popa below. This is our way of returning a code back to the
                                   ; caller.
 
-   ; add    esp, 4         ; Dummy-pop ss, we don't need it (TODO: can't we just pop it? it's the same right?)
-   pop    ss
-   pop    gs
-   pop    fs
-   pop    es
-   pop    ds
+   pop    ebx
+   mov    ds, bx
+   mov    es, bx
+   mov    fs, bx
+   mov    gs, bx
 
    popa
    add esp, 8                     ; Don't need dummy error code and dummy int-number
@@ -160,11 +178,9 @@ ISR_NOERRCODE 31
 irq_common_stub:
    pusha                    ; Pushes edi,esi,ebp,esp,ebx,edx,ecx,eax
 
-   push ds
-   push es
-   push fs
-   push gs
-   push ss
+   xor  eax, eax
+   mov  ax, ds
+   push eax
 
    mov   ax, 0x10
    mov   ds, ax
@@ -172,20 +188,14 @@ irq_common_stub:
    mov   fs, ax
    mov   gs, ax
 
-;   push esp
-
-   ; TODO: Why don't we need to push the ESP? we are calling instead of jumping?
    extern do_handle_irq
    call do_handle_irq
 
-;   pop esp
-
-   ; add    esp, 4            ; Dummy-pop ss, we don't need it
-   pop    ss
-   pop    gs
-   pop    fs
-   pop    es
-   pop    ds
+   pop    ebx
+   mov    ds, bx
+   mov    es, bx
+   mov    fs, bx
+   mov    gs, bx
 
    mov     al,20h           ; Return EOI signal.
    out     020h,al          ; send to master
@@ -203,11 +213,9 @@ irq_common_stub:
 isr_common_stub:
    pusha                    ; Pushes edi,esi,ebp,esp,ebx,edx,ecx,eax
 
-   push ds
-   push es
-   push fs
-   push gs
-   push ss
+   xor  eax, eax
+   mov  ax, ds
+   push eax
 
    mov   ax, 0x10
    mov   ds, ax
@@ -215,17 +223,16 @@ isr_common_stub:
    mov   fs, ax
    mov   gs, ax
 
-   push  esp
+  push esp
    extern do_handle_exception
    call  do_handle_exception
+  add esp, 4
 
-   pop   esp
-
-   add    esp, 4            ; Dummy-pop ss, we don't need it
-   pop    gs
-   pop    fs
-   pop    es
-   pop    ds
+   pop    ebx
+   mov    ds, bx
+   mov    es, bx
+   mov    fs, bx
+   mov    gs, bx
 
    mov     al,20h           ; Return EOI signal.
    out     020h,al          ; send to master

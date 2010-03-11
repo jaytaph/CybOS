@@ -9,14 +9,15 @@
 
   #include "ktype.h"
 
-  extern unsigned int k_heap_start;
-  extern unsigned int k_heap_top;
-  extern unsigned int k_memory_total;
-  extern unsigned int _unfreeable_kmem;
+  extern Uint32 _k_preheap_start;
+  extern Uint32 _k_preheap_top;
+  extern Uint32 _memory_total;
+  extern Uint32 _unfreeable_kmem;
 
   int kmem_init (int total_sys_memory);
 
-  void kmem_init_heap ();
+  // Method of switching the current kmalloc() and kfree() functions
+  void kmem_switch_malloc (void *kmalloc_func, void *kfree_func);
 
   // Static memory allocate functions. After heap init, this data can be freed. Before that, it can't
   void *kmalloc (Uint32 size);

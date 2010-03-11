@@ -98,7 +98,8 @@ void kernel_entry (int stack_start, int total_sys_memory) {
   tprintf ("Hello userworld!\n");
 
   // Hello world.. we are in usermode!
-  tprintf ("\FORK\n");
+  tprintf ("\nFORK\n");
+
   int pid = fork ();
   tprintf ("\nPID: %d\n", pid);
 
@@ -236,6 +237,9 @@ void tprintf (const char *fmt, ...) {
 
   __asm__ __volatile__ ("int	$" SYSCALL_INT_STR " \n\t" : : "a" (SYS_CONFLUSH));
 }
+
+
+
 
 /************************************
  * The kernel constructor. Task 1 (the primary task after the kernel idle

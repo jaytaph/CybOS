@@ -190,6 +190,26 @@ int idt_init (void) {
 // Same as the exception and syscall handler, it could have been handled by a lowlevel
 // lookup-table, but somehow this looks more readable to me.
 void do_handle_irq (TREGS r) {
+/*  kprintf ("\n\n");
+  kprintf ("REGS: r->ds : %08X\n", r.ds);
+  kprintf ("REGS: r->edi : %08X\n", r.edi);
+  kprintf ("REGS: r->esi : %08X\n", r.esi);
+  kprintf ("REGS: r->ebp : %08X\n", r.ebp);
+  kprintf ("REGS: r->esp : %08X\n", r.esp);
+  kprintf ("REGS: r->ebx : %08X\n", r.ebx);
+  kprintf ("REGS: r->edx : %08X\n", r.edx);
+  kprintf ("REGS: r->ecx : %08X\n", r.ecx);
+  kprintf ("REGS: r->eax : %08X\n", r.eax);
+  kprintf ("REGS: r->int_no : %08X\n", r.int_no);
+  kprintf ("REGS: r->err_code : %08X\n", r.err_code);
+  kprintf ("REGS: r->eip : %08X\n", r.eip);
+  kprintf ("REGS: r->cs : %08X\n", r.cs);
+  kprintf ("REGS: r->eflags : %08X\n", r.eflags);
+  kprintf ("REGS: r->useresp : %08X\n", r.useresp);
+  kprintf ("REGS: r->ss : %08X\n", r.ss);
+*/
+
+
   outb (0xA0, 0x20);
   outb (0x20, 0x20);
 
@@ -241,6 +261,25 @@ void do_handle_irq (TREGS r) {
 // the call automatically places the ret addres onto the stack and that messes up the
 // rest of the parameters. Therefor, we just send a pointer.
 int do_handle_syscall (TREGS *r) {
+/*  kprintf ("\n\n");
+  kprintf ("SYSCALL\n");
+  kprintf ("REGS: r->ds : %08X\n", r->ds);
+  kprintf ("REGS: r->edi : %08X\n", r->edi);
+  kprintf ("REGS: r->esi : %08X\n", r->esi);
+  kprintf ("REGS: r->ebp : %08X\n", r->ebp);
+  kprintf ("REGS: r->esp : %08X\n", r->esp);
+  kprintf ("REGS: r->ebx : %08X\n", r->ebx);
+  kprintf ("REGS: r->edx : %08X\n", r->edx);
+  kprintf ("REGS: r->ecx : %08X\n", r->ecx);
+  kprintf ("REGS: r->eax : %08X\n", r->eax);
+  kprintf ("REGS: r->int_no : %08X\n", r->int_no);
+  kprintf ("REGS: r->err_code : %08X\n", r->err_code);
+  kprintf ("REGS: r->eip : %08X\n", r->eip);
+  kprintf ("REGS: r->cs : %08X\n", r->cs);
+  kprintf ("REGS: r->eflags : %08X\n", r->eflags);
+  kprintf ("REGS: r->useresp : %08X\n", r->useresp);
+  kprintf ("REGS: r->ss : %08X\n", r->ss);
+*/
   return service_interrupt (r->eax & 0xFFFF, r->ebx, r->ecx, r->edx, r->esi, r->edi);
 }
 

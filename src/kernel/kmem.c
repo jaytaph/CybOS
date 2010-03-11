@@ -14,12 +14,12 @@
 // check if the heap is initialised and use the correct internal functions anyway.
 
 // Memory top of the kernel
-unsigned int k_heap_start = NULL;       // Start of the kernel heap
-unsigned int k_heap_top = NULL;         // end of the kernel heap
-unsigned int k_memory_total = 0;        // total bytes of physical memory
+Uint32 _k_preheap_start = NULL;       // Start of the kernel heap
+Uint32 _k_preheap_top = NULL;         // end of the kernel heap
+Uint32 _memory_total = 0;        // total bytes of physical memory
 
-unsigned int _heap_start = NULL;        // 'normal' heap start
-unsigned int _heap_top   = NULL;        // 'normal' heap end
+Uint32 _preheap_start = NULL;        // 'normal' heap start
+Uint32 _preheap_top   = NULL;        // 'normal' heap end
 
 
 /*
@@ -32,16 +32,19 @@ unsigned int _heap_top   = NULL;        // 'normal' heap end
 void * (*_func_kmalloc)(Uint32 size, int pageboundary, Uint32 *physical_address) = &_preheap_kmalloc;   // func_kmalloc points to preheap malloc
 void (*_func_kfree)(Uint32 ptr) = &_preheap_kfree;       // func_kfree points to preheap free
 
-unsigned int _unfreeable_kmem = 0;
+Uint32 _unfreeable_kmem = 0;
 
 
 
 /************************************************************************
  * Switches the kmalloc and kfree to the "heap" allocator
  */
-void kmem_init_heap (void) {
-  _func_kmalloc = &_heap_kmalloc;
-  _func_kfree = &_heap_kfree;
+void kmem_switch_malloc (void *kmalloc, void *kfree) {
+  _func_kmalloc = kmalloc;
+  _func_kfree = kfree;
+
+//  _func_kmalloc = &_heap_kmalloc;
+//  _func_kfree = &_heap_kfree;
 }
 
 /************************************************************************
@@ -49,21 +52,23 @@ void kmem_init_heap (void) {
  */
 int kmem_init (int total_sys_memory) {
   // Set total memory
-  k_memory_total = total_sys_memory;
+  _memory_total = total_sys_memory;
 
   // Number of bytes allocated by kmalloc before heap is initialised. This
   // memory cannot be freed at this moment so use wisely!
   _unfreeable_kmem = 0;
 
   // This will setup the heap.
-  k_heap_start = (unsigned int)&end;    // k_heap_start will start immediatly after the end of the code. No need to align (actually, we should maybe?)
+  _k_preheap_start = (unsigned int)&end;    // _k_preheap_start will start immediatly after the end of the code. No need to align (actually, we should maybe?)
+
+//kprintf ("Heap starts at %08X\n", _k_preheap_start);
 
   // Top of the heap is the start of the heap.. nothing used..
-  k_heap_top = k_heap_start;
+  _k_preheap_top = _k_preheap_start;
 
   // Heap is not yet initialized
-  _heap_start = NULL;
-  _heap_top   = NULL;
+  _preheap_start = NULL;
+  _preheap_top   = NULL;
 
   return ERR_OK;
 }
@@ -80,23 +85,23 @@ void *_preheap_kmalloc (Uint32 size, int pageboundary, Uint32 *physical_address)
   int mem_ptr;
 
   // Align the heaptop to the next 4KB page if needed.
-  if (pageboundary == 1 && (k_heap_top & 0xFFFFF000)) {
-    k_heap_top &= 0xFFFFF000;
-    k_heap_top += 0x1000;
+  if (pageboundary == 1 && (_k_preheap_top & 0xFFFFF000)) {
+    _k_preheap_top &= 0xFFFFF000;
+    _k_preheap_top += 0x1000;
   }
 
   // Return physical address if needed
-  if (physical_address != NULL) *physical_address = ((Uint32)k_heap_top - 0xC0000000);
+  if (physical_address != NULL) *physical_address = ((Uint32)_k_preheap_top - 0xC0000000);
 
   // mem_ptr is the base address of the new block
-  mem_ptr = k_heap_top;
+  mem_ptr = _k_preheap_top;
 
   // Increase the heap top
-  k_heap_top += size;
+  _k_preheap_top += size;
 
   _unfreeable_kmem += size;
 
-//  kprintf ("_preheap_kmalloc(): %d bytes. Old: %08X   S: %08X   New: %08X\n", size, old_k_heap_top, mem_ptr, k_heap_top);
+  //kprintf ("_preheap_kmalloc(): %d bytes. S: %08X   New: %08X\n", size, mem_ptr, _k_preheap_top);
 
   // Why doesn't newblock->base work!?
   return (void *)mem_ptr;

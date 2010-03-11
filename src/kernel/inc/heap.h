@@ -9,9 +9,10 @@
 
   #include "ktype.h"
 
-  extern unsigned int _heap_start;
-  extern unsigned int _heap_top;
-  extern unsigned int _heap_size;
+  Uint32 _k_heap_start;
+  Uint32 _k_heap_top;
+  Uint32 _k_heap_end;
+  Uint32 _k_heap_size;
 
   int heap_init ();
 

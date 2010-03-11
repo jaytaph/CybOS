@@ -46,9 +46,27 @@ void tprintf (const char *fmt, ...);
  *
  */
 int sched_init () {
+  // Clear TSS
+  memset (&tss_entry, 0, sizeof (TSS));
+
   // Set general TTS in the GDT. This is used for task switching (sort of)
   Uint64 tss_descriptor = gdt_create_descriptor ((int)&tss_entry, (int)sizeof (TSS), GDT_PRESENT+GDT_DPL_RING0+GDT_NOT_BUSY+GDT_TYPE_TSS, GDT_NO_GRANULARITY+GDT_AVAILABLE);
   gdt_set_descriptor (TSS_TASK_DESCR, tss_descriptor);
+
+  tss_entry.ss0  = SEL(KERNEL_DATA_DESCR, TI_GDT+RPL_RING0);
+  tss_entry.esp0 = 0x00;
+
+  tss_entry.cs = SEL(KERNEL_CODE_DESCR, TI_GDT+RPL_RING3);
+  tss_entry.ss = SEL(KERNEL_DATA_DESCR, TI_GDT+RPL_RING3);
+
+    // Here we set the cs, ss, ds, es, fs and gs entries in the TSS. These specify what
+    // segments should be loaded when the processor switches to kernel mode. Therefore
+    // they are just our normal kernel code/data segments - 0x08 and 0x10 respectively,
+    // but with the last two bits set, making 0x0b and 0x13. The setting of these bits
+    // sets the RPL (requested privilege level) to 3, meaning that this TSS can be used
+    // to switch to kernel mode from ring 3.
+    tss_entry.cs   = 0x0b;
+    tss_entry.ss = tss_entry.ds = tss_entry.es = tss_entry.fs = tss_entry.gs = 0x13;
 
   // Load/flush task register
   __asm__ __volatile__ ( "ltrw %%ax\n\t" : : "a" (TSS_TASK_SEL));
@@ -476,7 +494,9 @@ void switch_task (void) {
   // We are now called in 2 different states.
   //  1. as the next task (eip = 0xDEADBEEF), so we're done
   //  2. as the previous task just wanting to fetch eip (!= 0xDEADBEEF)
-  if (eip == 0xDEADBEEF) return;
+  if (eip == 0xDEADBEEF) {
+    return;
+  }
 
   // Save registers. The rest is saved by the interrupt call and restored by IRET
   previous_task->eip = eip;
@@ -511,7 +531,6 @@ void switch_task (void) {
   // Set the kernel stack
   tss_set_kernel_stack (next_task->kstack + KERNEL_STACK_SIZE);
 
-
   // Switch to a new task (start right after read_eip()).
   __asm__ __volatile__ ("cli;                    \
                          mov %%eax, %%esp;       \
@@ -536,7 +555,7 @@ void switch_to_usermode (void) {
   _current_task = _task_list;
 
   // Set the kernel stack
-  tss_set_kernel_stack(_current_task->kstack+KERNEL_STACK_SIZE);
+  tss_set_kernel_stack(_current_task->kstack + KERNEL_STACK_SIZE);
 
   // Move from kernel ring0 to usermode ring3 AND start interrupts at the same time.
   // This is needed because we cannot use sti() inside usermode. Since there is no 'real'
@@ -601,6 +620,9 @@ int sys_sleep (int ms) {
 // ========================================================================================
 int fork (void) {
   int ret;
+
+BOCHS_BREAKPOINT;
+
   __asm__ __volatile__ ("int	$" SYSCALL_INT_STR " \n\t" : "=a" (ret) : "a" (SYS_FORK) );
   return ret;
 }
@@ -626,6 +648,10 @@ int sys_fork (void) {
   // copy all data from the parent into the child
   memcpy (child_task, parent_task, sizeof (CYBOS_TASK));
 
+  // The page directory is the cloned space
+  child_task->page_directory = clone_pagedirectory (parent_task->page_directory);
+
+
   // Available for scheduling
   child_task->state = TASK_STATE_INITIALISING;
 
@@ -638,12 +664,11 @@ int sys_fork (void) {
   child_task->ringticksHi[2] = child_task->ringticksLo[2] = 0;
   child_task->ringticksHi[3] = child_task->ringticksLo[3] = 0;
 
-  // The page directory is the cloned space
-  child_task->page_directory = clone_pagedirectory (parent_task->page_directory);
-
   child_task->esp = 0;
   child_task->ebp = 0;
   child_task->eip = 0;
+
+  child_task->kstack = (Uint32)kmalloc (KERNEL_STACK_SIZE);
 
   // Add task to schedule-switcher. We are still initialising so it does not run yet.
   sched_add_task (child_task);
