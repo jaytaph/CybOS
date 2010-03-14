@@ -33,6 +33,12 @@
       case  SYS_FORK :
                       retval = sys_fork ();
                       break;
+      case  SYS_GETPID :
+                      retval = sys_getpid ();
+                      break;
+      case  SYS_GETPPID :
+                      retval = sys_getppid ();
+                      break;
       case  SYS_SLEEP :
                       retval = sys_sleep (p1);
                       break;

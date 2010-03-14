@@ -28,6 +28,8 @@
   } TBITMAP;
 
 
+  extern unsigned int clone_debug;
+
 
   void set_pagedirectory (TPAGEDIRECTORY *pagedir);
   void get_page (TPAGEDIRECTORY *directory, Uint32 dst_address, int pagelevels);

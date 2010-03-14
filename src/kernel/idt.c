@@ -189,35 +189,31 @@ int idt_init (void) {
 // =================================================================================
 // Same as the exception and syscall handler, it could have been handled by a lowlevel
 // lookup-table, but somehow this looks more readable to me.
-void do_handle_irq (TREGS r) {
+void do_handle_irq (TREGS *r) {
 /*  kprintf ("\n\n");
-  kprintf ("REGS: r->ds : %08X\n", r.ds);
-  kprintf ("REGS: r->edi : %08X\n", r.edi);
-  kprintf ("REGS: r->esi : %08X\n", r.esi);
-  kprintf ("REGS: r->ebp : %08X\n", r.ebp);
-  kprintf ("REGS: r->esp : %08X\n", r.esp);
-  kprintf ("REGS: r->ebx : %08X\n", r.ebx);
-  kprintf ("REGS: r->edx : %08X\n", r.edx);
-  kprintf ("REGS: r->ecx : %08X\n", r.ecx);
-  kprintf ("REGS: r->eax : %08X\n", r.eax);
-  kprintf ("REGS: r->int_no : %08X\n", r.int_no);
-  kprintf ("REGS: r->err_code : %08X\n", r.err_code);
-  kprintf ("REGS: r->eip : %08X\n", r.eip);
-  kprintf ("REGS: r->cs : %08X\n", r.cs);
-  kprintf ("REGS: r->eflags : %08X\n", r.eflags);
-  kprintf ("REGS: r->useresp : %08X\n", r.useresp);
-  kprintf ("REGS: r->ss : %08X\n", r.ss);
+  kprintf ("REGS: r->ds : %08X\n", r->ds);
+  kprintf ("REGS: r->edi : %08X\n", r->edi);
+  kprintf ("REGS: r->esi : %08X\n", r->esi);
+  kprintf ("REGS: r->ebp : %08X\n", r->ebp);
+  kprintf ("REGS: r->esp : %08X\n", r->esp);
+  kprintf ("REGS: r->ebx : %08X\n", r->ebx);
+  kprintf ("REGS: r->edx : %08X\n", r->edx);
+  kprintf ("REGS: r->ecx : %08X\n", r->ecx);
+  kprintf ("REGS: r->eax : %08X\n", r->eax);
+  kprintf ("REGS: r->int_no : %08X\n", r->int_no);
+  kprintf ("REGS: r->err_code : %08X\n", r->err_code);
+  kprintf ("REGS: r->eip : %08X\n", r->eip);
+  kprintf ("REGS: r->cs : %08X\n", r->cs);
+  kprintf ("REGS: r->eflags : %08X\n", r->eflags);
+  kprintf ("REGS: r->useresp : %08X\n", r->useresp);
+  kprintf ("REGS: r->ss : %08X\n", r->ss);
 */
 
-
-  outb (0xA0, 0x20);
-  outb (0x20, 0x20);
-
-  switch (r.int_no) {
+  switch (r->int_no) {
     case 0 :
              // CS is selector, first 2 bits is the RPL so the timer function knows
              // in which context it is being called.
-             timer_interrupt (r.cs & 0x3);
+             timer_interrupt (r->cs & 0x3);
              break;
     case 1 :
              keyboard_interrupt ();

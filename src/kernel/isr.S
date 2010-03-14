@@ -2,6 +2,7 @@
 
 section .text
 
+; Export there functions
 [GLOBAL handle_default_int]
 [GLOBAL handle_syscall_int]
 
@@ -25,79 +26,84 @@ section .text
       handle_exception%1:
         cli
 
+        ; Error code already pushed by this expection
         push byte %1
         jmp isr_common_stub
 %endmacro
 
-
-; These macro's define the IRQ handlers
+; These macro define the IRQ handlers
 %macro IRQ 1
       [GLOBAL handle_irq%1]
 
       handle_irq%1:
         cli
 
-        push byte 0
-        push byte %1
+        push byte 0       ; Dummy error code
+        push byte %1      ; Current IRQ code
         jmp irq_common_stub
 %endmacro
 
 
+%macro STARTOFINTERRUPT 0
+   pusha
 
+   xor  eax, eax
+   mov  ax, ds
+   push eax
+
+   mov   ax, 0x10   ; Set kernel data descriptor (SS and CS are automatically set because this interrupt is
+   mov   ds, ax     ; made through a call-gate (which changes DPL and thus CS and SS, but not the others)
+   mov   es, ax
+   mov   fs, ax
+   mov   gs, ax
+%endmacro
+
+
+%macro ENDOFINTERRUPT 0
+   pop    eax               ; Pop data descriptor and fill others
+   mov    ds, ax
+   mov    es, ax
+   mov    fs, ax
+   mov    gs, ax
+
+   popa                     ; Restore all saved registers
+
+   add esp, 8               ; Cleans up the pushed error code and pushed ISR number
+
+   sti
+   iret                     ; pops 5 things at once: CS, EIP, EFLAGS, SS, and ESP
+%endmacro
+
+
+
+
+; ------------------------------------------------------------
 ; Handler for default interrupts
 handle_default_int:
    cli
 
-   pusha
+   push byte 0    ; Dummy code, just to make it more generic
+   push byte 0    ; same here
 
-   ; No need to setup our REGS
+   STARTOFINTERRUPT
 
-   xor  eax, eax
-   mov  ax, ds
-   push eax
-
-   mov   ax, 0x10   ; Set kernel data descriptor (SS and CS are automatically set because this interrupt is
-   mov   ds, ax     ; made through a call-gate (which changes DPL and thus CS and SS, but not the others)
-   mov   es, ax
-   mov   fs, ax
-   mov   gs, ax
-
+   push  esp
    extern do_handle_default_int
    call do_handle_default_int
+   add   esp, 4
 
-   pop    ebx
-   mov    ds, bx
-   mov    es, bx
-   mov    fs, bx
-   mov    gs, bx
-
-   popa
-   sti
-   iret
+   ENDOFINTERRUPT
 
 
+; ------------------------------------------------------------
 ; Handler for default interrupts
 handle_syscall_int:
    cli
 
-
-; Things here must be pushed the same way onto the stack. Needed because "TREGS *"
-; structure in idth.h depends on this.
-
    push byte 0    ; Dummy code, just to make it more generic
    push byte 0    ; same here
 
-   pusha          ; push all registers and flags
-
-   xor  eax, eax
-   mov  ax, ds
-   push eax
-
-   mov   ax, 0x10   ; Set kernel data descriptor (SS and CS are automatically set because this interrupt is
-   mov   ds, ax     ; made through a call-gate (which changes DPL and thus CS and SS, but not the others)
-   mov   es, ax
-   mov   fs, ax
-   mov   gs, ax
+   STARTOFINTERRUPT
 
    push  esp                      ; ESP is the pointer to the registers pushed onto the stack during this function
    extern do_handle_syscall
@@ -107,17 +113,49 @@ handle_syscall_int:
    mov    dword [esp+32], eax     ; We move the return-value from do_handle_syscall() into the stack. This way,
                                   ; it gets popped by popa below. This is our way of returning a code back to the
                                   ; caller.
+   ENDOFINTERRUPT
 
-   pop    ebx
-   mov    ds, bx
-   mov    es, bx
-   mov    fs, bx
-   mov    gs, bx
 
-   popa
-   add esp, 8                     ; Don't need dummy error code and dummy int-number
-   sti
-   iret
+; ------------------------------------------------------------
+; Common stub. It's possible to place this inside the ISR_ERRCODE macro's above, but
+; the code would then be duplicated which we don't really need. So instead the above
+; macro's jump to this piece of code.
+irq_common_stub:
+   STARTOFINTERRUPT
+
+   ; EAX is saved, we it's safe to use AL
+
+   mov     al,20h           ; Return EOI signal.
+   out     020h,al          ; send to master
+   out     0A0h,al          ; and to the slave (normally, only needed for irq 7 or higher)
+
+
+   push esp
+   extern do_handle_irq
+   call do_handle_irq
+   add esp, 4
+
+   ENDOFINTERRUPT
+
+
+; ------------------------------------------------------------
+; Common stub. It's possible to place this inside the ISR_ERRCODE macro's above, but
+; the code would then be duplicated which we don't really need. So instead the above
+; macro's jump to this piece of code.
+isr_common_stub:
+   STARTOFINTERRUPT
+
+   push esp
+   extern do_handle_exception
+   call  do_handle_exception
+   add esp, 4
+
+   ENDOFINTERRUPT
+
+
+
+
+
 
 
 ; Now, macro-create the IRQ handlers
@@ -171,77 +209,3 @@ ISR_NOERRCODE 28
 ISR_NOERRCODE 29
 ISR_NOERRCODE 30
 ISR_NOERRCODE 31
-
-
-
-
-irq_common_stub:
-   pusha                    ; Pushes edi,esi,ebp,esp,ebx,edx,ecx,eax
-
-   xor  eax, eax
-   mov  ax, ds
-   push eax
-
-   mov   ax, 0x10
-   mov   ds, ax
-   mov   es, ax
-   mov   fs, ax
-   mov   gs, ax
-
-   extern do_handle_irq
-   call do_handle_irq
-
-   pop    ebx
-   mov    ds, bx
-   mov    es, bx
-   mov    fs, bx
-   mov    gs, bx
-
-   mov     al,20h           ; Return EOI signal.
-   out     020h,al          ; send to master
-   out     0A0h,al          ; and to the slave (normally, only needed for irq 7 or higher)
-
-   popa                     ; Pops edi,esi,ebp...
-   add esp, 8               ; Cleans up the pushed error code and pushed IRQ number
-
-   sti
-   iret                     ; pops 5 things at once: CS, EIP, EFLAGS, SS, and ESP
-
-
-
-
-isr_common_stub:
-   pusha                    ; Pushes edi,esi,ebp,esp,ebx,edx,ecx,eax
-
-   xor  eax, eax
-   mov  ax, ds
-   push eax
-
-   mov   ax, 0x10
-   mov   ds, ax
-   mov   es, ax
-   mov   fs, ax
-   mov   gs, ax
-
-  push esp
-   extern do_handle_exception
-   call  do_handle_exception
-  add esp, 4
-
-   pop    ebx
-   mov    ds, bx
-   mov    es, bx
-   mov    fs, bx
-   mov    gs, bx
-
-   mov     al,20h           ; Return EOI signal.
-   out     020h,al          ; send to master
-   out     0A0h,al          ; and to the slave (normally, only needed for irq 7 or higher)
-
-   popa                     ; Pops edi,esi,ebp...
-   add esp, 8               ; Cleans up the pushed error code and pushed ISR number
-   sti
-   iret                     ; pops 5 things at once: CS, EIP, EFLAGS, SS, and ESP
-
-
-

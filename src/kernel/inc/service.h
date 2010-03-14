@@ -9,6 +9,7 @@
 
   #include "idt.h"
   #include "console.h"
+  #include "schedule.h"
 
 
   // Syscall defines
@@ -23,6 +24,8 @@
 
   #define SYS_FORK                       10
   #define SYS_SLEEP                      11
+  #define SYS_GETPID                     12
+  #define SYS_GETPPID                    13
 
 
   int service_interrupt (int sysnr, int p1, int p2, int p3, int p4, int p5);
@@ -33,6 +36,7 @@
   int sys_conwrite (char ch, int autoflush);
   int sys_conread (void);
   int sys_conflush (void);
-  int fork (void);
+  int sys_getpid (void);
+  int sys_getppid (void);
 
 #endif //__SERVICE_H__

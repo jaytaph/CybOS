@@ -93,8 +93,15 @@
   int sched_create_user_task (CYBOS_TASK *task, Uint32 eip, char *taskname, int console);
 
   int sys_fork (void);
-  int sys_sleep (int ms);
+  int fork(void);
 
+  int getpid (void);
+  int sys_get_pid (void);
+
+  int getppid (void);
+  int sys_get_ppid (void);
+
+  int sys_sleep (int ms);
   int sleep (int ms);
 
 

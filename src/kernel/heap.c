@@ -99,6 +99,8 @@ void heap_shrink (Uint32 size) {
 void *_heap_kmalloc (Uint32 size, int pageboundary, Uint32 *physical_address) {
   int mem_ptr;
 
+//  kprintf ("\n_heap_kmalloc (%d, %d, ...)\n", size, pageboundary);
+
   // Expand the heap if needed
   while (_k_heap_top + size > _k_heap_end) {
     kprintf ("Expanding heap\n");
@@ -120,13 +122,15 @@ void *_heap_kmalloc (Uint32 size, int pageboundary, Uint32 *physical_address) {
   // We now the virtual address, we can lookup the physical address in the _kernel_pagedirectory
   if (physical_address != NULL) {
     (*physical_address) = get_physical_address (_kernel_pagedirectory, mem_ptr);
-//    kprintf ("_kmalloc(): phys addr: %08X --> %08X\n", mem_ptr, *physical_address);
   }
+
+//  Uint32 addr = get_physical_address (_kernel_pagedirectory, mem_ptr);
+//  kprintf ("_heap_kmalloc(): phys addr: %08X --> %08X\n", mem_ptr, addr);
 
   // Increase the heap top
   _k_heap_top += size;
 
-//kprintf ("_kmalloc(): Allocated %d bytes. Ptr: %08X   New: %08X\n", size, mem_ptr, _k_heap_top);
+  // kprintf ("_kmalloc(): Allocated %d bytes. Ptr: %08X   New: %08X\n", size, mem_ptr, _k_heap_top);
   return (void *)mem_ptr;
 }
 

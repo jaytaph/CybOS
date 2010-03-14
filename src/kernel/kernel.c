@@ -78,7 +78,7 @@ void kernel_entry (int stack_start, int total_sys_memory) {
   kprintf ("MEM ");
   heap_init();
 
-  // Everything is initialized for the kernel. TODO: why not copy the stack?
+  // Everything is initialized for the kernel?
   _current_pagedirectory = clone_pagedirectory (_kernel_pagedirectory);
   set_pagedirectory (_current_pagedirectory);
 
@@ -103,18 +103,14 @@ void kernel_entry (int stack_start, int total_sys_memory) {
   int pid = fork ();
   tprintf ("\nPID: %d\n", pid);
 
-for (;;) ;
-
-
   if (pid == 0) {
+    tprintf ("Changing names\n");
     strncpy (_current_task->name, "Init", 4);
 
     while (1) {
-      sys_sleep (2500);
-
-      // This is not allowed... we are still in ring0!
-      cli ();
-      sti ();
+      tprintf ("Sleepy  \n");
+      sleep (2500);
+      tprintf ("Waking up\n");
 
       tprintf ("\n\n");
       tprintf ("PID  PPID TASK                STAT  PRIO  KTIME             UTIME\n", _current_task->pid);
@@ -126,25 +122,9 @@ for (;;) ;
     }
   }
 
-/*
-    pid = sys_fork ();
-    if (pid == 0) {
-      strncpy (_current_task->name, "Application 1", 4);
-      while (1) {
-        sys_sleep (1500);
-        tprintf ("XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX\n");
-        tprintf ("XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX\n");
-        tprintf ("XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX\n");
-        tprintf ("XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX\n");
-        tprintf ("XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX\n");
-      }
-    }
-*/
-
   // From here, we should become the inittask..
-  tprintf ("going to idle()\n");
-  for (;;) {
-  }
+  tprintf ("[%d|%d] going to idle()\n", getppid(), getpid());
+  for (;;) ;
 }
 
 

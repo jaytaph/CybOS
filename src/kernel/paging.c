@@ -19,6 +19,9 @@ TBITMAP *framebitmap;
 unsigned int *_kernel_stack;
 
 
+unsigned int clone_debug = 0;
+
+
 TPAGEDIRECTORY *clone_pagedirectory (TPAGEDIRECTORY *src);
 void copy_physical_pageframe_data (Uint32 src, Uint32 dst);
 
@@ -197,31 +200,31 @@ TPAGEDIRECTORY *clone_pagedirectory (TPAGEDIRECTORY *src) {
   memset (dst, 0, sizeof (TPAGEDIRECTORY));     // Zero it out
   dst->physical_address = phys_addr;            // We need to know the physical address of the pagedir so we can load it into CR3 register
 
-kprintf ("Cloning page directory to %08X\n", phys_addr);
+kprintf ("\n** Cloning page directory to %08X\n", phys_addr);
 
-/*
-kprintf ("But first... some information about the SRC table...\n");
-kprintf ("physical_address: %08X\n", src->physical_address);
-for (i=0; i!=1024; i++) {
-  if (src->phystables[i] != 0) {
-    char c;
-    c = ((src->phystables[i] & 0xFFFFF000) != (_kernel_pagedirectory->phystables[i] & 0xFFFFF000)) ? 'C' : 'L';
+  if (clone_debug) {
+    kprintf ("But first... some information about the SRC table...\n");
+    kprintf ("physical_address: %08X\n", src->physical_address);
+    for (i=0; i!=1024; i++) {
+      if (src->phystables[i] != 0) {
+        char c;
+        c = ((src->phystables[i] & 0xFFFFF000) != (_kernel_pagedirectory->phystables[i] & 0xFFFFF000)) ? 'C' : 'L';
 
-    kprintf ("TABLE[%4d] [%c]  phys addr : %08X\n", i, c, src->phystables[i]);
-    int k =  (i == 828) ? 1024 : 5;
-    for (j=0; j!=k; j++) {
-      if (src->tables[i]->pages[j] != 0) {
-        Uint32 va = (i << 22) + (j << 12);
-        kprintf ("     PAGE[%d] : %08X  (%08X)\n", j, src->tables[i]->pages[j], va);
+        kprintf ("TABLE[%4d] [%c]  phys addr : %08X\n", i, c, src->phystables[i]);
+        int k =  (i == 832) ? 25 : 5;
+        for (j=0; j!=k; j++) {
+          if (src->tables[i]->pages[j] != 0) {
+            Uint32 va = (i << 22) + (j << 12);
+            kprintf ("     PAGE[%d] : %08X  (%08X)\n", j, src->tables[i]->pages[j], va);
+          }
+        }
       }
     }
   }
-}
-*/
 
 
   for (i=0; i!=1024; i++) {
-    if (src->phystables[i] == 0) continue;    // Don't copy zero table
+    if (src->tables[i] == 0) continue;    // Don't copy zero table
 
 //    kprintf (" clone_pd(): phystables[%d] = %08X\n", i, src->phystables[i]);
 
@@ -241,11 +244,7 @@ for (i=0; i!=1024; i++) {
 //          kprintf ("Copying page %d (%08X)\n", j, src->tables[i]->pages[j]);
 
         // Create new page
-//        kprintf ("PRE: %08X\n", src->tables[i]->pages[j]);
-//        kprintf ("PRE: %08X\n", dst->tables[i]->pages[j]);
         allocate_pageframe (&dst->tables[i]->pages[j], 0, 0);
-//        kprintf ("POST: %08X\n", src->tables[i]->pages[j]);
-//       kprintf ("POST: %08X\n", dst->tables[i]->pages[j]);
 
         // Copy pageflag bits from source to destination
         if (src->tables[i]->pages[j] & PAGEFLAG_PRESENT)   dst->tables[i]->pages[j] |= PAGEFLAG_PRESENT;
@@ -253,12 +252,6 @@ for (i=0; i!=1024; i++) {
         if (src->tables[i]->pages[j] & PAGEFLAG_USER)      dst->tables[i]->pages[j] |= PAGEFLAG_USER;
         if (src->tables[i]->pages[j] & PAGEFLAG_ACCESSED)  dst->tables[i]->pages[j] |= PAGEFLAG_ACCESSED;
         if (src->tables[i]->pages[j] & PAGEFLAG_DIRTY)     dst->tables[i]->pages[j] |= PAGEFLAG_DIRTY;
-
-//        kprintf ("    COPY from phys table : %08X\n", (src->phystables[i] & 0xFFFFF000));
-//        kprintf ("    COPY to phys table   : %08X\n", (dst->phystables[i] & 0xFFFFF000));
-
-//        kprintf ("    COPY from phys table : %08X\n", (src->tables[i]->pages[j] & 0xFFFFF000));
-//        kprintf ("    COPY to phys table   : %08X\n", (dst->tables[i]->pages[j] & 0xFFFFF000));
 
         // @TODO: We know both virtual addresses don't we? If not, we just create a place where we
         // can put these 2 items and copy them over.
