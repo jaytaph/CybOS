@@ -26,6 +26,7 @@
   #define SYS_SLEEP                      11
   #define SYS_GETPID                     12
   #define SYS_GETPPID                    13
+  #define SYS_IDLE                       14
 
 
   int service_interrupt (int sysnr, int p1, int p2, int p3, int p4, int p5);
@@ -38,5 +39,6 @@
   int sys_conflush (void);
   int sys_getpid (void);
   int sys_getppid (void);
+  int sys_idle (void);
 
 #endif //__SERVICE_H__

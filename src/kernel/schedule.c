@@ -325,12 +325,6 @@ int sched_create_user_task (CYBOS_TASK *task, Uint32 eip, char *taskname, int co
 }
 */
 
-void kernel_idle (void) {
-  kprintf ("kernel_idle()\n");
-  __asm__ __volatile__ ("1: \n\t" \
-                        "   jmp 1b");
-}
-
 
 /*******************************************************
  * Fetch the next task in the list, or restart from the beginning
@@ -428,39 +422,38 @@ void handle_pending_signals (void) {
 // Handles stuff for all tasks in each run. Checking alarms,
 // waking up on signals etc.
 void global_task_administration (void) {
-  CYBOS_TASK *tmp = _task_list;
-
-//  kprintf ("task handling (%d)\n", _current_task->pid);
-
-
+  CYBOS_TASK *task;
 
   // Do all tasks
-  for (tmp=_task_list; tmp != NULL; tmp = tmp->next) {
-//    kprintf ("PID %d  ALRM: %d  SIG: %d  STATE: %c\n", tmp->pid, tmp->alarm, tmp->signal, (unsigned char)charstates[tmp->state]);
-
+  for (task = _task_list; task != NULL; task = task->next) {
     // This task is not yet ready. Don't do anything with it
-    if (tmp->state == TASK_STATE_INITIALISING) continue;
+    if (task->state == TASK_STATE_INITIALISING) continue;
+
+//    kprintf ("PID %d  ALRM: %d  SIG: %d  STATE: %c\n", task->pid, task->alarm, task->signal, task->state);
 
 /*
     // Do priorities of the tasks
-    if (tmp->state == TASK_STATE_RUNNING) {
-      if ( (tmp->priority += 30) <= 0) {
-        tmp->priority = -1;
+    if (task->state == TASK_STATE_RUNNING) {
+      if ( (task->priority += 30) <= 0) {
+        task->priority = -1;
       } else {
-        tmp->priority -= 10;
+        task->priority -= 10;
       }
     }
 */
 
     // Check for alarm. Decrease alarm and send a signal if time is up
-    if (tmp->alarm) {
-      tmp->alarm--;
-      if (tmp->alarm == 0) sys_signal (tmp, SIGALRM);
+    if (task->alarm) {
+      task->alarm--;
+      if (task->alarm == 0) {
+        kprintf ("Alarma on pid %d !!!\n", task->pid);
+        sys_signal (task, SIGALRM);
+      }
     }
 
     // A signal is found and the task can be interrupted. Set the task to be ready again
-    if (tmp->signal && tmp->state == TASK_STATE_INTERRUPTABLE) {
-      tmp->state = TASK_STATE_RUNNABLE;
+    if (task->signal && task->state == TASK_STATE_INTERRUPTABLE) {
+      task->state = TASK_STATE_RUNNABLE;
     }
   }
 }
@@ -498,10 +491,7 @@ void switch_task (void) {
   // We are now called in 2 different states.
   //  1. as the next task (eip = 0xDEADBEEF), so we're done
   //  2. as the previous task just wanting to fetch eip (!= 0xDEADBEEF)
-  if (eip == 0xDEADBEEF) {
-//    kprintf ("Deadbeefing\n");
-    return;
-  }
+  if (eip == 0xDEADBEEF) return;
 
 //  kprintf ("Child switch deadbeef\n");
 
@@ -538,13 +528,11 @@ void switch_task (void) {
   ebp = next_task->ebp;
   cr3 = next_task->page_directory->physical_address;
 
-BOCHS_BREAKPOINT;
-
   // Set the kernel stack
 //  kprintf ("SWITCH(%d) Stack on %08X (%08X) (ESP: %08X)\n", next_task->pid, next_task->kstack, next_task->kstack + KERNEL_STACK_SIZE, esp);
   tss_set_kernel_stack (next_task->kstack + KERNEL_STACK_SIZE);
 
-//  kprintf ("Switching task\n");
+//  kprintf ("Switching task to pid %d\n", next_task->pid);
 //  kprintf ("EIP: %08X\n", eip);
 //  kprintf ("ESP: %08X\n", esp);
 //  kprintf ("EBP: %08X\n", ebp);
@@ -671,6 +659,34 @@ int sleep (int ms) {
 }
 
 // ========================================================================================
+int idle () {
+  int ret;
+  __asm__ __volatile__ ("int	$" SYSCALL_INT_STR " \n\t" : "=a" (ret) : "a" (SYS_IDLE) );
+  return ret;
+}
+
+// ========================================================================================
+int sys_idle () {
+  /* We can only idle when we are the 0 (idle) task. Other tasks cannot idle, because if
+   * they are doing nothing (for instance, they are waiting on a signal (sleep, IO etc), they
+   * should not idle themself, but other processes will take over (this is taken care of by
+   * the scheduler). So anyway, when there is absolutely no process available that can be
+   * run (everybody is waiting), the scheduler will choose the idle task, which only job is
+   * to call this function (over and over again). It will put the processor into a standby
+   * mode and waits until a IRQ arrives. It's way better to call a HLT() than to do a
+   * "for(;;) ;".. */
+  if (_current_task->pid != 0) {
+    kprintf ("Warning.. only PID 0 can idle...\n");
+    return -1;
+  }
+
+  kprintf ("HLT()ing system until IRQ\n");
+  sti();
+  hlt();
+  return 0;
+}
+
+// ========================================================================================
 int sys_getpid (void) {
   return _current_task->pid;
 }
@@ -748,8 +764,10 @@ kprintf ("sys_fork() Creating kernel stack for this process\n");
 
     // Ok to interrupt us again
     sti ();
+
     return child_task->pid;   // Return the PID of the child
   } else {
+    sti ();
     return 0;     // This is the child. Return 0
   }
 }

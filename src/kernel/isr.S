@@ -125,6 +125,7 @@ irq_common_stub:
 
    ; EAX is saved, we it's safe to use AL
 
+   ; Aknowledge IRQ by sending EOI.. @TODO: Should this not be done AFTER the irq??
    mov     al,20h           ; Return EOI signal.
    out     020h,al          ; send to master
    out     0A0h,al          ; and to the slave (normally, only needed for irq 7 or higher)

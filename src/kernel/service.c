@@ -13,7 +13,6 @@
 
 
 // Could be handled by a lowlevel lookup-table, but this is probably a bit more readable
-
   int service_interrupt (int sysnr, int p1, int p2, int p3, int p4, int p5) {
     int retval;
 
@@ -42,6 +41,10 @@
       case  SYS_SLEEP :
                       retval = sys_sleep (p1);
                       break;
+      case  SYS_IDLE :
+                      retval = sys_idle ();
+                      break;
+
     }
     return retval;
   }

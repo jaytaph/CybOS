@@ -104,5 +104,9 @@
   int sys_sleep (int ms);
   int sleep (int ms);
 
+  int idle (void);
+  int sys_idle (void);
+
+
 
 #endif    // __SCHEDULE_H__

@@ -37,7 +37,7 @@
  * Startup of the kernel.
  */
 void kernel_entry (int stack_start, int total_sys_memory) {
-  // No interruptions until we decide it
+  // No interruptions until we decide to start again
   cli ();
 
   // Number of times the timer-interrupts is called.
@@ -92,7 +92,7 @@ void kernel_entry (int stack_start, int total_sys_memory) {
   kprintf ("]\n");
   kprintf ("Kernel initialization done. Unable to free %d bytes.\nTransfering control to user mode.\n\n\n", _unfreeable_kmem);
 
-  // Switch to ring3 and start interrupts
+  // Switch to ring3 and start interrupts automatically
   switch_to_usermode ();
 
   tprintf ("Hello userworld!\n");
@@ -108,10 +108,6 @@ void kernel_entry (int stack_start, int total_sys_memory) {
     strncpy (_current_task->name, "Init", 4);
 
     while (1) {
-      tprintf ("Sleepy  \n");
-      sleep (2500);
-      tprintf ("Waking up\n");
-
       tprintf ("\n\n");
       tprintf ("PID  PPID TASK                STAT  PRIO  KTIME             UTIME\n", _current_task->pid);
       CYBOS_TASK *t;
@@ -119,12 +115,26 @@ void kernel_entry (int stack_start, int total_sys_memory) {
         tprintf ("%04d %04d %-17s      %c  %4d  %08X  %08X\n", t->pid, t->ppid, t->name, t->state, t->priority, t->ringticksLo[0], t->ringticksLo[3]);
       }
       tprintf ("\n");
+
+      tprintf ("Sleepy  \n");
+      sleep (2500);
+      tprintf ("Waking up\n");
+
     }
   }
 
   // From here, we should become the inittask..
-  tprintf ("[%d|%d] going to idle()\n", getppid(), getpid());
-  for (;;) ;
+  tprintf ("[%d|%d] Idletask is going to idle()\n", getppid(), getpid());
+  for (;;) {
+      tprintf ("\n\n");
+      tprintf ("PID  PPID TASK                STAT  PRIO  KTIME             UTIME\n", _current_task->pid);
+      CYBOS_TASK *t;
+      for (t=_task_list; t!=NULL; t=t->next) {
+        tprintf ("%04d %04d %-17s      %c  %4d  %08X  %08X\n", t->pid, t->ppid, t->name, t->state, t->priority, t->ringticksLo[0], t->ringticksLo[3]);
+      }
+      tprintf ("\n");
+    idle ();
+  }
 }
 
 
@@ -204,6 +214,7 @@ int tprintf_help (char c, void **ptr) {
   outb (0xE9, c);
 #endif
 
+  // print char
   __asm__ __volatile__ ("int	$" SYSCALL_INT_STR " \n\t" : : "a" (SYS_CONWRITE), "b" (c), "c" (0) );
   return 0;
 }
@@ -215,6 +226,7 @@ void tprintf (const char *fmt, ...) {
   (void)do_printf (fmt, args, tprintf_help, NULL);
   va_end (args);
 
+  // Flush output
   __asm__ __volatile__ ("int	$" SYSCALL_INT_STR " \n\t" : : "a" (SYS_CONFLUSH));
 }
 

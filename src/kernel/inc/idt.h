@@ -52,7 +52,7 @@
   // Interrupt defines
   #define hlt() __asm__ __volatile__ ("hlt");   // Halt processor
   #define cli() __asm__ __volatile__ ("cli");   // Clear interrupt flag
-  #define sti() __asm__ __volatile__ ("xchg %bx,%bx; sti;");   // Set interrupt flag
+  #define sti() __asm__ __volatile__ ("sti");   // Set interrupt flag
 
 
   // Functions
