@@ -287,8 +287,9 @@ int _create_task (CYBOS_TASK *task, int kernel_or_usertask,
 int sched_create_kernel_task (CYBOS_TASK *task, Uint32 eip, char *taskname, int console) {
 
   // Create kernel and user stack (TODO: need a kernel stack to create? no.. i do not think so?)
-  task->kstack = (Uint32)kmalloc (KERNEL_STACK_SIZE);
-  task->ustack = (Uint32)kmalloc (USER_STACK_SIZE);
+  kprintf ("Sched_create_kernel_task()  create stacks\n");
+  task->kstack = (Uint32)kmalloc_pageboundary (KERNEL_STACK_SIZE);
+  task->ustack = (Uint32)kmalloc_pageboundary (USER_STACK_SIZE);
 
   // Stacks are made. userstack can be completely empty but the kernel stack should be copied from
   // the current stack and the relative vars should be changed (why?)
@@ -306,8 +307,8 @@ int sched_create_kernel_task (CYBOS_TASK *task, Uint32 eip, char *taskname, int 
 // ==========================================================================================
 int sched_create_user_task (CYBOS_TASK *task, Uint32 eip, char *taskname, int console) {
   // Create kernel and user stack
-  task->kstack = (Uint32)kmalloc (KERNEL_STACK_SIZE);
-  task->ustack = (Uint32)kmalloc (USER_STACK_SIZE);
+  task->kstack = (Uint32)kmalloc_pageboundary (KERNEL_STACK_SIZE);
+  task->ustack = (Uint32)kmalloc_pageboundary (USER_STACK_SIZE);
 
   task->ustack = 0x40050000;
 
@@ -488,6 +489,8 @@ void switch_task (void) {
   asm volatile("mov %%esp, %0" : "=r"(esp));
   asm volatile("mov %%ebp, %0" : "=r"(ebp));
 
+  kprintf ("ESP: %08X\n", esp);
+
   // Read the current instruction address.
   eip = read_eip();
 
@@ -495,19 +498,16 @@ void switch_task (void) {
   //  1. as the next task (eip = 0xDEADBEEF), so we're done
   //  2. as the previous task just wanting to fetch eip (!= 0xDEADBEEF)
   if (eip == 0xDEADBEEF) {
+    kprintf ("Deadbeefing\n");
     return;
   }
+
+  kprintf ("Child switch deadbeef\n");
 
   // Save registers. The rest is saved by the interrupt call and restored by IRET
   previous_task->eip = eip;
   previous_task->esp = esp;
   previous_task->ebp = ebp;
-
-  // Only set this task to be available again if it was still running. If it's
-  // sleeping TASK_STATE_(UN)INTERRUPTIBLE), then don't change this setting.
-  if (previous_task->state == TASK_STATE_RUNNING) {
-    previous_task->state = TASK_STATE_RUNNABLE;
-  }
 
 
   // Fetch the next available task
@@ -516,11 +516,20 @@ void switch_task (void) {
   } while (next_task->state != TASK_STATE_RUNNABLE);    // Hmmz.. When no runnable tasks are found,
                                                         // we should automatically fetch idletask()?
 
+  // Looks like we do not need to switch (maybe only 1 task, or still idle?
+  if (previous_task == next_task) {
+    kprintf ("Returning same task (PID %d)\n", next_task->pid);
+    return;
+  }
+
+  // Only set this task to be available again if it was still running. If it's
+  // sleeping TASK_STATE_(UN)INTERRUPTIBLE), then don't change this setting.
+  if (previous_task->state == TASK_STATE_RUNNING) {
+    previous_task->state = TASK_STATE_RUNNABLE;
+  }
+
   // Old task is available again. New task is running
   next_task->state = TASK_STATE_RUNNING;
-
-  // The next task will be the current task..
-  _current_task = next_task;
 
   // Fetch the new registers
   eip = next_task->eip;
@@ -529,10 +538,29 @@ void switch_task (void) {
   cr3 = next_task->page_directory->physical_address;
 
   // Set the kernel stack
+  kprintf ("SWITCH(%d) Stack on %08X (%08X) (ESP: %08X)\n", next_task->pid, next_task->kstack, next_task->kstack + KERNEL_STACK_SIZE, esp);
   tss_set_kernel_stack (next_task->kstack + KERNEL_STACK_SIZE);
 
+
+  // The next task is now the current task..
+  _current_task = next_task;
+
+BOCHS_BREAKPOINT;
+
+// /*
+  __asm__ __volatile__ (" \
+                        xchg %%bx, %%bx; \
+                         mov %%eax, %%esp;       \
+                         mov %%ebx, %%ebp;       \
+                         mov %%ecx, %%cr3;       \
+                         mov $0xDEADBEEF, %%eax; \
+                         jmp *%%edx  "
+                         : : "d"(eip), "a"(esp), "b"(ebp), "c"(cr3));
+// */
+/*
   // Switch to a new task (start right after read_eip()).
   __asm__ __volatile__ ("cli;                    \
+                         xchg %%bx,%%bx; \
                          mov %%eax, %%esp;       \
                          mov %%ebx, %%ebp;       \
                          mov %%ecx, %%cr3;       \
@@ -540,6 +568,7 @@ void switch_task (void) {
                          sti;                    \
                          jmp *%%edx  "
                          : : "d"(eip), "a"(esp), "b"(ebp), "c"(cr3));
+// */
 }
 
 
@@ -621,8 +650,6 @@ int sys_sleep (int ms) {
 int fork (void) {
   int ret;
 
-BOCHS_BREAKPOINT;
-
   __asm__ __volatile__ ("int	$" SYSCALL_INT_STR " \n\t" : "=a" (ret) : "a" (SYS_FORK) );
   return ret;
 }
@@ -668,13 +695,42 @@ int sys_fork (void) {
   child_task->ebp = 0;
   child_task->eip = 0;
 
-  child_task->kstack = (Uint32)kmalloc (KERNEL_STACK_SIZE);
+kprintf ("sys_fork() Creating kernel stack for this process\n");
+  Uint32 addr;
+  child_task->kstack = (Uint32)kmalloc_pageboundary_physical (KERNEL_STACK_SIZE, &addr);
+  kprintf ("KSTACK IS : %08X   Phys: %08X\n",child_task->kstack, addr);
+
+//  clone_debug = 1;
+//  clone_pagedirectory (parent_task->page_directory);
 
   // Add task to schedule-switcher. We are still initialising so it does not run yet.
   sched_add_task (child_task);
 
   // We set the child task to start right after read_eip.
   Uint32 eip = read_eip();
+
+
+
+//DOES NOT COMPILE!!!
+  /*******
+
+  It looks like the stack from the new process is linked instead of copied. Because of this
+  we already poped all data from the stack. As soon as the child gets active, it wants to
+  pop more data, and we end up somewhere nasty when we return from this function as the child.
+
+  Figure out:
+  Q: Is the stack we are using (as a user) copied instead of linked?
+  A: It does not look that way. When we fork twice (hanging the child), it looks like
+     we still use the same physical address. This is not correct!
+  Q: is kmalloc() is ok???? when we create something new, does it get linked or copied?
+  A: is not interessting.
+  Q: When we switch, is the correct stack used for kernel?
+
+  Q: Is it possible that return (in switch()task messes up our stack somehow?) OR maybe
+     there is a function (interrupt?) that leaves some items on the stack?
+
+  *******************/
+//DOES NOT COMPILE!!!
 
   // From this point on, 2 tasks will be executing this code. The parent will come first and
   // will set the child_task stuff we need. After that it will set the child_task state to
@@ -700,6 +756,7 @@ int sys_fork (void) {
 // ================================================================================
 void scheduler (void) {
   global_task_administration ();       /* Sort priorities, alarms, wake-up-on-signals etc */
+BOCHS_BREAKPOINT;
   switch_task ();                      /* Switch to another task */
   handle_pending_signals ();           /* Handle pending signals for current task */
 }
