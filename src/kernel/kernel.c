@@ -25,12 +25,34 @@
 #include "io.h"
 
 
-  // 64bit tick counter (we assume this OS will have decent uptimes :) )
+  // 64bit tick counter
   Uint64 _kernel_ticks;
 
-  CYBOS_TASK construct_task;           // Construct() task
-
   void tprintf (const char *fmt, ...);
+
+
+
+void thread_proc1 () {
+  for (;;) tprintf ("^");
+}
+void thread_proc2 () {
+  for (;;) tprintf ("%");
+}
+void thread_proc_status () {
+  while (1) {
+    tprintf ("\n\n");
+    tprintf ("PID  PPID TASK                STAT  PRIO  KTIME             UTIME\n", _current_task->pid);
+    CYBOS_TASK *t;
+    for (t=_task_list; t!=NULL; t=t->next) {
+      tprintf ("%04d %04d %-17s      %c  %4d  %08X  %08X\n", t->pid, t->ppid, t->name, t->state, t->priority, t->ringticksLo[0], t->ringticksLo[3]);
+    }
+    tprintf ("\n");
+
+    tprintf ("Sleepy  \n");
+    sleep (2500);
+    tprintf ("Waking up\n");
+  }
+}
 
 
 /****************************************************************************
@@ -89,20 +111,21 @@ void kernel_entry (int stack_start, int total_sys_memory) {
   kprintf ("TSK ");
   sched_init ();
 
+  thread_create_kernel_thread ((Uint32)&thread_proc1, "Task 1", CONSOLE_USE_KCONSOLE);
+  thread_create_kernel_thread ((Uint32)&thread_proc2, "Task 2", CONSOLE_USE_KCONSOLE);
+  thread_create_kernel_thread ((Uint32)&thread_proc_status, "Process Status", CONSOLE_USE_KCONSOLE);
+
   kprintf ("]\n");
   kprintf ("Kernel initialization done. Unable to free %d bytes.\nTransfering control to user mode.\n\n\n", _unfreeable_kmem);
 
   // Switch to ring3 and start interrupts automatically
   switch_to_usermode ();
 
-  tprintf ("Hello userworld!\n");
+  tprintf ("**** Hello userworld!\n");
 
-  // Hello world.. we are in usermode!
-  tprintf ("\nFORK\n");
+  for (;;) ;
 
-  int pid = fork ();
-  tprintf ("\nPID: %d\n", pid);
-
+  int pid = 0;
   if (pid == 0) {
     tprintf ("Changing names\n");
     strncpy (_current_task->name, "Init", 4);
@@ -119,7 +142,6 @@ void kernel_entry (int stack_start, int total_sys_memory) {
       tprintf ("Sleepy  \n");
       sleep (2500);
       tprintf ("Waking up\n");
-
     }
   }
 
@@ -136,6 +158,8 @@ void kernel_entry (int stack_start, int total_sys_memory) {
     idle ();
   }
 }
+
+
 
 
 /************************************

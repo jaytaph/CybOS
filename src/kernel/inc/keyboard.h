@@ -7,7 +7,7 @@
 #ifndef __KEYBOARD_H__
 #define __KEYBOARD_H__
 
-  void keyboard_interrupt (void);
+  int keyboard_interrupt (void);
 
   void keyboard_setleds (int capslock, int numlock, int scrolllock);
 

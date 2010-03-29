@@ -88,7 +88,7 @@ int keyboard_stuffkey (unsigned char key[]) {
 /************************************************************
  * Interrupt Service routine which handles the keyboard on IRQ 1
  */
-void keyboard_interrupt (void) {
+int keyboard_interrupt (void) {
   unsigned char scancode;
   unsigned char key[10];
   unsigned int make,key_ascii;
@@ -156,7 +156,7 @@ void keyboard_interrupt (void) {
 
   // Do not interpret other keys while we're in a control switch. First we
   // must leave it (by releasing <ctrl>) in order to handle other keys again.
-  if (in_console_switch==1) return;
+  if (in_console_switch==1) return 0;
 
 
   // Nothing special occurs.. now we can convert the
@@ -201,6 +201,9 @@ void keyboard_interrupt (void) {
   if (in_console_switch) con_plot (_kconsole, 47, 0, '!'); else con_plot (_kconsole, 47, 0, '_');
   con_plot (_kconsole, 48, 0, ']');
   con_flush (_kconsole);
+
+  // Keyboard never triggers a rescheduling
+  return 0;
 }
 
 

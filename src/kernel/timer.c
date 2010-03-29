@@ -7,13 +7,12 @@
 #include "kernel.h"
 #include "schedule.h"
 
-Uint64 _sched_ticks;
 
 /************************************************************
  * Interrupt handler for IRQ 0. Control speed through the
  * PIT-functions in pit.h
  */
-void timer_interrupt (int rpl) {
+int timer_interrupt (int rpl) {
   // Increase the first character on the screen so we can see we are running
 #ifdef __DEBUG__
   char *vga = (char *)0xF00B8000;
@@ -24,12 +23,10 @@ void timer_interrupt (int rpl) {
 #endif
 
   // Increase main kernel timer tick counter
-  // @TODO: 32 bit or 64 bits counter?
   _kernel_ticks++;
-  _sched_ticks++;
 
   // Nothing left to do when we do not have tasks initialized yet
-  if (! _current_task) return;
+  if (! _current_task) return 0;
 
   // Increase the time spend on this ring for this process
   _current_task->ringticksLo[rpl]++;
@@ -37,16 +34,10 @@ void timer_interrupt (int rpl) {
     _current_task->ringticksHi[rpl]++;
   }
 
-  // Why not schedule() on every tick?
-  if (_kernel_ticks & 1) scheduler ();
-/*
-  if (_sched_ticks >= 0) {
-    _sched_ticks = 0;
+  // rechedule on odd ticks
+  if (_kernel_ticks & 1) return 1;
 
-    kprintf ("SCHED()\n");
-    scheduler ();
-    kprintf ("PID: %d\n", _current_task->pid);
-  }
-// */
+  // No rescheduling needed otherwise
+  return 0;
 }
 

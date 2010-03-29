@@ -10,8 +10,10 @@
   #include "kernel.h"
   #include "paging.h"
 
-  #define NO_CREATE_CONSOLE              0
-  #define CREATE_CONSOLE                 1
+  // Console creation defines for thread_create_*
+  #define CONSOLE_USE_KCONSOLE           0    // Use the kernel console
+  #define CONSOLE_CREATE_NEW             1    // Create new console
+  #define CONSOLE_NO_CONSOLE             2    // Thread does not use console
 
 
   // Standard cybos task. This is basically a raw process structure
@@ -32,10 +34,7 @@
       int  kstack;                                    // Points to kernel stack
       int  ustack;                                    // Points to user stack
 
-      Uint32 eip;
-      Uint32 ebp;
       Uint32 esp;                                     // Current kernel stack ESP
-      Uint32 ss;                                      // Current kernel stack SS (needed?)
       TPAGEDIRECTORY *page_directory;                 // Points to the page directory of this task
 
       int  alarm;                                     // Remaining alarm ticks
@@ -65,21 +64,17 @@
   #define TASK_STATE_RUNNING          'R'       // This task is currently running
   #define TASK_STATE_INTERRUPTABLE    'S'       // Task is sleeping, but can be interrupted
   #define TASK_STATE_UNINTERRUPTABLE  'U'       // Task is sleeping, and cannot be interrupted
-  #define TASK_STATE_ZOMBIE           'Z'       // Zombie task (?)
+//  #define TASK_STATE_ZOMBIE           'Z'       // Zombie task (?)
 
-//  extern unsigned char charstates[];          // Array of chars with 'task state numbers'
-
-  extern CYBOS_TASK *_current_task;            // Current task which is running.
-  extern CYBOS_TASK *_task_list;               // Points to the first task in the tasklist (idle_task)
-  extern int current_pid;                      // Last PID returned by allocate_pid()
-
-//  extern unsigned int *_kernel_stack;          // Pointer to the kernel stack
+  extern CYBOS_TASK *_current_task;             // Current task which is running.
+  extern CYBOS_TASK *_task_list;                // Points to the first task in the tasklist (idle_task)
+  extern int current_pid;                       // Last PID returned by allocate_pid()
 
 
   int read_eip (void);
 
   int sched_init (void);
-  void scheduler (void);
+  void reschedule (void);
 
   void user_idle (void);
   void kernel_idle (void);
@@ -89,8 +84,7 @@
   void sched_add_task (CYBOS_TASK *task);
   void sched_remove_task (CYBOS_TASK *task);
 
-  int sched_create_kernel_task (CYBOS_TASK *task, Uint32 eip, char *taskname, int console);
-  int sched_create_user_task (CYBOS_TASK *task, Uint32 eip, char *taskname, int console);
+  void thread_create_kernel_thread (Uint32 start_address, char *taskname, int console);
 
   int sys_fork (void);
   int fork(void);

@@ -12,7 +12,7 @@ section .text
 
       ; Exceptions that do not push errorcode (we push a dummy manually)
       handle_exception%1:
-        cli
+;        cli
 
         push byte 0
         push byte %1
@@ -24,7 +24,7 @@ section .text
 
       ; Exceptions that do push error codes (no need to push extra)
       handle_exception%1:
-        cli
+;        cli
 
         ; Error code already pushed by this expection
         push byte %1
@@ -36,7 +36,8 @@ section .text
       [GLOBAL handle_irq%1]
 
       handle_irq%1:
-        cli
+;        cli
+        sti
 
         push byte 0       ; Dummy error code
         push byte %1      ; Current IRQ code
@@ -80,7 +81,7 @@ section .text
 ; ------------------------------------------------------------
 ; Handler for default interrupts
 handle_default_int:
-   cli
+;   cli
 
    push byte 0    ; Dummy code, just to make it more generic
    push byte 0    ; same here
@@ -98,7 +99,7 @@ handle_default_int:
 ; ------------------------------------------------------------
 ; Handler for default interrupts
 handle_syscall_int:
-   cli
+;   cli
 
    push byte 0    ; Dummy code, just to make it more generic
    push byte 0    ; same here
@@ -122,14 +123,6 @@ handle_syscall_int:
 ; macro's jump to this piece of code.
 irq_common_stub:
    STARTOFINTERRUPT
-
-   ; EAX is saved, we it's safe to use AL
-
-   ; Aknowledge IRQ by sending EOI.. @TODO: Should this not be done AFTER the irq??
-   mov     al,20h           ; Return EOI signal.
-   out     020h,al          ; send to master
-   out     0A0h,al          ; and to the slave (normally, only needed for irq 7 or higher)
-
 
    push esp
    extern do_handle_irq

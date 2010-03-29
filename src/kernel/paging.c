@@ -200,7 +200,7 @@ TPAGEDIRECTORY *clone_pagedirectory (TPAGEDIRECTORY *src) {
   memset (dst, 0, sizeof (TPAGEDIRECTORY));     // Zero it out
   dst->physical_address = phys_addr;            // We need to know the physical address of the pagedir so we can load it into CR3 register
 
-kprintf ("\n** Cloning page directory to %08X\n", phys_addr);
+// kprintf ("\n** Cloning page directory to %08X\n", phys_addr);
 
   if (clone_debug) {
     kprintf ("But first... some information about the SRC table...\n");
@@ -229,7 +229,7 @@ kprintf ("\n** Cloning page directory to %08X\n", phys_addr);
 //    kprintf (" clone_pd(): phystables[%d] = %08X\n", i, src->phystables[i]);
 
     if ((src->phystables[i] & 0xFFFFF000) != (_kernel_pagedirectory->phystables[i] & 0xFFFFF000)) {
-      kprintf (" [C] %08X\n", (src->phystables[i] & 0xFFFFF000));
+//      kprintf (" [C] %08X\n", (src->phystables[i] & 0xFFFFF000));
       // COPY the table since it's not in the kernel directory
 
       // Create table at new memory address
@@ -263,7 +263,7 @@ kprintf ("\n** Cloning page directory to %08X\n", phys_addr);
       }
     } else {
       // LINK the table since it's also in the kernel directory
-      kprintf (" [L] %08X\n", (src->phystables[i] & 0xFFFFF000));
+//      kprintf (" [L] %08X\n", (src->phystables[i] & 0xFFFFF000));
 
       // Since we just link to the same address, we do not need to copy the table itself.
       dst->phystables[i] = src->phystables[i];
@@ -271,7 +271,7 @@ kprintf ("\n** Cloning page directory to %08X\n", phys_addr);
     }
   }
 
-kprintf ("done...\n");
+//kprintf ("done...\n");
 
   return dst;
 }
@@ -426,7 +426,6 @@ int stack_init (Uint32 src_stack_top) {
   for(i=0; i < KERNEL_STACK_SIZE; i += 0x1000) {
     create_pageframe (_current_pagedirectory, (Uint32)_kernel_stack + i, PAGEFLAG_PRESENT+PAGEFLAG_READWRITE+PAGEFLAG_USER);
   }
-
 
   // Work with 2 stack-tops instead of kernel-stack-bottom and src-stack-bottom
   kernel_stack_top = (Uint32)_kernel_stack + KERNEL_STACK_SIZE;

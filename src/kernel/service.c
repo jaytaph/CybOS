@@ -44,7 +44,9 @@
       case  SYS_IDLE :
                       retval = sys_idle ();
                       break;
-
+      case  SYS_EXIT :
+                      retval = sys_exit ();
+                      break;
     }
     return retval;
   }

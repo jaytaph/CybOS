@@ -117,6 +117,33 @@ Uint32 exception_handlers[32] = { (Uint32)&handle_exception0,  (Uint32)&handle_e
   typedef struct { Uint16 limit; Uint32 base; } TIDTR;
 
 
+
+int disable_ints (void) {
+  Uint32 flags;
+  int state;
+
+//  kprintf ("DisableInts()\n");
+
+  // Get flags and see if interrupt flag is set
+  __asm__ __volatile__ (" pushfl ;  pop %%eax" : "=a"(flags));
+  state = flags & 0x200;
+
+  cli ();
+
+//  kprintf ("State: %d\n", state);
+  return state;
+}
+
+
+void restore_ints (int state) {
+//  kprintf ("RestoreInts()\n");
+  // Only set interrupts back on when state != 0
+  if (state != 0) {
+//    kprintf ("STI()\n");
+    sti ();
+  }
+}
+
 // =================================================================================
 void idt_set_descriptor (int index, Uint64 descriptor) {
   _kernel_idt[index] = descriptor;
@@ -145,7 +172,7 @@ int idt_init (void) {
   for (i=0; i!=256; i++) {
     idt = idt_create_descriptor ((Uint32)&handle_default_int, SEL(KERNEL_CODE_DESCR, TI_GDT+RPL_RING0), IDT_PRESENT+IDT_DPL0+IDT_INTERRUPT_GATE);
 // TODO: Remove me. This helps us debugging when bochs handle these interrupts instead of our OS
-    if (i == 8 || i == 13 || i == 14) continue;
+    if (i == 6 || i == 8 || i == 13 || i == 14) continue;
     idt_set_descriptor (i, idt);
   }
 
@@ -159,7 +186,7 @@ int idt_init (void) {
   for (i=0; i!=32; i++) {
     idt = idt_create_descriptor (exception_handlers[i], SEL(KERNEL_CODE_DESCR, TI_GDT+RPL_RING0), IDT_PRESENT+IDT_DPL0+IDT_INTERRUPT_GATE);
 // TODO: Remove me. This helps us debugging when bochs handle these interrupts instead of our OS
-    if (i == 8 || i == 13 || i == 14) continue;
+    if (i == 6 || i == 8 || i == 13 || i == 14) continue;
     idt_set_descriptor (i, idt);
   }
 
@@ -190,33 +217,16 @@ int idt_init (void) {
 // Same as the exception and syscall handler, it could have been handled by a lowlevel
 // lookup-table, but somehow this looks more readable to me.
 void do_handle_irq (TREGS *r) {
-/*  kprintf ("\n\n");
-  kprintf ("REGS: r->ds : %08X\n", r->ds);
-  kprintf ("REGS: r->edi : %08X\n", r->edi);
-  kprintf ("REGS: r->esi : %08X\n", r->esi);
-  kprintf ("REGS: r->ebp : %08X\n", r->ebp);
-  kprintf ("REGS: r->esp : %08X\n", r->esp);
-  kprintf ("REGS: r->ebx : %08X\n", r->ebx);
-  kprintf ("REGS: r->edx : %08X\n", r->edx);
-  kprintf ("REGS: r->ecx : %08X\n", r->ecx);
-  kprintf ("REGS: r->eax : %08X\n", r->eax);
-  kprintf ("REGS: r->int_no : %08X\n", r->int_no);
-  kprintf ("REGS: r->err_code : %08X\n", r->err_code);
-  kprintf ("REGS: r->eip : %08X\n", r->eip);
-  kprintf ("REGS: r->cs : %08X\n", r->cs);
-  kprintf ("REGS: r->eflags : %08X\n", r->eflags);
-  kprintf ("REGS: r->useresp : %08X\n", r->useresp);
-  kprintf ("REGS: r->ss : %08X\n", r->ss);
-*/
+  int rescheduling = 0;
 
   switch (r->int_no) {
     case 0 :
              // CS is selector, first 2 bits is the RPL so the timer function knows
              // in which context it is being called.
-             timer_interrupt (r->cs & 0x3);
+             rescheduling = timer_interrupt (r->cs & 0x3);
              break;
     case 1 :
-             keyboard_interrupt ();
+             rescheduling = keyboard_interrupt ();
              break;
     case 2 :
              break;
@@ -249,6 +259,14 @@ void do_handle_irq (TREGS *r) {
     default :
               break;
   }
+
+
+  // Acknowledge IRQ. Needed because can get rescheduled now
+  outb (0x20, 0x20);
+  outb (0xA0, 0x20);
+
+  // Reschedule if needed
+  if (rescheduling) reschedule();
 }
 
 // =================================================================================
@@ -257,26 +275,7 @@ void do_handle_irq (TREGS *r) {
 // the call automatically places the ret addres onto the stack and that messes up the
 // rest of the parameters. Therefor, we just send a pointer.
 int do_handle_syscall (TREGS *r) {
-/*  kprintf ("\n\n");
-  kprintf ("SYSCALL\n");
-  kprintf ("REGS: r->ds : %08X\n", r->ds);
-  kprintf ("REGS: r->edi : %08X\n", r->edi);
-  kprintf ("REGS: r->esi : %08X\n", r->esi);
-  kprintf ("REGS: r->ebp : %08X\n", r->ebp);
-  kprintf ("REGS: r->esp : %08X\n", r->esp);
-  kprintf ("REGS: r->ebx : %08X\n", r->ebx);
-  kprintf ("REGS: r->edx : %08X\n", r->edx);
-  kprintf ("REGS: r->ecx : %08X\n", r->ecx);
-  kprintf ("REGS: r->eax : %08X\n", r->eax);
-  kprintf ("REGS: r->int_no : %08X\n", r->int_no);
-  kprintf ("REGS: r->err_code : %08X\n", r->err_code);
-  kprintf ("REGS: r->eip : %08X\n", r->eip);
-  kprintf ("REGS: r->cs : %08X\n", r->cs);
-  kprintf ("REGS: r->eflags : %08X\n", r->eflags);
-  kprintf ("REGS: r->useresp : %08X\n", r->useresp);
-  kprintf ("REGS: r->ss : %08X\n", r->ss);
-*/
-  return service_interrupt (r->eax & 0xFFFF, r->ebx, r->ecx, r->edx, r->esi, r->edi);
+  return service_interrupt (r->eax & 0x0000FFFF, r->ebx, r->ecx, r->edx, r->esi, r->edi);
 }
 
 // =================================================================================

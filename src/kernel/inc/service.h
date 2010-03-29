@@ -27,6 +27,7 @@
   #define SYS_GETPID                     12
   #define SYS_GETPPID                    13
   #define SYS_IDLE                       14
+  #define SYS_EXIT                       15
 
 
   int service_interrupt (int sysnr, int p1, int p2, int p3, int p4, int p5);
@@ -40,5 +41,6 @@
   int sys_getpid (void);
   int sys_getppid (void);
   int sys_idle (void);
+  int sys_exit (void);
 
 #endif //__SERVICE_H__

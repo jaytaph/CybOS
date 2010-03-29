@@ -51,8 +51,13 @@
 
   // Interrupt defines
   #define hlt() __asm__ __volatile__ ("hlt");   // Halt processor
+
+  // @TODO: Do not use these ones. Use restore/disable ints
   #define cli() __asm__ __volatile__ ("cli");   // Clear interrupt flag
   #define sti() __asm__ __volatile__ ("sti");   // Set interrupt flag
+
+  int disable_ints (void);
+  void restore_ints (int state);
 
 
   // Functions

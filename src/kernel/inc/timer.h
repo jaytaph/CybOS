@@ -8,6 +8,6 @@
 #ifndef __TIMER_H__
 #define __TIMER_H__
 
-  void timer_interrupt (int rpl);
+  int timer_interrupt (int rpl);
 
 #endif // __TIMER_H__

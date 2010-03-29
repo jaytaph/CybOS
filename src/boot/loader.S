@@ -13,7 +13,7 @@
 ; Do not add code before this label
 KRNL_LDR_START:
         ; We are loaded on 0500:0000
-        jmp Start                ; Jump over the data
+        jmp Start                ; Jump over the dat
 
 ; --------------------------------
 ; Data used in the file
@@ -127,25 +127,9 @@ DetectCPU_End:
 ; memory we have, how much memory the kernel needs (codesize)
 ; how much memory we need to get up and running (datasize).
 DetectMemory:
-        push    ds
-        mov     si,0x0040
-        mov     ds,si
-        mov     si,0x0013
-        losdw
-        pop     ds
 
-        cmp     ax, 1024
-        jae     EnoughMemoryFound
-
-NotEnoughMemoryFound:
-        mov  al, FAILURECHAR            ; Uh-oh
-        call WriteChar
-        call DeadLock                   ; Not good.. DeadLock
-
-EnoughMemoryFound:
-
-        ; At least 1024MB was found. Now we are going to check how
-        ; much more we have.
+        ; Assume 1MB found. Now we are going to check how
+        ; much more we have (not really a good test, but sufficient for now)
 
         mov     ax, 0xE801
         int     0x15

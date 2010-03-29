@@ -2,6 +2,22 @@
 
 section .text
 
+
+[GLOBAL context_switch]
+context_switch:
+	pushad
+
+	mov   eax, [esp+36]
+	mov   [eax], esp        ; save esp into old_esp
+
+	mov   eax, [esp+40]     ; Set new_esp to esp
+	mov   esp, eax
+
+	popad                   ; restore all 8 general purpose regs from the new stack
+	ret                     ; return to caller (usually the bottom part of switch_task()
+
+
+
 [GLOBAL read_eip]
 read_eip:
   pop eax   ; Fetch and remove the return address from the stack
