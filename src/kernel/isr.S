@@ -12,7 +12,7 @@ section .text
 
       ; Exceptions that do not push errorcode (we push a dummy manually)
       handle_exception%1:
-;        cli
+        cli
 
         push byte 0
         push byte %1
@@ -24,7 +24,7 @@ section .text
 
       ; Exceptions that do push error codes (no need to push extra)
       handle_exception%1:
-;        cli
+        cli
 
         ; Error code already pushed by this expection
         push byte %1
@@ -36,8 +36,7 @@ section .text
       [GLOBAL handle_irq%1]
 
       handle_irq%1:
-;        cli
-        sti
+        cli
 
         push byte 0       ; Dummy error code
         push byte %1      ; Current IRQ code
@@ -81,7 +80,7 @@ section .text
 ; ------------------------------------------------------------
 ; Handler for default interrupts
 handle_default_int:
-;   cli
+   cli
 
    push byte 0    ; Dummy code, just to make it more generic
    push byte 0    ; same here
@@ -99,7 +98,7 @@ handle_default_int:
 ; ------------------------------------------------------------
 ; Handler for default interrupts
 handle_syscall_int:
-;   cli
+   cli
 
    push byte 0    ; Dummy code, just to make it more generic
    push byte 0    ; same here

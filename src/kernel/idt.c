@@ -122,26 +122,19 @@ int disable_ints (void) {
   Uint32 flags;
   int state;
 
-//  kprintf ("DisableInts()\n");
-
   // Get flags and see if interrupt flag is set
   __asm__ __volatile__ (" pushfl ;  pop %%eax" : "=a"(flags));
   state = flags & 0x200;
 
   cli ();
 
-//  kprintf ("State: %d\n", state);
   return state;
 }
 
 
 void restore_ints (int state) {
-//  kprintf ("RestoreInts()\n");
   // Only set interrupts back on when state != 0
-  if (state != 0) {
-//    kprintf ("STI()\n");
-    sti ();
-  }
+  if (state != 0) sti ();
 }
 
 // =================================================================================
@@ -259,7 +252,6 @@ void do_handle_irq (TREGS *r) {
     default :
               break;
   }
-
 
   // Acknowledge IRQ. Needed because can get rescheduled now
   outb (0x20, 0x20);
