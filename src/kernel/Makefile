@@ -55,6 +55,7 @@ OBJS =  main.o \
         pic.o \
         mutex.o \
         mutexasm.o \
+	queue.o \
         klib.o
 
 

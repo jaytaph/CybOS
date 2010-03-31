@@ -7,6 +7,7 @@
 #include "kernel.h"
 #include "schedule.h"
 
+Uint32 _schedule_ticks = 0;
 
 /************************************************************
  * Interrupt handler for IRQ 0. Control speed through the
@@ -16,7 +17,7 @@ int timer_interrupt (int rpl) {
   // Increase the first character on the screen so we can see we are running
 #ifdef __DEBUG__
   char *vga = (char *)0xF00B8000;
-  (*vga) = rpl+65;
+  (*vga) = rpl+'0';
 
   vga+=2; (*vga)++;
   if (*vga==0) { vga+=2; (*vga)++; }
@@ -34,10 +35,15 @@ int timer_interrupt (int rpl) {
     _current_task->ringticksHi[rpl]++;
   }
 
-  // rechedule on odd ticks
-  if (_kernel_ticks & 1) return 1;
 
-  // No rescheduling needed otherwise
+  _schedule_ticks++;
+  if (_schedule_ticks > 1000) {
+    _schedule_ticks = 0;
+    return 1;
+  }
   return 0;
+
+
+  return 1;
 }
 

@@ -20,9 +20,6 @@
 
   #pragma pack (1)
   typedef struct {
-      void *next;                                     // Pointer to the next CYBOS_TASK task in the DLL.
-      void *prev;                                     // Pointer to the previous CYBOS_TASK task in the DLL.
-
       char name[50];                                  // Name of the current task so it shows up inside the task listing
       TCONSOLE *console;                              // Pointer to the TCONSOLE were this task is outputted to
 
@@ -45,8 +42,9 @@
   } CYBOS_TASK;
 
 
+  #define PRIO_IDLE           0     // Idle priority
+  #define PRIO_LOWEST         1     // Minimum priority
   #define PRIO_DEFAULT       50     // Default priority
-  #define PRIO_LOWEST         0     // Minimum priority (idle tasks)
   #define PRIO_HIGHEST      100     // Maximum priority
 
   #define PID_IDLE            0     // PID of the idle task
@@ -59,7 +57,8 @@
   #define TASK_USER           1
 
   // defines for CYBOS_TASK.state
-  #define TASK_STATE_INITIALISING     'I'       // Do not schedule at this moment.
+  #define TASK_STATE_IDLE             'I'       // Idle task
+  #define TASK_STATE_INITIALISING     'i'       // Do not schedule at this moment.
   #define TASK_STATE_RUNNABLE         'r'       // Ready for scheduling.
   #define TASK_STATE_RUNNING          'R'       // This task is currently running
   #define TASK_STATE_INTERRUPTABLE    'S'       // Task is sleeping, but can be interrupted
@@ -67,7 +66,7 @@
 //  #define TASK_STATE_ZOMBIE           'Z'       // Zombie task (?)
 
   extern CYBOS_TASK *_current_task;             // Current task which is running.
-  extern CYBOS_TASK *_task_list;                // Points to the first task in the tasklist (idle_task)
+//  extern CYBOS_TASK *_task_list;                // Points to the first task in the tasklist (idle_task)
   extern int current_pid;                       // Last PID returned by allocate_pid()
 
 
@@ -83,6 +82,8 @@
 
   void sched_add_task (CYBOS_TASK *task);
   void sched_remove_task (CYBOS_TASK *task);
+  void sched_add_runnable_task (CYBOS_TASK *task);
+  void sched_remove_runnable_task (CYBOS_TASK *task);
 
   void thread_create_kernel_thread (Uint32 start_address, char *taskname, int console);
 

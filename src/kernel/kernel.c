@@ -32,25 +32,28 @@
 
 
 
+void thread_proc_kernel () {
+  for (;;) kprintf ("K");
+}
 void thread_proc1 () {
-  for (;;) tprintf ("^");
+  for (;;) kprintf ("1");
 }
 void thread_proc2 () {
-  for (;;) tprintf ("%");
+  for (;;) kprintf ("2");
 }
 void thread_proc_status () {
   while (1) {
-    tprintf ("\n\n");
-    tprintf ("PID  PPID TASK                STAT  PRIO  KTIME             UTIME\n", _current_task->pid);
-    CYBOS_TASK *t;
-    for (t=_task_list; t!=NULL; t=t->next) {
-      tprintf ("%04d %04d %-17s      %c  %4d  %08X  %08X\n", t->pid, t->ppid, t->name, t->state, t->priority, t->ringticksLo[0], t->ringticksLo[3]);
-    }
-    tprintf ("\n");
+    kprintf ("\n\n");
+    kprintf ("PID  PPID TASK                STAT  PRIO  KTIME             UTIME\n", _current_task->pid);
+//    CYBOS_TASK *t;
+//    for (t=_task_list; t!=NULL; t=t->next) {
+//      kprintf ("%04d %04d %-17s      %c  %4d  %08X  %08X\n", t->pid, t->ppid, t->name, t->state, t->priority, t->ringticksLo[0], t->ringticksLo[3]);
+//    }
+    kprintf ("\n");
 
-    tprintf ("Sleepy  \n");
-    sleep (2500);
-    tprintf ("Waking up\n");
+    kprintf ("Sleepy  \n");
+//    sys_sleep (5000);
+    kprintf ("Waking up\n");
   }
 }
 
@@ -111,55 +114,29 @@ void kernel_entry (int stack_start, int total_sys_memory) {
   kprintf ("TSK ");
   sched_init ();
 
-  thread_create_kernel_thread ((Uint32)&thread_proc1, "Task 1", CONSOLE_USE_KCONSOLE);
-  thread_create_kernel_thread ((Uint32)&thread_proc2, "Task 2", CONSOLE_USE_KCONSOLE);
-  thread_create_kernel_thread ((Uint32)&thread_proc_status, "Process Status", CONSOLE_USE_KCONSOLE);
-
   kprintf ("]\n");
   kprintf ("Kernel initialization done. Unable to free %d bytes.\nTransfering control to user mode.\n\n\n", _unfreeable_kmem);
+
+//  thread_create_kernel_thread ((Uint32)&thread_proc_kernel, "Kernel Task", CONSOLE_USE_KCONSOLE);
+  thread_create_kernel_thread ((Uint32)&thread_proc1, "Task 1", CONSOLE_USE_KCONSOLE);
+  thread_create_kernel_thread ((Uint32)&thread_proc2, "Task 2", CONSOLE_USE_KCONSOLE);
+//  thread_create_kernel_thread ((Uint32)&thread_proc_status, "Process Status", CONSOLE_USE_KCONSOLE);
 
   // Switch to ring3 and start interrupts automatically
   switch_to_usermode ();
 
   tprintf ("**** Hello userworld!\n");
 
-  for (;;) ;
-
-  int pid = 0;
+  int pid = fork();
+  tprintf ("After fork(), we are PID : %d\n", getpid ());
   if (pid == 0) {
-    tprintf ("Changing names\n");
-    strncpy (_current_task->name, "Init", 4);
-
-    while (1) {
-      tprintf ("\n\n");
-      tprintf ("PID  PPID TASK                STAT  PRIO  KTIME             UTIME\n", _current_task->pid);
-      CYBOS_TASK *t;
-      for (t=_task_list; t!=NULL; t=t->next) {
-        tprintf ("%04d %04d %-17s      %c  %4d  %08X  %08X\n", t->pid, t->ppid, t->name, t->state, t->priority, t->ringticksLo[0], t->ringticksLo[3]);
-      }
-      tprintf ("\n");
-
-      tprintf ("Sleepy  \n");
-      sleep (2500);
-      tprintf ("Waking up\n");
+    for (;;) {
+      tprintf ("Task 1");
     }
   }
 
-  // From here, we should become the inittask..
-  tprintf ("[%d|%d] Idletask is going to idle()\n", getppid(), getpid());
-  for (;;) {
-      tprintf ("\n\n");
-      tprintf ("PID  PPID TASK                STAT  PRIO  KTIME             UTIME\n", _current_task->pid);
-      CYBOS_TASK *t;
-      for (t=_task_list; t!=NULL; t=t->next) {
-        tprintf ("%04d %04d %-17s      %c  %4d  %08X  %08X\n", t->pid, t->ppid, t->name, t->state, t->priority, t->ringticksLo[0], t->ringticksLo[3]);
-      }
-      tprintf ("\n");
-    idle ();
-  }
+  for (;;) idle ();
 }
-
-
 
 
 /************************************
@@ -295,10 +272,11 @@ void construct (void) {
     } else if (strcmp (s, "task")==0) {
       con_printf (_kconsole, "PID     TASK                STAT  PRIO  CON    RT0  RT1  RT2  RT3\n");
       con_printf (_kconsole, "-----------------------------------------------------------------\n");
-      CYBOS_TASK *t;
-      for (t=_task_list; t!=NULL; t=t->next) {
-        con_printf (_kconsole, "%5d   %-17s    %1d  %4d   %4d   %04X %04X %04X %04X\n", t->pid, t->name, t->state, t->priority, t->console->index, t->ringticksLo[0],t->ringticksLo[1],t->ringticksLo[2],t->ringticksLo[3]);
-      }
+
+//      CYBOS_TASK *t;
+//      for (t=_task_list; t!=NULL; t=t->next) {
+//        con_printf (_kconsole, "%5d   %-17s    %1d  %4d   %4d   %04X %04X %04X %04X\n", t->pid, t->name, t->state, t->priority, t->console->index, t->ringticksLo[0],t->ringticksLo[1],t->ringticksLo[2],t->ringticksLo[3]);
+//      }
 
     } else if (strcmp (s, "echo")==0) {
       con_printf (_kconsole, "ECHO not implemented.\n");
