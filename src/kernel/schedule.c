@@ -150,7 +150,7 @@ CYBOS_TASK *get_next_runnable_task () {
   int state = disable_ints ();
 
   queue_reset (&_running_list);
-  next_task = queue_next (&_running_list);
+  next_task = queue_get (&_running_list);
 
   restore_ints (state);
 
@@ -255,7 +255,7 @@ void global_task_administration (void) {
 
   // Do all tasks
   queue_reset (&_task_list);
-  while ( task = queue_next (&_task_list), task != NULL ) {
+  while ( task = queue_get_and_next (&_task_list), task != NULL ) {
     // This task is not yet ready. Don't do anything with it
     if (task->state == TASK_STATE_INITIALISING) continue;
 
@@ -352,7 +352,8 @@ void switch_task () {
  * setup before this.
  */
 void switch_to_usermode (void) {
-  _current_task = (CYBOS_TASK *)queue_reset (&_task_list);
+  queue_reset (&_task_list);
+  _current_task = queue_get (&_task_list);
 
   // Set the kernel stack
   tss_set_kernel_stack(_current_task->kstack + KERNEL_STACK_SIZE);
@@ -401,7 +402,8 @@ int allocate_new_pid (void) {
     if (queue_count(&_task_list) == 0) return current_pid;
 
     // Check if there is a process currently running with this PID
-    while (tmp = (CYBOS_TASK *)queue_next(&_task_list), tmp && b != 1) {
+    queue_reset (&_task_list);
+    while (tmp = (CYBOS_TASK *)queue_get_and_next(&_task_list), tmp && b != 1) {
       if (tmp->pid == current_pid) b = 1;
     }
   } while (b == 1);
@@ -641,7 +643,8 @@ int sched_init () {
   thread_create_kernel_thread (0, "Idle process", CONSOLE_USE_KCONSOLE);
 
   // Set the first task (which is the idle-task) priority to idle
-  CYBOS_TASK *idle_task = queue_reset (&_task_list);
+  queue_reset (&_task_list);
+  CYBOS_TASK *idle_task = queue_get (&_task_list);
   idle_task->priority = PRIO_IDLE;
 
   return ERR_OK;

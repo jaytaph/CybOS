@@ -32,9 +32,11 @@ void queue_clear (QUEUE *queue);      // Remove all items from queue
 
 int queue_count (QUEUE *queue);      // Returns number of items in queue
 
-void *queue_reset (QUEUE *queue);      // Reset queue pointer to start
-void *queue_prev (QUEUE *queue);      // Get previous item from queue
-void *queue_next (QUEUE *queue);      // Get next item from queue
-void *queue_end (QUEUE *queue);       // Set pointer to end of queue
+void queue_reset (QUEUE *queue);      // Reset queue pointer to start
+void queue_end (QUEUE *queue);       // Set pointer to end of queue
+
+void *queue_get (QUEUE *queue);
+void *queue_get_and_prev (QUEUE *queue);
+void *queue_get_and_next (QUEUE *queue);
 
 #endif // __QUEUE_H__

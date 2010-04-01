@@ -24,6 +24,8 @@
 #include "pic.h"
 #include "io.h"
 
+#include "queue.h"
+
 
   // 64bit tick counter
   Uint64 _kernel_ticks;
@@ -116,6 +118,48 @@ void kernel_entry (int stack_start, int total_sys_memory) {
 
   kprintf ("]\n");
   kprintf ("Kernel initialization done. Unable to free %d bytes.\nTransfering control to user mode.\n\n\n", _unfreeable_kmem);
+
+
+
+/*  QUEUE queue1;
+
+  char tmp1[] = "aapjes";
+  char tmp2[] = "kijken";
+  char tmp3[] = "in";
+  char tmp4[] = "het bos";
+  char *tmp;
+
+  queue_reset (&queue1);
+  queue_add_item (&queue1, tmp1);
+  queue_add_item (&queue1, tmp2);
+  queue_add_item (&queue1, tmp3);
+  queue_add_item (&queue1, tmp4);
+
+  queue_reset (&queue1);
+  while (tmp = queue_get_and_next (&queue1), tmp != NULL) {
+    kprintf ("ITEM: %s\n", tmp);
+  }
+
+  queue_reset (&queue1);
+  tmp = queue_get_and_next (&queue1);
+  kprintf ("ITEM: %s\n", tmp);
+  tmp = queue_get_and_next (&queue1);
+  kprintf ("ITEM: %s\n", tmp);
+  tmp = queue_get_and_prev (&queue1);
+  kprintf ("ITEM: %s\n", tmp);
+  tmp = queue_get_and_next (&queue1);
+  kprintf ("ITEM: %s\n", tmp);
+  tmp = queue_get_and_prev (&queue1);
+  kprintf ("ITEM: %s\n", tmp);
+  tmp = queue_get_and_prev (&queue1);
+  kprintf ("ITEM: %s\n", tmp);
+  tmp = queue_get_and_prev (&queue1);
+  kprintf ("ITEM: %s\n", tmp);
+  tmp = queue_get_and_prev (&queue1);
+  kprintf ("ITEM: %s\n", tmp);
+
+  for (;;) ;
+*/
 
 //  thread_create_kernel_thread ((Uint32)&thread_proc_kernel, "Kernel Task", CONSOLE_USE_KCONSOLE);
   thread_create_kernel_thread ((Uint32)&thread_proc1, "Task 1", CONSOLE_USE_KCONSOLE);
