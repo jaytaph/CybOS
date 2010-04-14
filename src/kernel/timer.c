@@ -37,7 +37,7 @@ int timer_interrupt (int rpl) {
 
 
   _schedule_ticks++;
-  if (_schedule_ticks > 1000) {
+  if (_schedule_ticks > 50) {
     _schedule_ticks = 0;
     return 1;
   }

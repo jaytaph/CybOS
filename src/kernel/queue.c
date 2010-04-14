@@ -123,7 +123,7 @@ void queue_clear (QUEUE *queue) {
  * Reset queue ptr to start and return first item
  */
 void queue_reset (QUEUE *queue) {
-//  kprintf ("queue_reset(%08X)\n", queue);
+  kprintf ("queue_reset(%08X)\n", queue);
   queue->ptr = queue->start;
 }
 
@@ -147,7 +147,7 @@ void *queue_get_and_prev (QUEUE *queue) {
  * Return current item in queue and increase
  */
 void *queue_get_and_next (QUEUE *queue) {
-//  kprintf ("queue_get_and_next(%08X)\n", queue);
+  kprintf ("queue_get_and_next(%08X)\n", queue);
   if (queue->ptr == NULL) return NULL;
 
   void *cur_item = queue->ptr->data;
@@ -162,7 +162,7 @@ void *queue_get_and_next (QUEUE *queue) {
  * Return next item in queue or NULL on end
  */
 void *queue_get (QUEUE *queue) {
-//  kprintf ("queue_next(%08X)\n", queue);
+  kprintf ("queue_next(%08X)\n", queue);
   if (queue->ptr == NULL) return NULL;
 
   return queue->ptr->data;

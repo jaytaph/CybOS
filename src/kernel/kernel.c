@@ -30,6 +30,8 @@
   // 64bit tick counter
   Uint64 _kernel_ticks;
 
+  extern CYBOS_TASK *_task_list;
+
   void tprintf (const char *fmt, ...);
 
 
@@ -38,9 +40,28 @@ void thread_proc_kernel () {
   for (;;) kprintf ("K");
 }
 void thread_proc1 () {
+  int i;
+  for (;;) {
+    for (i=0; i!=100; i++) kprintf ("1");
+    sys_sleep (10);
+
+    kprintf ("\n\n");
+    kprintf ("PID  PPID TASK                STAT  PRIO  KTIME             UTIME\n", _current_task->pid);
+    CYBOS_TASK *t;
+    for (t=_task_list; t!=NULL; t=t->next) {
+      kprintf ("%04d %04d %-17s      %c  %4d  %08X  %08X\n", t->pid, t->ppid, t->name, t->state, t->priority, t->ringticksLo[0], t->ringticksLo[3]);
+    }
+    kprintf ("\n");
+  }
+
   for (;;) kprintf ("1");
 }
 void thread_proc2 () {
+  int i;
+  for (;;) {
+    for (i=0; i!=150; i++) kprintf ("2");
+    sys_sleep (20);
+  }
   for (;;) kprintf ("2");
 }
 void thread_proc_status () {
@@ -120,56 +141,28 @@ void kernel_entry (int stack_start, int total_sys_memory) {
   kprintf ("Kernel initialization done. Unable to free %d bytes.\nTransfering control to user mode.\n\n\n", _unfreeable_kmem);
 
 
-
-/*  QUEUE queue1;
-
-  char tmp1[] = "aapjes";
-  char tmp2[] = "kijken";
-  char tmp3[] = "in";
-  char tmp4[] = "het bos";
-  char *tmp;
-
-  queue_reset (&queue1);
-  queue_add_item (&queue1, tmp1);
-  queue_add_item (&queue1, tmp2);
-  queue_add_item (&queue1, tmp3);
-  queue_add_item (&queue1, tmp4);
-
-  queue_reset (&queue1);
-  while (tmp = queue_get_and_next (&queue1), tmp != NULL) {
-    kprintf ("ITEM: %s\n", tmp);
-  }
-
-  queue_reset (&queue1);
-  tmp = queue_get_and_next (&queue1);
-  kprintf ("ITEM: %s\n", tmp);
-  tmp = queue_get_and_next (&queue1);
-  kprintf ("ITEM: %s\n", tmp);
-  tmp = queue_get_and_prev (&queue1);
-  kprintf ("ITEM: %s\n", tmp);
-  tmp = queue_get_and_next (&queue1);
-  kprintf ("ITEM: %s\n", tmp);
-  tmp = queue_get_and_prev (&queue1);
-  kprintf ("ITEM: %s\n", tmp);
-  tmp = queue_get_and_prev (&queue1);
-  kprintf ("ITEM: %s\n", tmp);
-  tmp = queue_get_and_prev (&queue1);
-  kprintf ("ITEM: %s\n", tmp);
-  tmp = queue_get_and_prev (&queue1);
-  kprintf ("ITEM: %s\n", tmp);
-
-  for (;;) ;
-*/
-
+  kprintf ("1\n");
 //  thread_create_kernel_thread ((Uint32)&thread_proc_kernel, "Kernel Task", CONSOLE_USE_KCONSOLE);
   thread_create_kernel_thread ((Uint32)&thread_proc1, "Task 1", CONSOLE_USE_KCONSOLE);
+  kprintf ("2\n");
   thread_create_kernel_thread ((Uint32)&thread_proc2, "Task 2", CONSOLE_USE_KCONSOLE);
+  kprintf ("3\n");
+//  thread_create_kernel_thread ((Uint32)&thread_proc1, "Task 3", CONSOLE_USE_KCONSOLE);
+//  thread_create_kernel_thread ((Uint32)&thread_proc1, "Task 4", CONSOLE_USE_KCONSOLE);
+//  thread_create_kernel_thread ((Uint32)&thread_proc1, "Task 5", CONSOLE_USE_KCONSOLE);
 //  thread_create_kernel_thread ((Uint32)&thread_proc_status, "Process Status", CONSOLE_USE_KCONSOLE);
 
   // Switch to ring3 and start interrupts automatically
   switch_to_usermode ();
+  tprintf ("4\n");
 
   tprintf ("**** Hello userworld!\n");
+
+  tprintf ("CONSOLE FROM TASK: %08X\n", _current_task->console);
+
+  for (;;) tprintf ("a");
+
+
 
   int pid = fork();
   tprintf ("After fork(), we are PID : %d\n", getpid ());

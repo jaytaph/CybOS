@@ -20,6 +20,9 @@
 
   #pragma pack (1)
   typedef struct {
+      void *prev;
+      void *next;
+
       char name[50];                                  // Name of the current task so it shows up inside the task listing
       TCONSOLE *console;                              // Pointer to the TCONSOLE were this task is outputted to
 
