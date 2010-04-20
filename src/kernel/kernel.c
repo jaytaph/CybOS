@@ -141,12 +141,9 @@ void kernel_entry (int stack_start, int total_sys_memory) {
   kprintf ("Kernel initialization done. Unable to free %d bytes.\nTransfering control to user mode.\n\n\n", _unfreeable_kmem);
 
 
-  kprintf ("1\n");
 //  thread_create_kernel_thread ((Uint32)&thread_proc_kernel, "Kernel Task", CONSOLE_USE_KCONSOLE);
   thread_create_kernel_thread ((Uint32)&thread_proc1, "Task 1", CONSOLE_USE_KCONSOLE);
-  kprintf ("2\n");
   thread_create_kernel_thread ((Uint32)&thread_proc2, "Task 2", CONSOLE_USE_KCONSOLE);
-  kprintf ("3\n");
 //  thread_create_kernel_thread ((Uint32)&thread_proc1, "Task 3", CONSOLE_USE_KCONSOLE);
 //  thread_create_kernel_thread ((Uint32)&thread_proc1, "Task 4", CONSOLE_USE_KCONSOLE);
 //  thread_create_kernel_thread ((Uint32)&thread_proc1, "Task 5", CONSOLE_USE_KCONSOLE);
@@ -154,15 +151,10 @@ void kernel_entry (int stack_start, int total_sys_memory) {
 
   // Switch to ring3 and start interrupts automatically
   switch_to_usermode ();
-  tprintf ("4\n");
 
   tprintf ("**** Hello userworld!\n");
 
-  tprintf ("CONSOLE FROM TASK: %08X\n", _current_task->console);
-
   for (;;) idle ();
-
-
 
   int pid = fork();
   tprintf ("After fork(), we are PID : %d\n", getpid ());
