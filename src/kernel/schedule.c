@@ -353,11 +353,9 @@ void switch_task () {
 
   // Fetch the next available task
   next_task = get_next_runnable_task (previous_task);
-  kprintf ("TASK: %08X\n", next_task);
 
   // Looks like we do not need to switch (maybe only 1 task, or still idle?)
   if (previous_task == next_task) {
-//    kprintf ("!");
     restore_ints (state);
     return;
   }
@@ -463,7 +461,6 @@ int sys_sleep (int ms) {
   restore_ints (state);
 
   // We're sleeping. So go to a next task.
-  kprintf ("Reschedule()\n");
   reschedule ();
 
   return 0;
@@ -536,7 +533,6 @@ int sys_idle () {
 // kprintf ("HLT()ing system until IRQ\n");
   sti();
   hlt();
-  kprintf ("!");
   return 0;
 }
 

@@ -35,14 +35,14 @@ int timer_interrupt (int rpl) {
     _current_task->ringticksHi[rpl]++;
   }
 
-
+/*
   _schedule_ticks++;
   if (_schedule_ticks > 50) {
     _schedule_ticks = 0;
     return 1;
   }
   return 0;
-
+*/
 
   return 1;
 }

@@ -43,7 +43,7 @@ void thread_proc1 () {
   int i;
   for (;;) {
     for (i=0; i!=100; i++) kprintf ("1");
-    sys_sleep (10);
+    sys_sleep (1000);
 
     kprintf ("\n\n");
     kprintf ("PID  PPID TASK                STAT  PRIO  KTIME             UTIME\n", _current_task->pid);
@@ -59,8 +59,8 @@ void thread_proc1 () {
 void thread_proc2 () {
   int i;
   for (;;) {
-    for (i=0; i!=150; i++) kprintf ("2");
-    sys_sleep (20);
+    for (i=0; i!=500; i++) kprintf ("2");
+    sys_sleep (2000);
   }
   for (;;) kprintf ("2");
 }
@@ -160,7 +160,7 @@ void kernel_entry (int stack_start, int total_sys_memory) {
 
   tprintf ("CONSOLE FROM TASK: %08X\n", _current_task->console);
 
-  for (;;) tprintf ("a");
+  for (;;) idle ();
 
 
 
