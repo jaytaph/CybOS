@@ -60,13 +60,11 @@
   #define TASK_USER           1
 
   // defines for CYBOS_TASK.state
-  #define TASK_STATE_IDLE             'I'       // Idle task
   #define TASK_STATE_INITIALISING     'i'       // Do not schedule at this moment.
   #define TASK_STATE_RUNNABLE         'r'       // Ready for scheduling.
   #define TASK_STATE_RUNNING          'R'       // This task is currently running
   #define TASK_STATE_INTERRUPTABLE    'S'       // Task is sleeping, but can be interrupted
   #define TASK_STATE_UNINTERRUPTABLE  'U'       // Task is sleeping, and cannot be interrupted
-//  #define TASK_STATE_ZOMBIE           'Z'       // Zombie task (?)
 
   extern CYBOS_TASK *_current_task;             // Current task which is running.
 //  extern CYBOS_TASK *_task_list;                // Points to the first task in the tasklist (idle_task)

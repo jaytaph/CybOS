@@ -36,9 +36,6 @@
 
 
 
-void thread_proc_kernel () {
-  for (;;) kprintf ("K");
-}
 void thread_proc1 () {
   int i;
   for (;;) {
@@ -53,9 +50,10 @@ void thread_proc1 () {
     }
     kprintf ("\n");
   }
-
   for (;;) kprintf ("1");
 }
+
+
 void thread_proc2 () {
   int i;
   for (;;) {
@@ -64,19 +62,19 @@ void thread_proc2 () {
   }
   for (;;) kprintf ("2");
 }
+
+
 void thread_proc_status () {
   while (1) {
     kprintf ("\n\n");
     kprintf ("PID  PPID TASK                STAT  PRIO  KTIME             UTIME\n", _current_task->pid);
-//    CYBOS_TASK *t;
-//    for (t=_task_list; t!=NULL; t=t->next) {
-//      kprintf ("%04d %04d %-17s      %c  %4d  %08X  %08X\n", t->pid, t->ppid, t->name, t->state, t->priority, t->ringticksLo[0], t->ringticksLo[3]);
-//    }
+    CYBOS_TASK *t;
+    for (t=_task_list; t!=NULL; t=t->next) {
+      kprintf ("%04d %04d %-17s      %c  %4d  %08X  %08X\n", t->pid, t->ppid, t->name, t->state, t->priority, t->ringticksLo[0], t->ringticksLo[3]);
+    }
     kprintf ("\n");
 
-    kprintf ("Sleepy  \n");
-//    sys_sleep (5000);
-    kprintf ("Waking up\n");
+    sys_sleep (5000);
   }
 }
 
@@ -140,10 +138,9 @@ void kernel_entry (int stack_start, int total_sys_memory) {
   kprintf ("]\n");
   kprintf ("Kernel initialization done. Unable to free %d bytes.\nTransfering control to user mode.\n\n\n", _unfreeable_kmem);
 
-
 //  thread_create_kernel_thread ((Uint32)&thread_proc_kernel, "Kernel Task", CONSOLE_USE_KCONSOLE);
-  thread_create_kernel_thread ((Uint32)&thread_proc1, "Task 1", CONSOLE_USE_KCONSOLE);
-  thread_create_kernel_thread ((Uint32)&thread_proc2, "Task 2", CONSOLE_USE_KCONSOLE);
+//  thread_create_kernel_thread ((Uint32)&thread_proc1, "Task 1", CONSOLE_USE_KCONSOLE);
+//  thread_create_kernel_thread ((Uint32)&thread_proc2, "Task 2", CONSOLE_USE_KCONSOLE);
 //  thread_create_kernel_thread ((Uint32)&thread_proc1, "Task 3", CONSOLE_USE_KCONSOLE);
 //  thread_create_kernel_thread ((Uint32)&thread_proc1, "Task 4", CONSOLE_USE_KCONSOLE);
 //  thread_create_kernel_thread ((Uint32)&thread_proc1, "Task 5", CONSOLE_USE_KCONSOLE);
@@ -154,16 +151,18 @@ void kernel_entry (int stack_start, int total_sys_memory) {
 
   tprintf ("**** Hello userworld!\n");
 
-  for (;;) idle ();
-
-  int pid = fork();
-  tprintf ("After fork(), we are PID : %d\n", getpid ());
+  int pid = fork ();
+  tprintf ("P:%d %d\n", getpid (), pid);
   if (pid == 0) {
-    for (;;) {
-      tprintf ("Task 1");
-    }
+    // This is the PID 1 task (child)
+    pid = fork ();
+    tprintf ("CP:%d %d\n", getpid (), pid);
+
+    for (;;);
   }
 
+  // This is the idle task (PID 0)
+  for (;;);
   for (;;) idle ();
 }
 

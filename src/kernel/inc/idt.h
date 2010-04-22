@@ -42,10 +42,11 @@
   // Register structure as found on the stack when calling the hi level interrupt handlers.
   // This way we can use them as function arguments.
   typedef struct regs {
-    Uint32 ds;   // Old segment registers
+    Uint32 ds;                                       // Old segment registers
     Uint32 edi, esi, ebp, esp, ebx, edx, ecx, eax;   // Pushed by pusha.
-    Uint32 int_no, err_code;                         // Interrupt number and error code (if applicable)
-    Uint32 eip, cs, eflags, useresp,  ss;            // Pushed by the processor automatically.
+    Uint32 int_no, err_code;                         // Interrupt number and error code (if applicable, 0 when not used)
+    Uint32 eip, cs, eflags;                          // Pushed by the processor automatically when INT is called.
+    Uint32 user_esp,  user_ss;                       // Only here when priority changes (ie: ring3 to ring0)
   } TREGS;
 
 

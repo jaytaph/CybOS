@@ -352,14 +352,14 @@ void print_cpu_info (TREGS *r) {
   kprintf ("CPU STATE\n\n");
   kprintf ("EAX=%08X  EBX=%08X\n", r->eax, r->ebx);
   kprintf ("ECX=%08X  EDX=%08X\n", r->ecx, r->edx);
-  kprintf ("ESP=%08X  EBP=%08X\n", r->useresp, r->ebp);
+  kprintf ("ESP=%08X  EBP=%08X\n", r->esp, r->ebp);
   kprintf ("ESI=%08X  EDI=%08X\n", r->esi, r->edi);
   kprintf ("IOPL=? id vip vif ac vm rf nt of df if tf sf zf af pf cf (%08X)\n", r->eflags);
   kprintf ("SEG selector     base     limit G D\n");
   kprintf ("SEG sltr(index|ti|rpl)    base    limit G D\n");
   kprintf (" CS:%04X (%04X |%c |%d) 00000000 00000000 0 0\n", r->cs,  (r->cs>>3),  (r->cs >>2)&1?'L':'G', ((r->cs )&3));
   kprintf (" DS:%04X (%04X |%c |%d) 00000000 00000000 0 0\n", reg_ds, (reg_ds>>3), (reg_ds>>2)&1?'L':'G', ((reg_ds)&3));
-  kprintf (" SS:%04X (%04X |%c |%d) 00000000 00000000 0 0\n", r->ss,  (r->ss>>3),  (r->ss >>2)&1?'L':'G', ((r->ss )&3));
+  kprintf (" SS:%04X (%04X |%c |%d) 00000000 00000000 0 0\n", r->user_ss,  (r->user_ss>>3),  (r->user_ss >>2)&1?'L':'G', ((r->user_ss )&3));
   kprintf (" ES:%04X (%04X |%c |%d) 00000000 00000000 0 0\n", reg_es, (reg_es>>3), (reg_es>>2)&1?'L':'G', ((reg_es)&3));
   kprintf (" FS:%04X (%04X |%c |%d) 00000000 00000000 0 0\n", reg_fs, (reg_fs>>3), (reg_fs>>2)&1?'L':'G', ((reg_fs)&3));
   kprintf (" GS:%04X (%04X |%c |%d) 00000000 00000000 0 0\n", reg_gs, (reg_gs>>3), (reg_gs>>2)&1?'L':'G', ((reg_gs)&3));

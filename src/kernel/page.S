@@ -5,16 +5,18 @@ section .text
 
 [GLOBAL context_switch]
 context_switch:
-	pushad
+	pushad      ; Push all regs onto the current stack
 
 	mov   eax, [esp+36]
 	mov   [eax], esp        ; save esp into old_esp
 
 	mov   eax, [esp+40]     ; Set new_esp to esp
-	mov   esp, eax
+	mov   esp, [eax]
 
 	popad                   ; restore all 8 general purpose regs from the new stack
-	ret                     ; return to caller (usually the bottom part of switch_task()
+
+	ret                     ; return to caller (usually the bottom part of switch_task(),
+	                        ; but when a new task starts, it will be it's start address
 
 
 

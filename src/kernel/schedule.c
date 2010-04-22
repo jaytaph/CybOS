@@ -33,7 +33,7 @@ int current_pid = PID_IDLE - 1;      // First call to allocate_pid will return P
 void tprintf (const char *fmt, ...);
 
 // @TODO: Make this inline ??
-void context_switch (Uint32 *old_esp, Uint32 new_esp);    // Found in page.S
+void context_switch (Uint32 *old_esp, Uint32 *new_esp);    // Found in page.S
 
 
 /**
@@ -47,17 +47,25 @@ void thread_create_kernel_thread (Uint32 start_address, char *taskname, int cons
   task->kstack = (Uint32)kmalloc_pageboundary (KERNEL_STACK_SIZE);
   task->esp = task->kstack + KERNEL_STACK_SIZE;
 
-  Uint32 *stacktop = (Uint32 *)task->esp;
+  kprintf ("KSTACK: %08X\n", task->kstack + KERNEL_STACK_SIZE);
 
-  stacktop--;
-  *stacktop = start_address;
-
-  int i;
-  for (i=0; i<8; i++) {
+  if (start_address != 0) {
+    Uint32 *stacktop = (Uint32 *)task->esp;
     stacktop--;
-    *stacktop = 0;
+    *stacktop = start_address;    // This is the return address to which context_switch returns
+
+    // This probably is for popad in context_switch()
+    int i;
+    for (i=0; i<8; i++) {
+        stacktop--;
+        *stacktop = 0xabcd1234;
+    }
+
+    // It's the start of the stack, as being used in the bottom half of context_switch()
+    task->esp = (Uint32)stacktop;
   }
-  task->esp = (Uint32)stacktop;
+
+  kprintf ("ESP: %08X\n", task->esp);
 
   // Set page directory
   task->page_directory = _current_pagedirectory;
@@ -335,7 +343,6 @@ void switch_task () {
   // There is a signal pending. Do that first before we actually run code again (TODO: is this really a good idea?)
   if (_current_task->signal != 0) return;
 
-
   int state = disable_ints ();
 
   // This is the task we're running. It will be the old task after this
@@ -360,21 +367,33 @@ void switch_task () {
     return;
   }
 
+  kprintf ("Switching task to %s (%d)\n", next_task->name, next_task->pid);
+
   // Old task is available again. New task is running
   if (next_task->pid != PID_IDLE) {
     next_task->state = TASK_STATE_RUNNING;
   }
 
   // Set the kernel stack
+  kprintf ("Setting kernel stack: %08X\n", next_task->kstack + KERNEL_STACK_SIZE);
+  kprintf ("Setting page dir: %08X\n", next_task->page_directory);
+  kprintf ("PREV esp: %08X\n", previous_task->esp);
+  kprintf ("NEXT esp: %08X\n", next_task->esp);
+
+
   tss_set_kernel_stack (next_task->kstack + KERNEL_STACK_SIZE);
   set_pagedirectory (next_task->page_directory);
 
   // The next task is now the current task..
   _current_task = next_task;
 
-  sti ();
-  context_switch (&previous_task->esp, next_task->esp);
+  BOCHS_BREAKPOINT;
 
+  context_switch (&previous_task->esp, &next_task->esp);
+
+  BOCHS_BREAKPOINT;
+
+  restore_ints (state);
   return;
 }
 
@@ -566,7 +585,7 @@ int sys_fork (void) {
   memcpy (child_task, parent_task, sizeof (CYBOS_TASK));
 
   // Available for scheduling
-  child_task->state = TASK_STATE_INITIALISING;
+  child_task->state = TASK_STATE_RUNNABLE;
 
   // The page directory is the cloned space
   clone_debug = 0;
@@ -582,56 +601,23 @@ int sys_fork (void) {
   child_task->ringticksHi[2] = child_task->ringticksLo[2] = 0;
   child_task->ringticksHi[3] = child_task->ringticksLo[3] = 0;
 
-/*
-  kprintf ("sys_fork() Creating kernel stack for this process\n");
-  Uint32 addr;
+  // Allocate child's kernel stack and copy parent stack over
+  child_task->kstack = (Uint32)kmalloc_pageboundary (KERNEL_STACK_SIZE);
+  memcpy ((void *)child_task->kstack, (void *)parent_task->kstack, KERNEL_STACK_SIZE);
 
-  kprintf ("OLD KSTACK IS : %08X   Phys: %08X\n",child_task->kstack, addr);
+  // New task name (@TODO: remove me)
+  strncpy (child_task->name, "DUP TASK", 8);
 
-  child_task->kstack = (Uint32)kmalloc_pageboundary_physical (KERNEL_STACK_SIZE, &addr);
-  memcpy (&child_task->kstack, &parent_task->kstack, KERNEL_STACK_SIZE);
-*/
+  // Set returning EAX value
+  TREGS *regs = (TREGS *)(child_task->kstack + KERNEL_STACK_SIZE - sizeof (TREGS));
+  regs->eax = 0xdeadbeef;
 
   // Add task to schedule-switcher. We are still initialising so it does not run yet.
-  kprintf ("* Adding task\n");
+  kprintf ("* Adding task to scheduler\n");
   sched_add_task (child_task);
 
-  // We set the child task to start right after read_eip.
-  Uint32 eip = read_eip();
-
-  kprintf ("* read_eip() done\n");
-
-
-  // From this point on, 2 tasks will be executing this code. The parent will come first and
-  // will set the child_task stuff we need. After that it will set the child_task state to
-  // TASK_STATE_RUNNABLE. From that point only we could run this code again. Since the
-  // current task is at that point NOT the same as the parent_task, we can actually distinguish
-  // between parent en child.
-  if (_current_task == parent_task) {
-    Uint32 *stacktop = (Uint32 *)child_task->kstack + (KERNEL_STACK_SIZE / sizeof(Uint32));
-
-    stacktop--;
-    *stacktop = eip;
-
-    int i;
-    for (i=0; i<8; i++) {
-      stacktop--;
-      *stacktop = 0;
-    }
-//    task->esp = (Uint32)stacktop;
-
-    child_task->esp = (Uint32)stacktop;
-
-    // Available for scheduling
-    child_task->state = TASK_STATE_RUNNABLE;
-
-    restore_ints (state);
-    return child_task->pid;   // Return the PID of the child
-
-  } else {
-    restore_ints (state);
-    return 0;     // This is the child. Return 0
-  }
+  restore_ints (state);
+  return child_task->pid;   // Return the PID of the child
 }
 
 
@@ -678,13 +664,7 @@ int sched_init () {
   // (ie: cannot be killed, goto sleep etc). Since this is not completely a new task, we
   // do not need to define the entry_point (the entrypoint will be saved on the first
   // context-switch call. This is more or less the jump-start of context switching.
-  thread_create_kernel_thread (0, "Idle process", CONSOLE_USE_KCONSOLE);
-
-  // The idle process is not runnable. It gets a special state. At the moment this state
-  // is not really used, but it must not be TASK_STATE_RUNNABLE. This would mean that the
-  // idle process gets time from the scheduler. It can only get time when there are no
-  // other processes running.
-  _task_list->state = TASK_STATE_IDLE;
+  thread_create_kernel_thread (0xCAFED00D, "Idle process", CONSOLE_USE_KCONSOLE);
 
   return ERR_OK;
 }
