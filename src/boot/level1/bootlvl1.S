@@ -52,7 +52,7 @@ BPB_Start:
             dd 0x00           ; Final End of sector marker
         nop
 
-        BootMsg            db 13,10,'Loading CybOS V0.02... ',0
+        BootMsg            db 13,10,'Loading CybOS V0.01... ',0
         ErrorLvl2NotFound  db 13,10,'Cannot find BOOTLVL2.BIN :(',0
         Error386NotFound   db 13,10,'Need at least a 386 processor to run.',0
 
@@ -184,14 +184,16 @@ DetectCPU_End:
 
 ; -------------------------------------------------------
 ; Find system directory from rootdir
+
+XCHG BX,BX
         mov  bx, BOOT_LEVEL_2_SEG
         mov  es, bx
         mov  bx, BOOT_LEVEL_2_OFF
 
         mov  bp, BootLevel2Sectors     ; BP holds pointert to sectors
 .nextSectorRead:
-        mov  dx, [bp+2]
-        mov  ax, [bp]
+        mov  dx, [ds:bp+2]
+        mov  ax, [ds:bp]
         add  bp, 4
 
         cmp  dx, 0                      ; When both AX and DX are 0, stop reading
