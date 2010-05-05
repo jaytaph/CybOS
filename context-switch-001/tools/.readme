@@ -1,0 +1,5 @@
+Miscellaneous tools and tests.
+
+Bootalize     : Makes a FAT12 image bootable.
+Fat12lib      : Global FAT12 library which can be used to link against FAT12 tools.
+Fat12display  : Simple tool to display a fat12 image.

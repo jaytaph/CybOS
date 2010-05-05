@@ -1,0 +1,78 @@
+Some stupid binary called kernel. It's not really clean code but it works...
+
+
+CONIO.[CHO]     Low Level Console IO and VGA functions.
+CONSOLE.[CHO]   Console managment.
+IDT.[CHO]       Interrupt & trap gates managment.
+IO.[CHO]        Low Level Memory IO functions. (inb, outb etc)
+KERNEL.[CHO]    Main kernel file with some kernel stuff.
+SERVICE.[CHO]   Service functions (like DOS 0x21h interrupt)
+PIC.[CHO]       Programmable Interrupt Controler (IRQ masker etc)
+PIT.[CHO]       Programmable Interval Timer (IRQ 0)
+
+MAIN.C          Kernel entrypoint so the kernel always starts at 0x0000000
+IRS.ASM         Assembler level interrupt routines.
+
+
+
+-----------------------------------------------------------------------------
+Memory Layout:
+
+   +------------------+  0x0000
+   |  RM IDT VECTORS  |
+   +------------------+  0x0400
+   |..BIOS.THINGIES...|
+   +------------------+
+   |PAGE FRAME PADDING|
+   +------------------+  0x1000
+   |                  |
+   |     KERNEL       |                   
+   |      CODE        |                   
+   |                  |                   
+   |                  |                   
+   +------------------+  KERNEL CODE TOP  
+   |                  |         
+   |  KERNEL MEMORY   |         
+   | KERNEL STACK TOP |         
+   |  PAGING SYSTEM   |
+   |                  |
+   +------------------+  0x9F000
+   |..EXTENDED.BIOS...|         
+   +------------------+  0xA0000
+   |...VIDEO.MEMORY...|         
+   +------------------+  0xC0000
+   |                  |                    
+   |     RESERVED     |                    
+   |  KERNEL MEMORY   |                    
+   |  PAGING SYSTEM   |           
+   |                  |           
+   +------------------+  0xF0000  
+   |..BIOS.THINGIES...|
+   +==================+  0x100000 ------>  +------------------+  0x0
+   |                  |                    |                  |
+   |  VIRTUAL PAGING  |                    |                  |
+   |                  |                    |                  |
+   /    MEMORY MAP    /                    |                  |
+   |                  |                    |                  |
+   +------------------+  MEMORY-TOP        |                  |
+                                           /                  /
+                                           |   USER SPACE     |
+                                           |   LINEAR MEMORY  |
+                                           |                  |
+                                           |                  |
+                                           |                  |
+                                           +------------------+  0xFFFFFFFF (4GB)
+
+
+
+Note that only above the 1MB (user space mark) we use the paging system.
+Below the 1MB (the first 256 pages) they are markes NOSWAPABLE or something.
+Don't know enough about the paging system to know for sure how it works :-)
+Anyways, since segment translators are already used (since our base is set
+on 0x20000 instead of 0x0), all addresses are already translated automaticly,
+but all kernel-data are not virtually paged. I don't want any kernel stuff
+above the 1MB mark. All "ROM" pages are marked used so we can't use it for
+allocation by kalloc().
+
+Anyways... 
+

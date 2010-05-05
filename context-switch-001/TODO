@@ -1,0 +1,21 @@
+Things todo (prioritized top down)
+
+ (*) Fork()
+ ( ) change CYBOS_TASK, TPAGEDIRECTORY etc etc into size_t, pid_t etc
+ ( ) Refactor
+ ( ) Document functions
+ (*) High level paging support
+ (*) Virtual Memory Manager
+ (*) Freeing unused memory between 0x90000 and 0x9FFFF after init
+        * PAGEDIR         0x9F000
+        * PAGETABLE_1MB   0x9E000
+        * KERNEL_IDT_ADDR 0x9C000
+ (*) IDT GDT through kmalloc instead of fixed addresses
+ (*) idletask (and others) on ring3
+ (*) Signals
+ (*) Stack onto heap instead of 0xE0000000
+ ( ) VFS
+ ( ) EXT2
+ ( ) FAT8/16
+ ( ) Network driver
+ ( ) IPv4 Stack
