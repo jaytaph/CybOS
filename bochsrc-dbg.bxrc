@@ -48,3 +48,4 @@ keyboard_paste_delay: 100000
 keyboard_mapping: enabled=0, map=
 user_shortcut: keys=none
 mouse: enabled=0, type=ps2
+magic_break: enabled=1
