@@ -1,3 +1,9 @@
+TODO
+
+        CHECK IF DIRECTORY LOADING FROM DIFFERENT CLUSTERS WORK (WHEN KERNEL.BIN IS IN SECOND CLUSTER)
+        CREATE LOADFILE
+        DONE
+
 ;********************************************************
 ;*
 ;* CybOS Boot Sector - Level 2
@@ -8,7 +14,6 @@
         jmp SOC_Loader                          ; Jump over the data
 
         BootLvl2Dir     db 'SYSTEM     '            ; Directory containing system files
-        BootLvl2File    db 'BOOTLVL2BIN'            ; Boot loader level 2 file
         KernelFile      db 'KERNEL  BIN'            ; Kernel file
 
         BootDriveID     db 0                        ; Holds the current boot drive ID
@@ -17,10 +22,14 @@
         LBA_H           db 0
         LBA_C           db 0
 
-        RootDirStartLo  dw 0                        ; FAT Issues
+        FATStartLo      dw 0                        ; FAT Issues
+        FATStartHi      dw 0
+        RootDirStartLo  dw 0
         RootDirStartHi  dw 0
         DataStartLo     dw 0
         DataStartHi     dw 0
+
+        DirectoryEntry  times 32 db 0           ; Temporary directory entry
 
         ; Data defines
 
@@ -43,38 +52,44 @@
 ; -------------------------------------------------------
 ; Start of code
 SOC_Loader:
+        mov  ax, cs                             ; Set correct DS and ES segments
+        mov  ds, ax
+        mov  es, ax
+
         mov  [BootDriveID], dl
 
 ; -------------------------------------------------------
 ; Init FAT stuff
-XCHG BX,BX
         call InitFAT12
 
 ; -------------------------------------------------------
 ; Find system directory from rootdir
         mov  si, BootLvl2Dir                    ; Seek SYSTEM directory
-        call FindDir
-        cmp  cx, 0
-        je   .NoBootError1
+        call FindFromRootDir
+
+        cmp  bx, 0
+        jne   .NoBootError1
         mov  si, ErrorNoSystemDir
         call BootError
 .NoBootError1:
 
 ; -------------------------------------------------------
 ; Find and load boot level2 file
-        mov  si, KernelFile                   ; Load SYSTEM/KERNEL.BIN
+        ; AX is already set by FindDir
+        mov  si, KernelFile                   ; Load KERNEL.BIN in SYSTEM root directory
+        mov  di, DirectoryEntry               ; Place to store directory entry data
         call FindFile
-        cmp  ax, 0
+        cmp  bx, 0
         jne  .NoBootError2
         mov  si, ErrorNoKernelFile
         call BootError
 .NoBootError2:
 
-        mov  bx, KERNEL_SEG                   ; Read CX sectors starting from DX:AX into ES:BX
+        mov  di, DirectoryEntry
+        mov  bx, KERNEL_SEG
         mov  es, bx
         mov  bx, KERNEL_OFF
-        xor  dx, dx
-        call ReadSectors
+        call LoadFile
 
 ; -------------------------------------------------------
 ; All done here
@@ -123,7 +138,7 @@ LBA2CHS:
 
         mov  bx, [BPB_SectorsPerTrack]
         div  bx
-        inc  dx         ; Sector is 1-based
+        inc  dx                                         ; Sector is 1-based
 
         and  dx, 0x3F
         mov  [LBA_S], dx
@@ -149,7 +164,14 @@ InitFAT12:
         mov  [RootDirStartHi], ax
         mov  [DataStartHi], ax
 
-        mov  al, [BPB_FatTables]                 ; Calculate root and data start ssectors
+        add  ax, [BPB_HiddenSectors]
+        adc  dx, [BPB_HiddenSectors+2]
+        add  ax, [BPB_ReservedSectorCount]
+        adc  dx, 0
+        mov  [FATStartHi], dx
+        mov  [FATStartLo], ax
+
+        mov  al, [BPB_FatTables]                 ; Calculate root and data start sectors
         mul  word [BPB_SectorsPerFAT]
         add  ax, [BPB_HiddenSectors]
         adc  dx, [BPB_HiddenSectors+2]
@@ -157,6 +179,9 @@ InitFAT12:
         adc  dx, 0
         mov  [RootDirStartLo], ax
         mov  [DataStartLo], ax
+        mov  [RootDirStartHi], dx
+        mov  [DataStartHi], dx
+
 
         mov  ax, 32                              ; Calculate data start sector
         mov  bx, [BPB_MaxRootDirEntries]
@@ -173,9 +198,11 @@ InitFAT12:
 ; ------------------------------------------------------
 ; Find a FAT12 directory in the FAT root directory entry
 ;   In:  DS:SI -> Directory name
-;   Out: DX:AX -> LBA Sector number of start of dir
+;   Out: AX    -> Start cluster
 ;        BX    -> status (1 = found, 0 = not found)
-FindDir:
+FindFromRootDir:
+
+; Read all directory entries
         mov  cx, [BPB_MaxRootDirEntries]         ; Find how many sectors rootdir entry is
         dec  cx
         shr  cx, 4
@@ -188,7 +215,7 @@ FindDir:
         mov  bx, TMP_DIR_OFF
         call ReadSectors
 
-        ; Now, scan the directory entries for correct dirname
+; Now, scan the directory entries for correct dirname
         mov  di, TMP_DIR_OFF
         mov  cx, [BPB_MaxRootDirEntries]         ; Loop this many root dir entries (max)
 ReadDirEntry:
@@ -206,17 +233,9 @@ ReadDirEntry:
         and   al, ATTR_SUBDIR
         jz    .NotFound
 
-        ; Calculate start cluster
+        ; Set return values
         mov   ax, [es:di+26]
-        dec   ax
-        dec   ax
-        mov   bl, [BPB_SectorsPerCluster]
-        xor   bh, bh
-        mul   bx
-
         mov   bx, 1
-        add   ax, [RootDirStartLo]               ; DX:AX is filled
-        adc   dx, [RootDirStartHi]
         ret
 .NotFound:
         mov   cx, bx                             ; Restore counter
@@ -230,14 +249,130 @@ ReadDirEntry:
 ; ------------------------------------------------------
 ; Find a file in specified directory block
 ;  In:  DS:SI -> file
-;       DX:AX -> LBA Sector number of start of directory to search in
-;       CX    -> length of directory in sectors
-;  Out: AX    -> Sector number of start of file (or 0 on not found)
-;       CX    -> File length in sectors
+;       DI    -> DirectoryEntry storage (not filled)
+;       AX    -> Start cluster of directory
+;  Out: BX    -> Status: 0 not found, 1 found (DI filled)
+
+filePtr dw 0
+dirStorage dw 0
+curCluster dw 0
+
 FindFile:
+        mov  [curCluster], ax
+        mov  [dirStorage], di
+        mov  [filePtr], si
+
+.NextCluster:
+        mov  ax, [curCluster]                     ; Read cluster with directory info
+        call ConvertClusterToLBA
+
+        xor  cx, cx
+        mov  cl, [BPB_SectorsPerCluster]
+        mov  bx, TMP_DIR_SEG
+        mov  es, bx
+        mov  bx, TMP_DIR_OFF
+        call ReadSectors
+
+XCHG BX,BX
+        mov  cx, [BPB_SectorsPerCluster]
+        shr  cx, 4                               ; Div 32
+        mov  di, TMP_DIR_OFF
+.scanDirectoryCluster:
+        push cx
+
+        xor  al, al                              ; First index of data entry is 0, no more entries
+        cmp  [es:di], al
+        je   .NotFound
+
+        ; Compare filename (+extension)
+        cld
+        mov  cx, 11
+        mov  si, [filePtr]
+        push di
+        rep  cmpsb
+        pop  di
+        jne  .NextEntry
+.Found:
+        add  sp, 2                               ; Remove unused loop CX
+        mov  si, di                              ; Found data, copy directory entry
+        mov  di, [dirStorage]
+        mov  cx, 32
+        rep  movsb
+        mov  bx, 1
+        ret
+.NextEntry:
+        add  di, 32
+        pop  cx
+        loop .scanDirectoryCluster
+
+        ; Done with this cluster. Read another cluster
+        mov  ax, [curCluster]
+        call getNextFATCluster
+
+        ; Check if next cluster is valid (or no more clusters)
+        cmp  ax, 0x002
+        jb   .NotFound
+        cmp  ax, 0xFF7
+        ja   .NotFound
+
+        jmp  .NextCluster
+
+
+.NotFound:
+        xor  bx, bx
+        ret
+
+
+; ------------------------------------------------------
+; In  : AX -> cluster number
+; Out : AX -> next cluster number
+getNextFATCluster:
+    mov  bx, ax
+    shr  bx, 1
+    add  ax, bx
+
+    mov  si, FATStartLo
+    add  si, ax
+    lodsw
+
+    and  ax, 1
+    jne  .even
+.odd:
+    and  ax, 0x0FFF;
+    jmp  .done
+.even:
+    shl  ax, 4
+    jmp  .done
+.done
+    ret
+
+; ------------------------------------------------------
+; In  : AX -> cluster number
+; Out : DX:AX -> LBA sector
+ConvertClusterToLBA:
+    mov   bx, 1
+    dec   ax
+    dec   ax
+    mov   bl, [BPB_SectorsPerCluster]
+    xor   bh, bh
+    mul   bx
+
+    mov   bx, 1
+    add   ax, [DataStartLo]               ; DX:AX is filled
+    adc   dx, [DataStartHi]
+    ret
+
+; ------------------------------------------------------
+; Find a file in specified directory block
+;  In:  DS:SI -> FAT12 Directory entry
+;       ES:BX -> File destination
+LoadFile:
         ret
 
 
 
 ; Do not add code after this label
 EOF_Loader:
+
+
+

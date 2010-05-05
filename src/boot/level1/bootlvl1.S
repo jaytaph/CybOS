@@ -45,9 +45,10 @@ BPB_Start:
 
         BootLevel2Sectors:
             dd 0x24           ; LBA sector 36
-            times 4 dd 0x00   ; room for 4 more sectors. If boot level 2 is more than 2048
-                              ; bytes, we need to load the rest of the sectors in the start
-                              ; of bootloader level 2
+            dd 0x25           ; If boot level 2 is more than 2048 bytes, we need to load
+            dd 0x00           ; the rest of the sectors in the start of boot level 2
+            dd 0x00
+            dd 0x00
 
             dd 0x00           ; Final End of sector marker
         nop
@@ -184,8 +185,6 @@ DetectCPU_End:
 
 ; -------------------------------------------------------
 ; Find system directory from rootdir
-
-XCHG BX,BX
         mov  bx, BOOT_LEVEL_2_SEG
         mov  es, bx
         mov  bx, BOOT_LEVEL_2_OFF
@@ -204,6 +203,8 @@ XCHG BX,BX
 .ok:
         mov  cx, 1                      ; Ok to read 1 (LBA) sector
         call ReadSectors
+
+        add  bx, 512
         jmp  .nextSectorRead
 
 .done:
@@ -236,6 +237,8 @@ XCHG BX,BX
 ;      CL    -> Sector count
 ;      ES:BX -> target memory block
 ReadSectors:
+        push bx
+
         mov  di, 5
 RS_Retry:
         call LBA2CHS
@@ -255,6 +258,7 @@ RS_Retry:
         jmp  BootError                  ; Not good, error
 
 SectorReadOK:                           ; Everything went as expected
+        pop  bx
         ret
 
 

@@ -6,8 +6,6 @@
 ;********************************************************
 
 [bits 16]
-[org 0x5000]
-
         jmp SOC_PMode                ; Jump over the data
 
         PAGEDIR           equ 0x9F000    ; Pointer to page directory
