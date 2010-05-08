@@ -3,11 +3,11 @@ plugin_ctrl: unmapped=1, biosdev=1, speaker=1, extfpuirq=1, gameport=1, pci_ide=
 config_interface: win32config
 display_library: win32
 memory: host=24, guest=24
-romimage: file="C:\Program Files\Bochs-2.4.2/BIOS-bochs-latest"
-vgaromimage: file="C:\Program Files\Bochs-2.4.2/VGABIOS-lgpl-latest"
+romimage: file="C:\Program Files\Bochs-2.4.5/BIOS-bochs-latest"
+vgaromimage: file="C:\Program Files\Bochs-2.4.5/VGABIOS-lgpl-latest"
 boot: floppy
 floppy_bootsig_check: disabled=0
-floppya: type=1_44, 1_44="R:\root\cybos\fat12.img", status=inserted
+floppya: type=1_44, 1_44="h:\cybos\fat12.img", status=inserted
 # no floppyb
 ata0: enabled=1, ioaddr1=0x1f0, ioaddr2=0x3f0, irq=14
 ata1: enabled=1, ioaddr1=0x170, ioaddr2=0x370, irq=15
@@ -24,7 +24,8 @@ usb_ohci: enabled=0
 i440fxsupport: enabled=1
 vga_update_interval: 50000
 vga: extension=vbe
-cpu: count=1, ips=4000000, reset_on_triple_fault=0, cpuid_limit_winnt=0
+cpu: count=1, ips=4000000, reset_on_triple_fault=0
+cpuid: mmx=1, sep=1, sse=sse4_2, xapic=1, aes=1, movbe=1, xsave=1, cpuid_limit_winnt=0
 print_timestamps: enabled=0
 port_e9_hack: enabled=1
 text_snapshot_check: enabled=0
@@ -35,7 +36,7 @@ ne2k: enabled=0
 pnic: enabled=0
 sb16: enabled=0
 # no loader
-log: r:\root\cybos\bochsout.txt
+log: h:\cybos\bochsout.txt
 logprefix: %t%e%d
 panic: action=ask
 error: action=report
