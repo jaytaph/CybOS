@@ -34,9 +34,17 @@
         BPB_VolumeLabel         times 11 db 0
         BPB_FileType            times 8 db 0
 
+        times BootLvl2SigOffset-($-$$) db 0x0         ; make sure level 2 signature is on correct offset
+        dw BootLvl2Signature
+
 ; Do not add code before this label
 Start:
+    mov  [BootDriveID], dl              ; Save boot drive
 
+    push cs                             ; Set DS to CS
+    pop  ds
+
+    %include "level2/preload.S"     ; Pre loading stuff
 	%include "level2/loader.S"      ; FAT12 loader of the kernel
 	%include "level2/pmode.S"       ; Protected mode entering code
 
@@ -63,7 +71,7 @@ WriteMsg:
 
 ; ------------------------------------------------------------------------
 ; Prints error and deadlocks the system
-;  In: SI -> Error message
+;  In: DS:SI -> Error message
 BootError:
         call WriteMsg
         jmp $

@@ -44,17 +44,20 @@ BPB_Start:
         ; THE ONLY THING THIS BOOTSECTOR SHOULD DO IS LOAD AND RUN IT..
 
         BootLevel2Sectors:
-            dd 0x24           ; LBA sector 36
-            dd 0x25           ; If boot level 2 is more than 2048 bytes, we need to load
-            dd 0x00           ; the rest of the sectors in the start of boot level 2
-            dd 0x00
-            dd 0x00
-
-            dd 0x00           ; Final End of sector marker
-        nop
+            dd 0x00000024           ; LBA sector 36
+            dd 0x00000025           ; If boot level 2 is more than 5120 bytes, we need to load
+            dd 0x00000026           ; the rest of the sectors in the start of boot level 2
+            dd 0x00000000
+            dd 0x00000000
+            dd 0x00000000
+            dd 0x00000000
+            dd 0x00000000
+            dd 0x00000000
+            dd 0x00000000
+            dd 0x00000000           ; Final End of sector marker, do not change
 
         BootMsg            db 13,10,'Loading CybOS V0.01... ',0
-        ErrorLvl2NotFound  db 13,10,'Cannot find BOOTLVL2.BIN :(',0
+        ErrorLvl2NotFound  db 13,10,'Cannot find /SYSTEM/BOOTLVL2.BIN',0
         Error386NotFound   db 13,10,'Need at least a 386 processor to run.',0
 
         BootDriveID     db 0     ; Holds the current boot drive ID
@@ -89,36 +92,6 @@ RelocatedBootBlock:
 ; Save bootdrive
         mov  [BootDriveID],dl
 
-; -------------------------------------------------------
-; Set a nifty color palette
-
-        jmp OverPaletteData
-
-        palette db  0,  8,  0, 16     ; Nice blue'ish background color
-                db  7, 40, 40, 63     ; And a nice cyan'ish text color
-                db -1
-OverPaletteData:
-
-        mov  si,palette
-NextColor:
-        mov  al,[ds:si]
-        cmp  al,-1
-        je   PaletteDone
-
-        mov dx,0x3C8
-        out dx,al
-
-        inc dx
-        mov al,[ds:si+1]
-        out dx,al
-        mov al,[ds:si+2]
-        out dx,al
-        mov al,[ds:si+3]
-        out dx,al
-
-        add si,4
-        jmp NextColor
-PaletteDone:
 
 ; -------------------------------------------------------
 ; Detect CPU
@@ -157,12 +130,9 @@ DetectCPU_No368Found:
 
 DetectCPU_End:
 
-
 ; -------------------------------------------------------
 ; Init FPU
         fninit                          ; Initialise FPU 387
-
-
 
 ; -------------------------------------------------------
 ; Show bootmessage
@@ -208,7 +178,20 @@ DetectCPU_End:
         jmp  .nextSectorRead
 
 .done:
-        ; TODO: Compare signature of level2 boot loader
+
+; -------------------------------------------------------
+; Compare signature
+        mov  di, BOOT_LEVEL_2_SEG
+        mov  es, di
+        mov  di, BOOT_LEVEL_2_OFF
+        mov  ax, [es:di + BootLvl2SigOffset]
+        cmp  ax, BootLvl2Signature
+        je   .correctSig
+
+        mov  si, ErrorLvl2NotFound
+        call WriteMsg
+        jmp  $
+.correctSig:
 
 ; -------------------------------------------------------
 ; Copy BPB into level2 boot loader

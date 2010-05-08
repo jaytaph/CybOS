@@ -17,7 +17,7 @@ dd if=bootlvl1.bin of=../../fat12.img bs=512 seek=0 conv=notrunc
 
 # Mount image
 mkdir /tmp/fat12mnt
-mount -o loop ../../fat12.img /tmp/fat12mnt
+sudo mount -o loop ../../fat12.img /tmp/fat12mnt
 
 # Make items in image
 mkdir /tmp/fat12mnt/SYSTEM

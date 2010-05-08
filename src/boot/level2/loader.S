@@ -1,9 +1,3 @@
-TODO
-
-        CHECK IF DIRECTORY LOADING FROM DIFFERENT CLUSTERS WORK (WHEN KERNEL.BIN IS IN SECOND CLUSTER)
-        CREATE LOADFILE
-        DONE
-
 ;********************************************************
 ;*
 ;* CybOS Boot Sector - Level 2
@@ -52,11 +46,8 @@ TODO
 ; -------------------------------------------------------
 ; Start of code
 SOC_Loader:
-        mov  ax, cs                             ; Set correct DS and ES segments
-        mov  ds, ax
-        mov  es, ax
-
-        mov  [BootDriveID], dl
+        push ds
+        pop  es
 
 ; -------------------------------------------------------
 ; Init FAT stuff
@@ -74,10 +65,12 @@ SOC_Loader:
 .NoBootError1:
 
 ; -------------------------------------------------------
-; Find and load boot level2 file
+; Find kernel file's directoy entry
         ; AX is already set by FindDir
         mov  si, KernelFile                   ; Load KERNEL.BIN in SYSTEM root directory
         mov  di, DirectoryEntry               ; Place to store directory entry data
+        push ds
+        pop  es
         call FindFile
         cmp  bx, 0
         jne  .NoBootError2
@@ -85,7 +78,11 @@ SOC_Loader:
         call BootError
 .NoBootError2:
 
-        mov  di, DirectoryEntry
+XCHG BX,BX
+
+; -------------------------------------------------------
+; Load actual kernel file
+        mov  si, DirectoryEntry
         mov  bx, KERNEL_SEG
         mov  es, bx
         mov  bx, KERNEL_OFF
@@ -106,9 +103,10 @@ SOC_Loader:
 ;      CL    -> Sector count
 ;      ES:BX -> target memory block
 ReadSectors:
+        call LBA2CHS
+
         mov  di, 5                      ; Retry 5 times at most
 RS_Retry:
-        call LBA2CHS
 
         mov  al, cl
         mov  ah, 0x02
@@ -201,7 +199,6 @@ InitFAT12:
 ;   Out: AX    -> Start cluster
 ;        BX    -> status (1 = found, 0 = not found)
 FindFromRootDir:
-
 ; Read all directory entries
         mov  cx, [BPB_MaxRootDirEntries]         ; Find how many sectors rootdir entry is
         dec  cx
@@ -249,7 +246,7 @@ ReadDirEntry:
 ; ------------------------------------------------------
 ; Find a file in specified directory block
 ;  In:  DS:SI -> file
-;       DI    -> DirectoryEntry storage (not filled)
+;       DS:DI -> DirectoryEntry storage (not filled)
 ;       AX    -> Start cluster of directory
 ;  Out: BX    -> Status: 0 not found, 1 found (DI filled)
 
@@ -273,7 +270,6 @@ FindFile:
         mov  bx, TMP_DIR_OFF
         call ReadSectors
 
-XCHG BX,BX
         mov  cx, [BPB_SectorsPerCluster]
         shr  cx, 4                               ; Div 32
         mov  di, TMP_DIR_OFF
@@ -291,15 +287,7 @@ XCHG BX,BX
         push di
         rep  cmpsb
         pop  di
-        jne  .NextEntry
-.Found:
-        add  sp, 2                               ; Remove unused loop CX
-        mov  si, di                              ; Found data, copy directory entry
-        mov  di, [dirStorage]
-        mov  cx, 32
-        rep  movsb
-        mov  bx, 1
-        ret
+        je  .Found
 .NextEntry:
         add  di, 32
         pop  cx
@@ -317,6 +305,27 @@ XCHG BX,BX
 
         jmp  .NextCluster
 
+.Found:
+        add  sp, 2                               ; Remove unused loop CX
+
+        mov  si, di                              ; Found data, copy directory entry
+        mov  di, [dirStorage]
+
+        mov  ax, es
+        mov  bx, ds
+        mov  es, bx
+        mov  ds, ax
+
+        mov  cx, 32
+        rep  movsb
+
+        mov  ax, es
+        mov  bx, ds
+        mov  es, bx
+        mov  ds, ax
+
+        mov  bx, 1
+        ret
 
 .NotFound:
         xor  bx, bx
@@ -367,7 +376,57 @@ ConvertClusterToLBA:
 ;  In:  DS:SI -> FAT12 Directory entry
 ;       ES:BX -> File destination
 LoadFile:
+XCHG BX,BX
+        mov  ax, [si + 0x1A]                      ; Points to firstCluster
+        mov  [curCluster], ax
+        push bx
+
+        mov  [filePtr], bx
+
+.NextCluster:
+        mov  ax, [curCluster]                     ; Read cluster with directory info
+
+        sub  ax, 2
+        xor  bx, bx
+        mov  bl, [BPB_SectorsPerCluster]
+        mul  bx
+        add  ax, [RootDirStartLo]
+
+        call ConvertClusterToLBA
+
+        xor  cx, cx                               ; Read X number of sectors (1 cluster in total)
+        mov  cl, [BPB_SectorsPerCluster]
+        mov  bx, [filePtr]
+        call ReadSectors
+
+        mov  ax, [BPB_BytesPerSector]             ; Add byte offset to fileptr
+        xor  bx, bx
+        mov  bl, [BPB_SectorsPerCluster]
+        imul bl
+        add  [filePtr], ax
+        jno  .NoOffsetOverFlow
+.OffsetOverflow:                                  ; Offset overflow, increase segment.
+        mov  ax, es
+        add  ax, 16                               ; 0400:0F00 (4FF00 become 0400:0100
+        mov  es, ax
+
+.NoOffsetOverFlow:
+
+        ; Done with this cluster. Read another cluster
+        mov  ax, [curCluster]
+        call getNextFATCluster
+
+        ; Check if next cluster is valid (or no more clusters)
+        cmp  ax, 0x002
+        jb   .Done
+        cmp  ax, 0xFF7
+        ja   .Done
+
+        jmp  .NextCluster
+
+.Done:
         ret
+
 
 
 

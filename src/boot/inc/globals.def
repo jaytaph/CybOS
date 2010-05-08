@@ -41,4 +41,9 @@
         KERNEL_OFF          equ        0x0000
         KERNEL_ABS          equ        (KERNEL_SEG*16)+KERNEL_OFF
 
+
+        BootLvl2SigOffset  equ 0x100             ; Offset of signature in bootlevel 2 file
+        BootLvl2Signature  equ 0xBEEF            ; The actual signature
+
+
 %endif ; __GLOBALS_DEF__
