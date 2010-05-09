@@ -7,40 +7,40 @@
 #ifndef __PAGING_H__
 #define __PAGING_H__
 
-  typedef Uint32 TPAGE;
+  typedef Uint32 page_t;
 
   typedef struct {
-    TPAGE pages[1024];
-  } TPAGETABLE;
+    page_t pages[1024];
+  } pagetable_t;
 
   typedef struct page_directory {
     Uint32 phystables[1024];             // Physical address of the tables THIS HAS GOT THE BE THE FIRST ENTRY IN THIS STRUCTURE!
     int physical_address;                // Physical address of this structure
 
-    TPAGETABLE *tables[1024];            // The tables itself, phystables points to these tables
-  } TPAGEDIRECTORY;
+    pagetable_t *tables[1024];            // The tables itself, phystables points to these tables
+  } pagedirectory_t;
 
   typedef struct bitmap {
     int size;         // Size (in index, not bits)
     int bitsize;      // how many bits in each "index"
     Uint32 *map;      // The map itself
     int firstempty;   // Points to the first non-complete map
-  } TBITMAP;
+  } bitmap_t;
 
 
   extern unsigned int clone_debug;
 
 
-  void set_pagedirectory (TPAGEDIRECTORY *pagedir);
-  void get_page (TPAGEDIRECTORY *directory, Uint32 dst_address, int pagelevels);
+  void set_pagedirectory (pagedirectory_t *pagedir);
+  void get_page (pagedirectory_t *directory, Uint32 dst_address, int pagelevels);
   void flush_pagedirectory (void);
-  void create_pageframe (TPAGEDIRECTORY *directory, Uint32 dst_address, int pagelevels);
-  Uint32 get_physical_address (TPAGEDIRECTORY *directory, Uint32 virtual_address);
-  TPAGEDIRECTORY *clone_pagedirectory (TPAGEDIRECTORY *src);
+  void create_pageframe (pagedirectory_t *directory, Uint32 dst_address, int pagelevels);
+  Uint32 get_physical_address (pagedirectory_t *directory, Uint32 virtual_address);
+  pagedirectory_t *clone_pagedirectory (pagedirectory_t *src);
 
 
-  TPAGEDIRECTORY *_kernel_pagedirectory;      // Page directory for kernel
-  TPAGEDIRECTORY *_current_pagedirectory;     // Currently used pagedirectory
+  pagedirectory_t *_kernel_pagedirectory;      // Page directory for kernel
+  pagedirectory_t *_current_pagedirectory;     // Currently used pagedirectory
 
   // Page flags
   #define PAGEFLAG_NOT_PRESENT       0x00
@@ -71,14 +71,14 @@
   #define USER_STACK_SIZE         0x1200      // Initial user stack size
   #define KERNEL_STACK_SIZE       0x1200      // Initial kernel stack size (MUST BE > 0x1000 otherwise clone_pagetable does not work!)
 
-  TBITMAP *framebitmap;       // Bitmap of physical computer memory for allocated frames
+  bitmap_t *framebitmap;       // Bitmap of physical computer memory for allocated frames
 
   #define IFB(bm, a) (a / bm->bitsize)
   #define OFB(bm, a) (a % bm->bitsize)
 
   int stack_init (Uint32 src_stack_top);
   int paging_init (void);
-  void do_page_fault (TREGS *r);
+  void do_page_fault (regs_t *r);
 
 #endif //__PAGING_H__
 

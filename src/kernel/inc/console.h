@@ -32,24 +32,24 @@
     Uint32 size;                  // Size of the buffer (char+attr)
 
     char *buf;         // Pointer to the screen buffer
-  } TCONSOLE;
+  } console_t;
 
 
-  extern TCONSOLE *_console_list;                      // Start of linkedlist to consoles
-  extern TCONSOLE *_current_console;               // Current console on screen
+  extern console_t *_console_list;                      // Start of linkedlist to consoles
+  extern console_t *_current_console;               // Current console on screen
 
   // Functions
   int console_init (void);
 
-  TCONSOLE *create_console (char *name, int visible);
-  int destroy_console (TCONSOLE *console);
-  unsigned char *get_console_name (TCONSOLE *console);
+  console_t *create_console (char *name, int visible);
+  int destroy_console (console_t *console);
+  unsigned char *get_console_name (console_t *console);
 
-  TCONSOLE *get_current_console (void);
+  console_t *get_current_console (void);
   int get_current_console_index (void);
 
-  int switch_console (TCONSOLE *console, int force_update);
-  TCONSOLE *get_next_console_in_list (TCONSOLE *console);
-  TCONSOLE *get_prev_console_in_list (TCONSOLE *console);
+  int switch_console (console_t *console, int force_update);
+  console_t *get_next_console_in_list (console_t *console);
+  console_t *get_prev_console_in_list (console_t *console);
 
 #endif //__CONSOLE_H__

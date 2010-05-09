@@ -32,7 +32,7 @@ create_syscall_entry1(sleep,   SYS_SLEEP,  ms)
                       retval = sys_null ();
                       break;
       case  SYS_CONSOLE :
-                      retval = sys_console (p1, (TCONSOLE *)p2, (char *)p3);
+                      retval = sys_console (p1, (console_t *)p2, (char *)p3);
                       break;
       case  SYS_CONWRITE :
                       retval = sys_conwrite ((char)p1, p2);

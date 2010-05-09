@@ -12,7 +12,7 @@
 #include "gdt.h"
 #include "paging.h"
 
-TBITMAP *framebitmap;
+bitmap_t *framebitmap;
 
 
 // Kernel stack
@@ -22,13 +22,13 @@ unsigned int *_kernel_stack;
 unsigned int clone_debug = 0;
 
 
-TPAGEDIRECTORY *clone_pagedirectory (TPAGEDIRECTORY *src);
+pagedirectory_t *clone_pagedirectory (pagedirectory_t *src);
 void copy_physical_pageframe_data (Uint32 src, Uint32 dst);
 
 /************************************************************
  * Let processor use the new page directory
  */
-void set_pagedirectory (TPAGEDIRECTORY *pagedir) {
+void set_pagedirectory (pagedirectory_t *pagedir) {
   __asm__ __volatile__ ("movl %%eax, %%cr3  \n\t" : : "a" (pagedir->physical_address));
 }
 
@@ -44,7 +44,7 @@ void flush_pagedirectory (void) {
 /************************************************************
  * Do a pagefault (not really handled yet)
  */
-void do_page_fault (TREGS *r) {
+void do_page_fault (regs_t *r) {
   Uint32 cr2;
   __asm__ __volatile__ ("mov %%cr2, %0" : "=r" (cr2));
 
@@ -69,12 +69,12 @@ void do_page_fault (TREGS *r) {
 
 // ====================================================================================
 // Bit set/clear/set routines
-void bm_set (TBITMAP *bitmap, int frame_address) {
+void bm_set (bitmap_t *bitmap, int frame_address) {
   int index = IFB (bitmap, frame_address);
   int offset = OFB (bitmap, frame_address);
   bitmap->map[index] |= (1 << offset);
 }
-void bm_clear (TBITMAP *bitmap, int frame_address) {
+void bm_clear (bitmap_t *bitmap, int frame_address) {
   int index = IFB (bitmap, frame_address);
   int offset = OFB (bitmap, frame_address);
   bitmap->map[index] &= ~(1 << offset);
@@ -82,7 +82,7 @@ void bm_clear (TBITMAP *bitmap, int frame_address) {
   // We cleared a bit that is lower then our FF cache. Move the pointer
   if (index < bitmap->firstempty) bitmap->firstempty = index;
 }
-int bm_test (TBITMAP *bitmap, int frame_address) {
+int bm_test (bitmap_t *bitmap, int frame_address) {
   int index = IFB (bitmap, frame_address);
   int offset = OFB (bitmap, frame_address);
   return (bitmap->map[index] & (1 << offset));
@@ -90,7 +90,7 @@ int bm_test (TBITMAP *bitmap, int frame_address) {
 
 // ====================================================================================
 // Find the first free 0 bit in the bitmap
-int bm_findfirst (TBITMAP *bitmap) {
+int bm_findfirst (bitmap_t *bitmap) {
   int i,j;
 
   int sf = (bitmap->firstempty < 0) ? 0 : bitmap->firstempty;
@@ -114,7 +114,7 @@ int bm_findfirst (TBITMAP *bitmap) {
 
 // ====================================================================================
 // Find a new empty page in the bitmap if this page is not initialized. Set the page flags as well.
-void allocate_pageframe (TPAGE *page, int rw, int level) {
+void allocate_pageframe (page_t *page, int rw, int level) {
   int index;
 
   // There is already a address present (== allocated)
@@ -135,7 +135,7 @@ void allocate_pageframe (TPAGE *page, int rw, int level) {
 }
 
 // ====================================================================================
-void obsolete_free_frame (TPAGE *page) {
+void obsolete_free_frame (page_t *page) {
   // Frame was not allocated in the first place
   if (*page != 0) return;
 
@@ -171,14 +171,14 @@ void obsolete_free_frame (TPAGE *page) {
 
 
 // ====================================================================================
-TPAGEDIRECTORY *create_pagedirectory (void) {
+pagedirectory_t *create_pagedirectory (void) {
   Uint32 tmp;
 
   // Allocate the kernel page directory on page boundary
-  TPAGEDIRECTORY *pagedir = (TPAGEDIRECTORY *) kmalloc_pageboundary_physical (sizeof (TPAGEDIRECTORY), &tmp);
+  pagedirectory_t *pagedir = (pagedirectory_t *) kmalloc_pageboundary_physical (sizeof (pagedirectory_t), &tmp);
 
   // Clear the whole structure
-  memset (pagedir, 0, sizeof (TPAGEDIRECTORY));
+  memset (pagedir, 0, sizeof (pagedirectory_t));
 
   // Note that this is the START of the structure. This means we need the phystables[] to be at the START of the structure as well.
   // Another way would be to have 2 separate structures in here. One for maintenance and one for CR3.
@@ -190,14 +190,14 @@ TPAGEDIRECTORY *create_pagedirectory (void) {
 
 
 // ====================================================================================
-TPAGEDIRECTORY *clone_pagedirectory (TPAGEDIRECTORY *src) {
-  TPAGEDIRECTORY *dst;
+pagedirectory_t *clone_pagedirectory (pagedirectory_t *src) {
+  pagedirectory_t *dst;
   int i,j;
   Uint32 phys_addr;
 
   // Allocate the kernel page directory and clear the whole structure
-  dst = (TPAGEDIRECTORY *) kmalloc_pageboundary_physical (sizeof (TPAGEDIRECTORY), &phys_addr);
-  memset (dst, 0, sizeof (TPAGEDIRECTORY));     // Zero it out
+  dst = (pagedirectory_t *) kmalloc_pageboundary_physical (sizeof (pagedirectory_t), &phys_addr);
+  memset (dst, 0, sizeof (pagedirectory_t));     // Zero it out
   dst->physical_address = phys_addr;            // We need to know the physical address of the pagedir so we can load it into CR3 register
 
 // kprintf ("\n** Cloning page directory to %08X\n", phys_addr);
@@ -233,11 +233,11 @@ TPAGEDIRECTORY *clone_pagedirectory (TPAGEDIRECTORY *src) {
       // COPY the table since it's not in the kernel directory
 
       // Create table at new memory address
-      dst->tables[i] = (TPAGETABLE *)kmalloc_pageboundary_physical (sizeof (TPAGETABLE), &phys_addr);
+      dst->tables[i] = (pagetable_t *)kmalloc_pageboundary_physical (sizeof (pagetable_t), &phys_addr);
       dst->phystables[i] = phys_addr | 0x7;
 
       // Make sure the new table is clear
-      memset (dst->tables[i], 0, sizeof (TPAGETABLE));
+      memset (dst->tables[i], 0, sizeof (pagetable_t));
       for (j=0; j!=1024; j++) {
         if (src->tables[i]->pages[j] == 0) continue;    // Empty frame, don't copy
 
@@ -278,7 +278,7 @@ TPAGEDIRECTORY *clone_pagedirectory (TPAGEDIRECTORY *src) {
 
 
 
-void create_pageframe (TPAGEDIRECTORY *directory, Uint32 dst_address, int pagelevels) {
+void create_pageframe (pagedirectory_t *directory, Uint32 dst_address, int pagelevels) {
   Uint32 dst_frame, dst_table, dst_page, tmp;
 
 //  kprintf ("Find a page for destination: 0x%08X\n", dst_address);
@@ -290,10 +290,10 @@ void create_pageframe (TPAGEDIRECTORY *directory, Uint32 dst_address, int pagele
   // Create table if it does not exist.
   if (directory->tables[dst_table] == NULL) {
     // Allocate and save physical memory offset so CR3 can find this
-    directory->tables[dst_table] = (TPAGETABLE *)kmalloc_pageboundary_physical (sizeof (TPAGETABLE), &tmp);
+    directory->tables[dst_table] = (pagetable_t *)kmalloc_pageboundary_physical (sizeof (pagetable_t), &tmp);
     directory->phystables[dst_table] = tmp | 0x7;
 
-    memset (directory->tables[dst_table], 0, sizeof (TPAGETABLE));
+    memset (directory->tables[dst_table], 0, sizeof (pagetable_t));
 
 //    kprintf ("CPG Creating phystables[%d] = %08X\n", dst_table, tmp);
 
@@ -318,7 +318,7 @@ void create_pageframe (TPAGEDIRECTORY *directory, Uint32 dst_address, int pagele
  * When no page structure is available (ie the table is not yet created), the create_flag
  * decide if the table should be made in the directory or not.
  */
-void map_virtual_memory (TPAGEDIRECTORY *directory, Uint32 src_address, Uint32 dst_address, int pagelevels, int set_bitmap) {
+void map_virtual_memory (pagedirectory_t *directory, Uint32 src_address, Uint32 dst_address, int pagelevels, int set_bitmap) {
   Uint32 tmp, src_frame, dst_frame, dst_table, dst_page;
 
 
@@ -342,10 +342,10 @@ void map_virtual_memory (TPAGEDIRECTORY *directory, Uint32 src_address, Uint32 d
   // Create table if it does not exist.
   if (directory->tables[dst_table] == NULL) {
     // Allocate and save physical memory offset so CR3 can find this
-    directory->tables[dst_table] = (TPAGETABLE *)kmalloc_pageboundary_physical (sizeof (TPAGETABLE), &tmp);
+    directory->tables[dst_table] = (pagetable_t *)kmalloc_pageboundary_physical (sizeof (pagetable_t), &tmp);
 
     // Zero out the new pagetable
-    memset (directory->tables[dst_table], 0, sizeof (TPAGETABLE));
+    memset (directory->tables[dst_table], 0, sizeof (pagetable_t));
 
     // Store physical address (+ flags)
 //    kprintf ("MVM Creating phystables[%d] = %08X\n", dst_table, tmp);
@@ -387,7 +387,7 @@ void pbm (int size) {
 // ====================================================================================
 // Fetch the page address from the directory, and add the rest (first 12 bits of the address) to
 // get the physical address.
-Uint32 get_physical_address (TPAGEDIRECTORY *directory, Uint32 virtual_address) {
+Uint32 get_physical_address (pagedirectory_t *directory, Uint32 virtual_address) {
   Uint32 frame = virtual_address / 0x1000;
   Uint32 table = frame / 1024;
   Uint32 page  = frame % 1024;
@@ -464,7 +464,7 @@ int paging_init () {
 
   // Allocate a bitmap big enough to hold 1 bit for each page of memory
   framecount = _memory_total / 0x1000;                       // We use 4KB pages. Framecount is the number of frames of PHYSICAL memory
-  framebitmap = (TBITMAP *)kmalloc (sizeof (TBITMAP));        // This hold the allocated pages in each bit
+  framebitmap = (bitmap_t *)kmalloc (sizeof (bitmap_t));        // This hold the allocated pages in each bit
   framebitmap->bitsize = 32;                                  // We use chars in our map (means 8 bits per "index")
   framebitmap->size = framecount / framebitmap->bitsize;      // Keep the size. Might come in handy later.
   framebitmap->map = (Uint32 *)kmalloc (framebitmap->size);   // Now allocate memory for the map

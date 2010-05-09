@@ -59,7 +59,7 @@
 
 
   int sys_null (void);
-  int sys_console (int subcommand, TCONSOLE *console, char *name);
+  int sys_console (int subcommand, console_t *console, char *name);
   int sys_conwrite (char ch, int autoflush);
   int sys_conread (void);
   int sys_conflush (void);

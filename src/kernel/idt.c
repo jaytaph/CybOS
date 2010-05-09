@@ -208,7 +208,7 @@ int idt_init (void) {
 // =================================================================================
 // Same as the exception and syscall handler, it could have been handled by a lowlevel
 // lookup-table, but somehow this looks more readable to me.
-void do_handle_irq (TREGS *r) {
+void do_handle_irq (regs_t *r) {
   int rescheduling = 0;
 
   switch (r->int_no) {
@@ -265,17 +265,17 @@ void do_handle_irq (TREGS *r) {
 // done because wel CALL the do_handle_syscall instead of jumping to it. This means
 // the call automatically places the ret addres onto the stack and that messes up the
 // rest of the parameters. Therefor, we just send a pointer.
-int do_handle_syscall (TREGS *r) {
+int do_handle_syscall (regs_t *r) {
   return service_interrupt (r->eax & 0x0000FFFF, r->ebx, r->ecx, r->edx, r->esi, r->edi);
 }
 
 // =================================================================================
-void  do_handle_default_int (TREGS r) {
+void  do_handle_default_int (regs_t r) {
   // Do nothing
 }
 
 // =================================================================================
-void do_handle_exception (TREGS  *r) {
+void do_handle_exception (regs_t  *r) {
   kprintf ("Handling exception %d...\n", r->int_no);
 
   // Debug info
@@ -329,7 +329,7 @@ void do_handle_exception (TREGS  *r) {
 
 
 // =================================================================================
-void print_cpu_info (TREGS *r) {
+void print_cpu_info (regs_t *r) {
   int reg_cr0,reg_cr2,reg_cr3;
   int reg_ds, reg_es, reg_fs, reg_gs;
 

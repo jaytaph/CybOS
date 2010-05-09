@@ -64,7 +64,7 @@ int con_get_vga_cursor (void) {
  *
  * Out : -1 on error, 1 on OK
  */
-int con_clrscr (TCONSOLE *console) {
+int con_clrscr (console_t *console) {
   int i;
 
   if (console == NULL) return ERR_CON_INVALID_CONSOLE;
@@ -93,7 +93,7 @@ int con_clrscr (TCONSOLE *console) {
  *
  * Out : -1 on error, 1 on OK
  */
-int con_scrollup (TCONSOLE *console) {
+int con_scrollup (console_t *console) {
   int size, start;
 
   if (console == NULL) return ERR_CON_INVALID_CONSOLE;
@@ -127,7 +127,7 @@ int con_scrollup (TCONSOLE *console) {
  *
  * Out : -1 on error, 1 on OK
  */
-int con_plot (TCONSOLE *console, int x, int y, char ch) {
+int con_plot (console_t *console, int x, int y, char ch) {
   if (console == NULL) return ERR_CON_INVALID_CONSOLE;
 
   int offset = (y * console->max_px + x) * 2;
@@ -149,7 +149,7 @@ int con_plot (TCONSOLE *console, int x, int y, char ch) {
  *
  * Out : -1 on error, 1 on OK
  */
-int con_directputch (TCONSOLE *console, char ch) {
+int con_directputch (console_t *console, char ch) {
   if (console == NULL) return ERR_CON_INVALID_CONSOLE;
 
   // Plots the char directly to the screen
@@ -184,7 +184,7 @@ int con_directputch (TCONSOLE *console, char ch) {
  *
  * Out : -1 on error, 1 on OK
  */
-int con_putch (TCONSOLE *console, char ch) {
+int con_putch (console_t *console, char ch) {
   if (console == NULL) return ERR_CON_INVALID_CONSOLE;
 
   // New Line
@@ -244,7 +244,7 @@ int con_putch (TCONSOLE *console, char ch) {
  *
  * Out : -1 on error, 1 on OK
  */
-int con_flush (TCONSOLE *console) {
+int con_flush (console_t *console) {
   if (console == NULL) return ERR_CON_INVALID_CONSOLE;
 
   // Update the screen, only when the console is currently on the screen.
@@ -271,7 +271,7 @@ int con_flush (TCONSOLE *console) {
  *
  * Out : -1 on error, 1 on OK
  */
-int con_update_screen (TCONSOLE *console) {
+int con_update_screen (console_t *console) {
   char *ctrltab_bar;
 
   if (console == NULL) return ERR_CON_INVALID_CONSOLE;
@@ -304,7 +304,7 @@ int con_update_screen (TCONSOLE *console) {
  *
  * Out : -1 on error, 1 on OK
  */
-int con_set_palette (TCONSOLE *console) {
+int con_set_palette (console_t *console) {
   if (console == NULL) return ERR_CON_INVALID_CONSOLE;
 
   con_wait_vertical_retrace (1);
@@ -356,7 +356,7 @@ int con_wait_vertical_retrace (int retraces) {
  * Out : always 0
  */
 int con_printf_helper (char ch, void **ptr) {
-  con_putch ((TCONSOLE *)ptr, ch);
+  con_putch ((console_t *)ptr, ch);
   return 1;
 }
 
@@ -371,7 +371,7 @@ int con_printf_helper (char ch, void **ptr) {
  *
  * Out : -1 on error, 1 on OK
  */
-int con_printf (TCONSOLE *console, const char *fmt, ...) {
+int con_printf (console_t *console, const char *fmt, ...) {
   va_list args;
 
   if (console == NULL) return ERR_CON_INVALID_CONSOLE;
@@ -397,7 +397,7 @@ int con_printf (TCONSOLE *console, const char *fmt, ...) {
  *
  * Out : -1 on error, 1 on OK
  */
-int con_setxy (TCONSOLE *console, int x, int y) {
+int con_setxy (console_t *console, int x, int y) {
   if (console == NULL) return ERR_CON_INVALID_CONSOLE;
 
   // Make sure our values aren't bigger than the console boundaries.
@@ -426,7 +426,7 @@ int con_setxy (TCONSOLE *console, int x, int y) {
  *
  * Out : -1 on error, 1 on OK
  */
-int con_getxy (TCONSOLE *console, int *x, int *y) {
+int con_getxy (console_t *console, int *x, int *y) {
   if (console == NULL) return ERR_CON_INVALID_CONSOLE;
 
   // Get position
@@ -446,7 +446,7 @@ int con_getxy (TCONSOLE *console, int *x, int *y) {
  *
  * Out : -1 on error, 1 on OK
  */
-int con_setattr (TCONSOLE *console, int attr) {
+int con_setattr (console_t *console, int attr) {
   if (console == NULL) return ERR_CON_INVALID_CONSOLE;
 
   // Set current attribute
@@ -464,7 +464,7 @@ int con_setattr (TCONSOLE *console, int attr) {
  *
  * Out : Attribute of the console or -1 on error
  */
-int con_getattr (TCONSOLE *console) {
+int con_getattr (console_t *console) {
   if (console == NULL) return ERR_CON_INVALID_CONSOLE;
 
   // Return attribute
@@ -487,7 +487,7 @@ int con_getattr (TCONSOLE *console) {
  *
  * Out : -1 on error, 1 on OK
  */
-int con_gets (TCONSOLE *console, char *str, int len) {
+int con_gets (console_t *console, char *str, int len) {
   unsigned char ch;
   int tmplen=0;
 

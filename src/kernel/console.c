@@ -15,9 +15,9 @@
 #include "io.h"
 
   static char _con_defpal[768];                   // Default palette for a console initialisation
-  TCONSOLE *_current_console = NULL;              // Current console on the screen
-  TCONSOLE *_console_list = NULL;                 // Console linked list
-  TCONSOLE *_kconsole;                            // Console for kernel info (first screen)
+  console_t *_current_console = NULL;              // Current console on the screen
+  console_t *_console_list = NULL;                 // Console linked list
+  console_t *_kconsole;                            // Console for kernel info (first screen)
 
 //  // Console defines
 //  #define CON_INACTIVE    0
@@ -39,7 +39,7 @@ int console_init (void) {
   for (i=0; i!=768; i++) _con_defpal[i] = inb (0x3C9);
 
   // Create a construct. We assume that that works...
-  if ( (_kconsole = (TCONSOLE *)sys_console (SYS_CONSOLE_CREATE, 0, "Construct")) == NULL) {
+  if ( (_kconsole = (console_t *)sys_console (SYS_CONSOLE_CREATE, 0, "Construct")) == NULL) {
     // TODO: We could print something directly to the screen (*0xb8000?)
     for (;;) { }
   }
@@ -61,8 +61,8 @@ int console_init (void) {
 }
 
 
-int destroy_console (TCONSOLE *console) {
-  TCONSOLE *p,*n;
+int destroy_console (console_t *console) {
+  console_t *p,*n;
 
   kprintf ("destroy_console() not implemented fully yet. Memory not released.");
 
@@ -78,7 +78,7 @@ int destroy_console (TCONSOLE *console) {
 
 
 // ========================================================
-int sys_console (int subcommand, TCONSOLE *console, char *name) {
+int sys_console (int subcommand, console_t *console, char *name) {
   if (subcommand == SYS_CONSOLE_CREATE) {
     return (int) create_console (name, CON_VISIBLE);
 
@@ -102,12 +102,12 @@ int sys_console (int subcommand, TCONSOLE *console, char *name) {
  *
  * Out : console entry or -1 on error
  */
-TCONSOLE *create_console (char *name, int visible) {
-  TCONSOLE *console, *last_console;
+console_t *create_console (char *name, int visible) {
+  console_t *console, *last_console;
   int i;
 
   // Allocate memory for new console
-  console = (TCONSOLE *)kmalloc (sizeof (TCONSOLE));
+  console = (console_t *)kmalloc (sizeof (console_t));
 
   // Fill in all attributes for the console
   strncpy (console->name, name, 20);
@@ -175,7 +175,7 @@ TCONSOLE *create_console (char *name, int visible) {
  *
  * Out : index number of the console
  */
-TCONSOLE *get_current_console (void) {
+console_t *get_current_console (void) {
   return _current_console;
 }
 
@@ -210,7 +210,7 @@ int console_active (int con_idx) {
  *
  * Out : result code
  */
-int switch_console (TCONSOLE *new_console, int force_update) {
+int switch_console (console_t *new_console, int force_update) {
 
   // Check if a switch is really needed (ie, if the
   // console is already on the screen)
@@ -225,11 +225,11 @@ int switch_console (TCONSOLE *new_console, int force_update) {
 }
 
 
-TCONSOLE *get_next_console_in_list (TCONSOLE *console) {
+console_t *get_next_console_in_list (console_t *console) {
   return console->next != NULL ? console->next : _console_list;
 }
 
-TCONSOLE *get_prev_console_in_list (TCONSOLE *console) {
+console_t *get_prev_console_in_list (console_t *console) {
   if (console->prev != NULL) return console->prev;
 
   // We are at the start, so look for the end, and return that console

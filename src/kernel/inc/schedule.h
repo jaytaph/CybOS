@@ -27,7 +27,7 @@
       void *next;                             // Next task or NULL on end
 
       char name[50];                          // Name of the current task so it shows up inside the task listing
-      TCONSOLE *console;                      // Pointer to the TCONSOLE were this task is outputted to
+      console_t *console;                     // Pointer to the console_t were this task is outputted to
 
       state_t state;                          // Status of the current task.
       prio_t priority;                        // Priority of the process   (between PRIO_LOWEST - PRIO_HIGHEST)
@@ -38,16 +38,16 @@
       Uint32 *kstack;                         // Points to kernel stack
       Uint32 *ustack;                         // Points to user stack
 
-      TREGS *context;
+      regs_t *context;
 
-      TPAGEDIRECTORY *page_directory;         // Points to the page directory of this task
+      pagedirectory_t *page_directory;         // Points to the page directory of this task
 
       int  alarm;                             // Remaining alarm ticks
       int  signal;                            // Current raised signals (bitfields)
 
       pid_t pid;                              // PID of the task
       pid_t ppid;                             // PID of the parent task (or 0 on no parent)
-  } CYBOS_TASK;
+  } task_t;
 
 
   #define PRIO_LOW            1     // Minimum priority
@@ -61,15 +61,15 @@
 
   #define SCHEDULE_TICKS     50     // Every 50ms there will be a context-switch
 
-  // defines for CYBOS_TASK.state
+  // defines for task_t.state
   #define TASK_STATE_INITIALISING     'i'       // Do not schedule at this moment.
   #define TASK_STATE_RUNNABLE         'r'       // Ready for scheduling.
   #define TASK_STATE_RUNNING          'R'       // This task is currently running
   #define TASK_STATE_INTERRUPTABLE    'S'       // Task is sleeping, but can be interrupted
   #define TASK_STATE_UNINTERRUPTABLE  'U'       // Task is sleeping, and cannot be interrupted
 
-  extern CYBOS_TASK *_current_task;             // Current task which is running.
-  extern CYBOS_TASK *_idle_task;                // Idle task
+  extern task_t *_current_task;             // Current task which is running.
+  extern task_t *_idle_task;                // Idle task
   extern int current_pid;                       // Last PID returned by allocate_pid()
 
   int sched_init (void);
@@ -80,10 +80,10 @@
   void switch_to_usermode (void);
   int allocate_new_pid (void);
 
-  void sched_add_task (CYBOS_TASK *task);
-  void sched_remove_task (CYBOS_TASK *task);
-  void sched_add_runnable_task (CYBOS_TASK *task);
-  void sched_remove_runnable_task (CYBOS_TASK *task);
+  void sched_add_task (task_t *task);
+  void sched_remove_task (task_t *task);
+  void sched_add_runnable_task (task_t *task);
+  void sched_remove_runnable_task (task_t *task);
 
   void global_task_administration (void);
   void thread_create_kernel_thread (Uint32 start_address, char *taskname, int console);

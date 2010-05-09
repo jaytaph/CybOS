@@ -5,6 +5,7 @@
  *
  *****************************************************************************/
 
+#include "kernel.h"
 #include "vfs.h"
 
 fs_node_t *fs_root = NULL;      // Root of the filesystem
@@ -35,5 +36,5 @@ struct dirent *readdir_fs(fs_node_t *node, Uint32 index) {
 fs_node_t *finddir_fs(fs_node_t *node, char *name) {
     // Check if it's a directory
     if ((node->flags & 0x7) != FS_DIRECTORY) return NULL;
-    return (node->finddir == NULL) ? NULL : node->finddir (node, index);
+    return (node->finddir == NULL) ? NULL : node->finddir (node, name);
 }

@@ -24,12 +24,10 @@
 #include "pic.h"
 #include "io.h"
 
-#include "queue.h"
-
   // 64bit tick counter
   Uint64 _kernel_ticks;
 
-  extern CYBOS_TASK *_task_list;
+  extern task_t *_task_list;
 
   void tprintf (const char *fmt, ...);
 
@@ -116,7 +114,7 @@ void kernel_entry (int stack_start, int total_sys_memory) {
 
             tprintf ("\n\n");
             tprintf ("PID  PPID TASK                STAT  PRIO  KTIME     UTIME\n");
-            CYBOS_TASK *t;
+            task_t *t;
             for (t=_task_list; t!=NULL; t=t->next) {
                 tprintf ("%04d %04d %-17s      %c  %4d  %08X  %08X\n", t->pid, t->ppid, t->name, t->state, t->priority, LO32(t->ktime), LO32(t->utime));
             }

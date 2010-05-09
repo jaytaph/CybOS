@@ -1,7 +1,5 @@
 # $header$
 
-.PHONY: floppy install
-
 # Standard compiler programs
 CC       = gcc
 LD       = ld
@@ -18,8 +16,7 @@ LIBS =
 
 
 # Main target
-TARGET = kernel.bin
-
+TARGET = ../kernel.bin
 
 # Compiler and user flags
 CC_FLAGS = -nostdlib -nostdinc -fno-builtin -fno-exceptions -fomit-frame-pointer -Wall
@@ -56,13 +53,12 @@ OBJS =  main.o \
         pic.o \
         mutex.o \
         mutexasm.o \
-        queue.o \
         klib.o \
         vfs.o
 
 
 # Default target
-all: kernel.bin install
+all: kernel
 
 # Cleans up the kernel objects
 clean:
@@ -72,14 +68,10 @@ clean:
 	@$(RM) *.map
 
 
-kernel.bin: kernel.out
-	@echo [OC] $@
-	$(OBJCOPY) -O binary kernel.out kernel.bin
-
-# Kernel binary
-kernel.out: $(OBJS)
+kernel: $(OBJS)
 	@echo [LD] $@
-	@$(LD) $(LD_TEXT) $(LD_ENTRY) -s -o $@ $(OBJS) $(LIBS)
+	@$(LD) $(LD_TEXT) $(LD_ENTRY) -s -o kernel.out $(OBJS) $(LIBS)
+	$(OBJCOPY) -O binary kernel.out $(TARGET)
 
 # Implicit Rules
 .c.o:
@@ -88,17 +80,3 @@ kernel.out: $(OBJS)
 .S.o:
 	@echo [AS] $<
 	@$(AS) -f elf -o $@ $<
-
-
-# Install the kernel
-install:
-	@echo Installing...
-	@dd if=kernel.bin of=../floppya.dat bs=512 seek=3 conv=notrunc >/dev/null 2>&1
-
-
-
-floppy:
-	dd if=../boot/boot.bin   of=../fd.img bs=512 seek=0 conv=notrunc >/dev/null 2>&1
-	dd if=../boot/loader.bin of=../fd.img bs=512 seek=1 conv=notrunc >/dev/null 2>&1
-	dd if=kernel.bin         of=../fd.img bs=512 seek=3 conv=notrunc >/dev/null 2>&1
-	dd if=../fd.img of=/dev/fd0 bs=512 >/dev/null 2>&1

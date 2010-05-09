@@ -2,11 +2,12 @@
 
 .PHONY: stdlib kernel boot
 
-all: stdlib kernel boot
+all: stdlib kernel boot install
 
 clean:
 	echo [Clean]
 	make -C boot clean
+	make -C stdlib clean
 	make -C kernel clean
 
 stdlib:
@@ -15,8 +16,13 @@ stdlib:
 
 boot:
 	echo [Boot]
-	make -C stdlib
+	make -C boot
 
 kernel:
 	echo [Kernel]
 	make -C kernel
+
+install:
+	echo [Create bootdisk]
+	./bootalize ../fat12.img bootlvl1.bin bootlvl2.bin
+

@@ -27,7 +27,7 @@ int keyptr = 0;
 
 // Special <ctrl><tab> switches
 static int  in_console_switch  = 0;      // 1 if we are currently ctrl-tabbing
-static TCONSOLE *ctrltab_console;        // Points to the console we currently select in the ctrltab-bar
+static console_t *ctrltab_console;        // Points to the console we currently select in the ctrltab-bar
 static char ctrltab_bar[1024];           // Console switch line.  TODO: must be allocated dynamically since every console max_px can be of different size.
 
 

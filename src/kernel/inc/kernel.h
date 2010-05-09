@@ -60,7 +60,7 @@
   extern Uint64 *_kernel_gdt;       // Pointer to the GDT of the kernel
 
   extern Uint64 _kernel_ticks;      // Number of ticks that the kernel is running
-  extern TCONSOLE *_kconsole;       // TConsole for kernel info (first screen)
+  extern console_t *_kconsole;      // Console for kernel info (first screen)
 
   // Kernel Entry Point
   void kernel_entry (int stack_start, int total_sys_memory);

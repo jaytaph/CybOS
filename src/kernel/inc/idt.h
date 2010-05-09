@@ -46,7 +46,7 @@
     Uint32 int_no, err_code;                         // Interrupt number and error code (if applicable, 0 when not used)
     Uint32 eip, cs, eflags;                          // Pushed by the processor automatically when INT is called.
     Uint32 user_esp,  user_ss;                       // Only here when priority changes (ie: ring3 to ring0)
-  } TREGS;
+  } regs_t;
 
 
   // Interrupt defines
@@ -67,6 +67,6 @@
   void idt_set_descriptor (int index, Uint64 descriptor);
   Uint64 idt_get_descriptor (int index);
 
-  void print_cpu_info (TREGS *r);
+  void print_cpu_info (regs_t *r);
 
 #endif  // _IDT_H__

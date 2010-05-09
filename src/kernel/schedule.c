@@ -15,19 +15,18 @@
 #include "gdt.h"
 #include "idt.h"
 #include "io.h"
-#include "queue.h"
 
 
-CYBOS_TASK *_current_task = NULL;    // Current active task on the CPU.
-CYBOS_TASK *_task_list = NULL;       // Points to the first task in the tasklist (which should be the idle task)
-CYBOS_TASK *_idle_task;              // Points to the idle task (which should be the first task in _task_list)
+task_t *_current_task = NULL;    // Current active task on the CPU.
+task_t *_task_list = NULL;       // Points to the first task in the tasklist (which should be the idle task)
+task_t *_idle_task;              // Points to the idle task (which should be the first task in _task_list)
 
 TSS tss_entry;                       // Memory to hold the TSS. Address is loaded into the GDT
 
 int current_pid = PID_IDLE - 1;      // First call to allocate_pid will return PID_IDLE
 
 
-void context_switch (TREGS *prev_context, TREGS *new_context);    // Found in task.S
+void context_switch (regs_t *prev_context, regs_t *new_context);    // Found in task.S
 
 
 
@@ -36,14 +35,14 @@ void context_switch (TREGS *prev_context, TREGS *new_context);    // Found in ta
  */
 void thread_create_kernel_thread (Uint32 start_address, char *taskname, int console) {
   // Create room for task
-  CYBOS_TASK *task = (CYBOS_TASK *)kmalloc (sizeof (CYBOS_TASK));
+  task_t *task = (task_t *)kmalloc (sizeof (task_t));
 
   // We are initialising this task at the moment
   task->state = TASK_STATE_INITIALISING;
 
   // Create kernel stack and setup "start" stack that gets pop'ed by context_switch()
   task->kstack = (Uint32 *)kmalloc_pageboundary (KERNEL_STACK_SIZE);
-  task->context = (TREGS *)(task->kstack - sizeof (TREGS));
+  task->context = (regs_t *)(task->kstack - sizeof (regs_t));
 
 /*
   if (start_address != 0) {
@@ -98,10 +97,10 @@ void thread_create_kernel_thread (Uint32 start_address, char *taskname, int cons
 /*******************************************************
  * Adds a task to the linked list of tasks.
  */
-void sched_add_task (CYBOS_TASK *new_task) {
+void sched_add_task (task_t *new_task) {
   int state = disable_ints ();
 
-  CYBOS_TASK *last_task = _task_list;
+  task_t *last_task = _task_list;
 
   // No tasks found, this task will be the first. This is only true when adding the primary task (idle-task).
   if (last_task == NULL) {
@@ -130,8 +129,8 @@ void sched_add_task (CYBOS_TASK *new_task) {
 /*******************************************************
  * Removes a task from the linked list of tasks.
  */
-void sched_remove_task (CYBOS_TASK *task) {
-  CYBOS_TASK *tmp,*tmp1;
+void sched_remove_task (task_t *task) {
+  task_t *tmp,*tmp1;
 
   // Don't remove idle_task!
   if (task->pid == PID_IDLE) kpanic ("Cannot delete idle task!");
@@ -141,7 +140,7 @@ void sched_remove_task (CYBOS_TASK *task) {
 
   // Simple remove when it's the last one on the list.
   if (task->next == NULL) {
-    tmp = (CYBOS_TASK *)task->prev;
+    tmp = (task_t *)task->prev;
     tmp->next = NULL;
 
   // Simple remove when it's the first one on the list (this should not be possible since it would be the idle-task)
@@ -165,8 +164,8 @@ void sched_remove_task (CYBOS_TASK *task) {
 /*******************************************************
  * Fetch the next RUNNABLE task from the list, OR NULL when no runnable process is found
  */
-CYBOS_TASK *get_next_runnable_task (CYBOS_TASK *current_task) {
-  CYBOS_TASK *next_task = NULL;
+task_t *get_next_runnable_task (task_t *current_task) {
+  task_t *next_task = NULL;
 
   // Disable ints
   int state = disable_ints ();
@@ -200,7 +199,7 @@ found:
 /****
  *
  */
-void sys_signal (CYBOS_TASK *task, int signal) {
+void sys_signal (task_t *task, int signal) {
 //  kprintf ("\nsys_signal (PID %d   SIG %d)\n", task->pid, signal);
   // task->signal |= (1 << signal);
   task->signal = bts (task->signal, signal);
@@ -257,7 +256,7 @@ void handle_pending_signals (void) {
  * waking up on signals etc.
  */
 void global_task_administration (void) {
-  CYBOS_TASK *task;
+  task_t *task;
 
   int state = disable_ints ();
 
@@ -291,8 +290,8 @@ void global_task_administration (void) {
  *
  */
 void switch_task () {
-  CYBOS_TASK *previous_task;
-  CYBOS_TASK *next_task;
+  task_t *previous_task;
+  task_t *next_task;
 
   // There is a signal pending. Do that first before we actually run code again (TODO: is this really a good idea?)
   if (_current_task->signal != 0) return;
@@ -383,7 +382,7 @@ void switch_to_usermode (void) {
 
 // ========================================================================================
 int allocate_new_pid (void) {
-  CYBOS_TASK *tmp;
+  task_t *tmp;
   int b;
 
   int state = disable_ints ();
@@ -483,7 +482,7 @@ int sys_getppid (void) {
  * Forks the current process
  */
 int sys_fork (void) {
-  CYBOS_TASK *child_task, *parent_task;
+  task_t *child_task, *parent_task;
 
   int state = disable_ints();
 
@@ -491,10 +490,10 @@ int sys_fork (void) {
   parent_task = _current_task;
 
   // Create a new task
-  child_task = (CYBOS_TASK *)kmalloc (sizeof (CYBOS_TASK));
+  child_task = (task_t *)kmalloc (sizeof (task_t));
 
   // copy all data from the parent into the child
-  memcpy (child_task, parent_task, sizeof (CYBOS_TASK));
+  memcpy (child_task, parent_task, sizeof (task_t));
 
   // Available for scheduling
   child_task->state = TASK_STATE_RUNNABLE;
@@ -515,7 +514,7 @@ int sys_fork (void) {
   memcpy ((void *)child_task->kstack, (void *)parent_task->kstack, KERNEL_STACK_SIZE);
 
   // Set returning EAX value
-  TREGS *regs = (TREGS *)(child_task->kstack + KERNEL_STACK_SIZE - sizeof (TREGS));
+  regs_t *regs = (regs_t *)(child_task->kstack + KERNEL_STACK_SIZE - sizeof (regs_t));
   regs->eax = 0xDEADBEEF;
 
   // Add task to schedule-switcher. We are still initialising so it does not run yet.

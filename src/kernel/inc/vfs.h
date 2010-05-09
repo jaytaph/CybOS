@@ -7,7 +7,7 @@
 #ifndef __VFS_H__
 #define __VFS_H__
 
-    #include "ktype.h";
+    #include "ktype.h"
 
     // Defines for flags
     #define FS_FILE          0x01
@@ -21,6 +21,8 @@
     // Inode define
     typedef Uint32 inode_t;
 
+    struct fs_node; // Forward declaration
+
     // File function defines
     typedef Uint32(*read_type_t)(struct fs_node *, Uint32, Uint32, char *);
     typedef Uint32(*write_type_t)(struct fs_node *, Uint32, Uint32, char *);
@@ -28,6 +30,8 @@
     typedef void (*close_type_t)(struct fs_node *);
     typedef struct dirent * (*readdir_type_t)(struct fs_node *, Uint32);
     typedef struct fs_node * (*finddir_type_t)(struct fs_node *, char *);
+
+
 
     // Directory entry
     struct dirent {

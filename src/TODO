@@ -1,7 +1,7 @@
 Things todo (prioritized top down)
 
  (*) Fork()
- ( ) change CYBOS_TASK, TPAGEDIRECTORY etc etc into size_t, pid_t etc
+ (*) change CYBOS_TASK, TPAGEDIRECTORY etc etc into size_t, pid_t etc
  ( ) Refactor
  ( ) Document functions
  (*) High level paging support
