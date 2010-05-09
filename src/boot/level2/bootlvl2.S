@@ -7,14 +7,14 @@
 %include "inc/globals.def"
 
 [bits 16]
-[org 0]
+[org 0x5000]
 
-        jmp Start
+        jmp  Start
 
         ; This block will be filled by the level1 bootloader. Should use pointer
-        ; to 7E00 for it
+        ; to 7E00 for it actually
 
-        BPB_Name                times 8 db 0
+        BPB_Name                times 8 db 0            ; equ 0x7E03 + 0 ??
         BPB_BytesPerSector      dw 0
         BPB_SectorsPerCluster   db 0
         BPB_ReservedSectorCount dw 0
@@ -39,14 +39,18 @@
 
 ; Do not add code before this label
 Start:
-    mov  [BootDriveID], dl              ; Save boot drive
-
+    jmp  0x0000:StartRelocated          ; At this point we need to be at segment 0, this is because the
+                                        ; GDT is 0-based and cannot find data when pmode is entered.
+StartRelocated:
     push cs                             ; Set DS to CS
     pop  ds
+
+    mov  [BootDriveID], dl              ; Save boot drive
 
     %include "level2/preload.S"     ; Pre loading stuff
 	%include "level2/loader.S"      ; FAT12 loader of the kernel
 	%include "level2/pmode.S"       ; Protected mode entering code
+    ; NOTE: PMODE.S JUMPS TO KERNEL
 
 
 ; The next code is 16bit

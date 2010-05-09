@@ -16,19 +16,20 @@
         LBA_H           db 0
         LBA_C           db 0
 
-        FATStartLo      dw 0                        ; FAT Issues
-        FATStartHi      dw 0
-        RootDirStartLo  dw 0
-        RootDirStartHi  dw 0
-        DataStartLo     dw 0
-        DataStartHi     dw 0
+        LBA_FATStartLo      dw 0                    ; FAT (LBA) sector starts
+        LBA_FATStartHi      dw 0
+        LBA_RootDirStartLo  dw 0
+        LBA_RootDirStartHi  dw 0
+        LBA_DataStartLo     dw 0
+        LBA_DataStartHi     dw 0
 
         DirectoryEntry  times 32 db 0           ; Temporary directory entry
 
         ; Data defines
-
-        TMP_DIR_SEG     equ 0x4000              ; Temporary directory to store FAT data
+        TMP_DIR_SEG     equ 0x4000              ; Temporary directory to store temporary cluster data
         TMP_DIR_OFF     equ 0x0000
+        FAT_DIR_SEG     equ 0x4000              ; Temporary directory to store FAT data
+        FAT_DIR_OFF     equ 0x8000
 
         ATTR_READONLY   equ 0x01                ; FAT 12 file attributes
         ATTR_HIDDEN     equ 0x02
@@ -66,7 +67,7 @@ SOC_Loader:
 
 ; -------------------------------------------------------
 ; Find kernel file's directoy entry
-        ; AX is already set by FindDir
+        ; AX (LBA of directory) is already set by FindDir
         mov  si, KernelFile                   ; Load KERNEL.BIN in SYSTEM root directory
         mov  di, DirectoryEntry               ; Place to store directory entry data
         push ds
@@ -77,8 +78,6 @@ SOC_Loader:
         mov  si, ErrorNoKernelFile
         call BootError
 .NoBootError2:
-
-XCHG BX,BX
 
 ; -------------------------------------------------------
 ; Load actual kernel file
@@ -159,15 +158,16 @@ LBA2CHS:
 ; ------------------------------------------------------
 InitFAT12:
         xor  ax, ax                              ; Set high values for start sectors to 0
-        mov  [RootDirStartHi], ax
-        mov  [DataStartHi], ax
+        xor  dx, dx
+        mov  [LBA_RootDirStartHi], ax
+        mov  [LBA_DataStartHi], ax
 
         add  ax, [BPB_HiddenSectors]
         adc  dx, [BPB_HiddenSectors+2]
         add  ax, [BPB_ReservedSectorCount]
         adc  dx, 0
-        mov  [FATStartHi], dx
-        mov  [FATStartLo], ax
+        mov  [LBA_FATStartHi], dx
+        mov  [LBA_FATStartLo], ax
 
         mov  al, [BPB_FatTables]                 ; Calculate root and data start sectors
         mul  word [BPB_SectorsPerFAT]
@@ -175,11 +175,10 @@ InitFAT12:
         adc  dx, [BPB_HiddenSectors+2]
         add  ax, [BPB_ReservedSectorCount]
         adc  dx, 0
-        mov  [RootDirStartLo], ax
-        mov  [DataStartLo], ax
-        mov  [RootDirStartHi], dx
-        mov  [DataStartHi], dx
-
+        mov  [LBA_RootDirStartLo], ax
+        mov  [LBA_DataStartLo], ax
+        mov  [LBA_RootDirStartHi], dx
+        mov  [LBA_DataStartHi], dx
 
         mov  ax, 32                              ; Calculate data start sector
         mov  bx, [BPB_MaxRootDirEntries]
@@ -188,8 +187,18 @@ InitFAT12:
         add  ax, bx
         dec  ax
         div  bx
-        add  [DataStartLo], ax
-        adc  word [DataStartHi], 0
+        add  [LBA_DataStartLo], ax
+        adc  word [LBA_DataStartHi], 0
+
+        ; Read FAT entries
+        mov  cx, [BPB_SectorsPerFAT]
+        mov  ax, [LBA_FATStartLo]
+        mov  dx, [LBA_FATStartHi]
+        mov  bx, FAT_DIR_SEG
+        mov  es, bx
+        mov  bx, FAT_DIR_OFF
+        call ReadSectors
+
         ret
 
 
@@ -205,8 +214,8 @@ FindFromRootDir:
         shr  cx, 4
         inc  cx                                  ; Must be in CX
 
-        mov  dx, [RootDirStartHi]
-        mov  ax, [RootDirStartLo]
+        mov  dx, [LBA_RootDirStartHi]
+        mov  ax, [LBA_RootDirStartLo]
         mov  bx, TMP_DIR_SEG
         mov  es, bx
         mov  bx, TMP_DIR_OFF
@@ -296,6 +305,7 @@ FindFile:
         ; Done with this cluster. Read another cluster
         mov  ax, [curCluster]
         call getNextFATCluster
+        mov  [curCluster], ax
 
         ; Check if next cluster is valid (or no more clusters)
         cmp  ax, 0x002
@@ -336,39 +346,46 @@ FindFile:
 ; In  : AX -> cluster number
 ; Out : AX -> next cluster number
 getNextFATCluster:
-    mov  bx, ax
+    push ds
+    mov  cx, ax                         ; Save original cluster
+
+    mov  bx, FAT_DIR_SEG                ; We are browsing FAT entries
+    mov  ds, bx
+
+    mov  bx, ax                         ; Calculate correct FAT entry offset (cluster * 2 / 3)
     shr  bx, 1
     add  ax, bx
 
-    mov  si, FATStartLo
+    mov  si, FAT_DIR_OFF                ; Load FAT entry (word)
     add  si, ax
     lodsw
 
-    and  ax, 1
+    test cx, 1                          ; It's 12 byte, test odd/even cluster number
     jne  .even
 .odd:
-    and  ax, 0x0FFF;
+    and  ax, 0x0FFF                     ; Even, mask first 12 bytes
     jmp  .done
 .even:
-    shl  ax, 4
+    shr  ax, 4                          ; Bits 4-15 become 0-11
+    and  ax, 0x0FFF                      ; just in case something else was present (carry flag)
     jmp  .done
+
 .done
+    pop  ds
     ret
 
 ; ------------------------------------------------------
 ; In  : AX -> cluster number
 ; Out : DX:AX -> LBA sector
 ConvertClusterToLBA:
-    mov   bx, 1
+    dec   ax                                  ; Sector start is -2
     dec   ax
-    dec   ax
+    xor   bx, bx                              ; This many sectors per cluster
     mov   bl, [BPB_SectorsPerCluster]
-    xor   bh, bh
     mul   bx
 
-    mov   bx, 1
-    add   ax, [DataStartLo]               ; DX:AX is filled
-    adc   dx, [DataStartHi]
+    add   ax, [LBA_DataStartLo]               ; LBA sector is RELATIVE from DataStart LBA sector.
+    adc   dx, [LBA_DataStartHi]
     ret
 
 ; ------------------------------------------------------
@@ -376,22 +393,12 @@ ConvertClusterToLBA:
 ;  In:  DS:SI -> FAT12 Directory entry
 ;       ES:BX -> File destination
 LoadFile:
-XCHG BX,BX
         mov  ax, [si + 0x1A]                      ; Points to firstCluster
         mov  [curCluster], ax
-        push bx
-
         mov  [filePtr], bx
 
 .NextCluster:
         mov  ax, [curCluster]                     ; Read cluster with directory info
-
-        sub  ax, 2
-        xor  bx, bx
-        mov  bl, [BPB_SectorsPerCluster]
-        mul  bx
-        add  ax, [RootDirStartLo]
-
         call ConvertClusterToLBA
 
         xor  cx, cx                               ; Read X number of sectors (1 cluster in total)
@@ -402,19 +409,19 @@ XCHG BX,BX
         mov  ax, [BPB_BytesPerSector]             ; Add byte offset to fileptr
         xor  bx, bx
         mov  bl, [BPB_SectorsPerCluster]
-        imul bl
+        mul bx
         add  [filePtr], ax
         jno  .NoOffsetOverFlow
 .OffsetOverflow:                                  ; Offset overflow, increase segment.
         mov  ax, es
-        add  ax, 16                               ; 0400:0F00 (4FF00 become 0400:0100
+        add  ax, 16                               ; 0400:0F00 (4FF00 becomes 0400:0100)
         mov  es, ax
 
 .NoOffsetOverFlow:
-
         ; Done with this cluster. Read another cluster
         mov  ax, [curCluster]
         call getNextFATCluster
+        mov  [curCluster], ax
 
         ; Check if next cluster is valid (or no more clusters)
         cmp  ax, 0x002
@@ -427,9 +434,7 @@ XCHG BX,BX
 .Done:
         ret
 
-
-
-
+; -----------------------------------------------
 ; Do not add code after this label
 EOF_Loader:
 

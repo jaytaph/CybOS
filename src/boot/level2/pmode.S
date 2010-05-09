@@ -42,32 +42,6 @@
 ; --------------------------------
 
 SOC_PMode:
-        xor  ax, ax
-        mov  ds, ax
-
-; -------------------------------------------------------
-; We need at least 1 MB of memory. If not, we cannot load.
-; Our kernel uses the 1st MB of memory for kernel space
-; which means only the kernel construct can be used if we
-; have only 1 MB of memory for now..
-
-; It should be handled better: we need to find out how much
-; memory we have, how much memory the kernel needs (codesize)
-; how much memory we need to get up and running (datasize).
-DetectMemory:
-
-        ; Assume 1MB found. Now we are going to check how
-        ; much more we have (not really a good test, but sufficient for now)
-
-        mov     ax, 0xE801
-        int     0x15
-        jc      SkipExtendedMemory     ; Failure. Assume only 1MB
-
-        mov [extendedmem_below16], ax   ; between 1MB and 16MB in KB
-        mov [extendedmem_above16], bx   ; above 16MB in 64KB's
-SkipExtendedMemory:
-
-
 ; -------------------------------------------------------
 ; Enable A20 line
 
@@ -99,7 +73,6 @@ wait_kbc:                        ; this is approx. a 25uS delay to wait
 ; -------------------------------------------------------
 ; Set up and load GDT
 SetupGDT:
-
         ; Copy the GDT table to correct position, and save this position
         ; into the LGDT_STRUC
 
@@ -128,6 +101,8 @@ EnterPMode:
 
         jmp ClearPreFetchQueue	 	    ; Jump
 ClearPreFetchQueue:			            ; Everything knows we know we're in PM at this point.
+
+XCHG BX,BX
 
         ; Jump to PM_START in our code-descriptor
         jmp dword KERNEL_CODE_SELECTOR:PM_START
@@ -229,11 +204,9 @@ PageTableLoop1:
         add     edi, 4                  ; Next entry
         loop    PageTableLoop1
 
-
         ; Set page directory in cr3 register
         mov     eax, PAGEDIR
         mov     cr3, eax
-
 
         ; Enable paging
         mov     eax, cr0
