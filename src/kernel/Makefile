@@ -54,6 +54,8 @@ OBJS =  main.o \
         mutex.o \
         mutexasm.o \
         klib.o \
+	dma.o \
+        drivers/floppy/floppy.o \
         vfs.o
 
 

@@ -23,6 +23,8 @@
 #include "pit.h"
 #include "pic.h"
 #include "io.h"
+#include "dma.h"
+#include "drivers/floppy.h"
 
   // 64bit tick counter
   Uint64 _kernel_ticks;
@@ -73,6 +75,12 @@ void kernel_entry (int stack_start, int total_sys_memory) {
   kprintf ("PAG ");
   paging_init();
 
+  /* Allocate a buffer for floppy DMA transfer. Needed here for now since we cannot
+   * force <16MB allocation through the new VMM */
+  dma_floppy_buffer = (char *)kmalloc (512);
+  dma_floppy_buffer -= 0xC0000000;
+  kprintf ("Malloced DMA buffer on %08X\n", dma_floppy_buffer);
+
   kprintf ("MEM ");
   heap_init();
 
@@ -82,6 +90,12 @@ void kernel_entry (int stack_start, int total_sys_memory) {
 
   kprintf ("STK ");
   stack_init (stack_start);
+
+  kprintf ("DMA ");
+  dma_init ();
+
+  kprintf ("FDD ");
+  floppy_init ();
 
   // Initialize multitasking environment
   kprintf ("TSK ");

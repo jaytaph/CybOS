@@ -15,6 +15,7 @@
   #include "idt.h"
   #include "tss.h"
   #include "signal.h"
+  #include "io.h"
 
   // GDT Descriptors (fixed)
   #define NULL_DESCR              0x0     // Cannot use
