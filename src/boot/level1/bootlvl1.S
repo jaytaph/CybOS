@@ -47,7 +47,7 @@ BPB_Start:
             dd 0x00000024           ; LBA sector 36
             dd 0x00000025           ; If boot level 2 is more than 5120 bytes, we need to load
             dd 0x00000026           ; the rest of the sectors in the start of boot level 2
-            dd 0x00000000
+            dd 0x00000027
             dd 0x00000000
             dd 0x00000000
             dd 0x00000000
@@ -58,7 +58,6 @@ BPB_Start:
 
         BootMsg            db 13,10,'Loading CybOS V0.01... ',0
         ErrorLvl2NotFound  db 13,10,'Cannot find /SYSTEM/BOOTLVL2.BIN',0
-        Error386NotFound   db 13,10,'Need at least a 386 processor to run.',0
 
         BootDriveID     db 0     ; Holds the current boot drive ID
 
@@ -93,46 +92,7 @@ RelocatedBootBlock:
         mov  [BootDriveID],dl
 
 
-; -------------------------------------------------------
-; Detect CPU
-DetectCPU:
-        ; Check for 8088/86
-        pushf                           ; Save the flags
 
-        xor ah,ah
-        push ax                         ; Push ax onto stack
-        popf                            ; And pop as the flags (which are 0 now)
-
-        pushf                           ; Push '0'-flagregister
-        pop ax                          ; Pop it as AX
-        cmp ah, 0xF0                    ; Bits 12..15 are set?
-        je  DetectCPU_No368Found
-
-        ; Check for 286
-        mov  ah,0xF0                    ; Set bits 12..15
-        push ax                         ; Push ax and pop as flags
-        popf
-
-        pushf                           ; Push flags and pop as ax
-        pop  ax
-        and  ah, 0xF0                   ; Bits 12..15 are clear?
-        jz   DetectCPU_No368Found
-
-        popf                            ; Pop original flags back
-
-DetectCPU_368Found:
-        jmp  DetectCPU_End
-
-DetectCPU_No368Found:
-        mov  si, Error386NotFound
-        call WriteMsg
-        jmp  $                          ; Not good.. DeadLock
-
-DetectCPU_End:
-
-; -------------------------------------------------------
-; Init FPU
-        fninit                          ; Initialise FPU 387
 
 ; -------------------------------------------------------
 ; Show bootmessage
