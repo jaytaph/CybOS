@@ -14,6 +14,7 @@ Things todo (prioritized top down)
  (*) idletask (and others) on ring3
  (*) Signals
  (*) Stack onto heap instead of 0xE0000000
+ ( ) Floppy controler
  ( ) VFS
  ( ) EXT2
  ( ) FAT8/16
