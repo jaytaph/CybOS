@@ -102,8 +102,6 @@ EnterPMode:
         jmp ClearPreFetchQueue	 	    ; Jump
 ClearPreFetchQueue:			            ; Everything knows we know we're in PM at this point.
 
-XCHG BX,BX
-
         ; Jump to PM_START in our code-descriptor
         jmp dword KERNEL_CODE_SELECTOR:PM_START
 
