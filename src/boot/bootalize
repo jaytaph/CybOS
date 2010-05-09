@@ -21,9 +21,9 @@ sudo mount -o loop ../../fat12.img /tmp/fat12mnt
 
 # Make items in image
 mkdir /tmp/fat12mnt/SYSTEM
-cp bootlvl1.bin /tmp/fat12mnt/SYSTEM/KERNEL.BIN
-cp bootlvl2.bin /tmp/fat12mnt/SYSTEM/BOOTLVL2.BIN
 cp bootlvl1.bin /tmp/fat12mnt/SYSTEM/BOOTLVL1.BIN
+cp bootlvl2.bin /tmp/fat12mnt/SYSTEM/BOOTLVL2.BIN
+cp kernel.bin /tmp/fat12mnt/SYSTEM/KERNEL.BIN
 
 # Unmount
 umount /tmp/fat12mnt
