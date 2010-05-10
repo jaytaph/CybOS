@@ -409,9 +409,10 @@ LoadFile:
         mov  ax, [BPB_BytesPerSector]             ; Add byte offset to fileptr
         xor  bx, bx
         mov  bl, [BPB_SectorsPerCluster]
-        mul bx
+        mul  bx
+	
         add  [filePtr], ax
-        jno  .NoOffsetOverFlow
+        jnc  .NoOffsetOverFlow
 .OffsetOverflow:                                  ; Offset overflow, increase segment.
         mov  ax, es
         add  ax, 16                               ; 0400:0F00 (4FF00 becomes 0400:0100)
@@ -433,6 +434,41 @@ LoadFile:
 
 .Done:
         ret
+
+; -------------------------
+; Writes cluster number on screen (debugging only:  @TODO: remove me)
+writeCluster:
+	pusha	
+
+	mov	dx, ax
+	mov	cx, 4
+.Loop:
+	mov	ax, dx
+	rol	ax, 4
+	mov	dx, ax
+
+	and	al, 0x0F
+	cmp	al, 9
+	jbe	.digit0
+	sub	al, 10
+	add	al, 'A'
+	jmp	.print0
+.digit0:
+	add	al, '0'
+.print0
+        mov  ah,0Eh                     ; Print char AL on screen
+        mov  bx,0x0007
+        int  0x10                       ; Using BIOS routines
+
+	loop	.Loop
+
+	mov  al, ' '	
+        mov  ah,0Eh                     ; Print char AL on screen
+        mov  bx,0x0007
+        int  0x10                       ; Using BIOS routines
+
+	popa
+	ret
 
 ; -----------------------------------------------
 ; Do not add code after this label
