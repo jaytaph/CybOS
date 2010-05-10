@@ -14,9 +14,12 @@ Things todo (prioritized top down)
  (*) idletask (and others) on ring3
  (*) Signals
  (*) Stack onto heap instead of 0xE0000000
- ( ) Floppy controler
- ( ) VFS
+ (-) DMA
+ (-) Floppy controler
+ (-) VFS
  ( ) EXT2
- ( ) FAT8/16
+ (-) FAT12
+ ( ) FAT16
  ( ) Network driver
  ( ) IPv4 Stack
+ ( ) Kernel.bin gzip (?)
