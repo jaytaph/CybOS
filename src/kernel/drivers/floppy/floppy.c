@@ -105,8 +105,8 @@ void detect_floppy_disks (void) {
 
     kprintf ("\n");
     kprintf ("Floppy disk types: %02X\n", floppyType);
-//    kprintf ("Detected master floppy: %s\n", floppyDescriptions[((floppyType >> 4) & 0x7)]);
-//    kprintf ("Detected slave floppy: %s\n", floppyDescriptions[(floppyType & 0x7)]);
+    kprintf ("Detected master floppy: %s\n", floppyDescriptions[((floppyType >> 4) & 0x7)]);
+    kprintf ("Detected slave floppy: %s\n", floppyDescriptions[(floppyType & 0x7)]);
 }
 
 
@@ -379,9 +379,13 @@ void floppy_init (void) {
     reset_floppy_controller();
     get_floppy_controller_version();
 
+BOCHS_BREAKPOINT
+    for (i=0; i!=16; i++) dma_floppy_buffer[i] = 0x90;
+
     read_floppy_sector (0, 0);
 
-    dma_floppy_buffer += 0xC0000000;
+BOCHS_BREAKPOINT
+//    dma_floppy_buffer += 0xC0000000;
 
     for (i=0; i!=16; i++) kprintf ("%02x ", dma_floppy_buffer[i]);
 
