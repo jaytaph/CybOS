@@ -1,5 +1,7 @@
 # $header$
 
+#.SILENT : 
+
 # Standard compiler programs
 CC       = gcc
 LD       = ld
@@ -9,7 +11,7 @@ RM       = rm
 
 # Linker flags
 LD_ENTRY  = -e kernel_entry
-LD_TEXT   = -Ttext=0xC0010000 -Map kernel.map
+LD_TEXT   = -Ttext=0xC0010000 -Map kernel.map 
 
 #LIBS =  ../stdlib/stdlib.a
 LIBS =
@@ -64,21 +66,20 @@ all: kernel
 
 # Cleans up the kernel objects
 clean:
-	@echo [RM]
-	@$(RM) *.o
-	@$(RM) $(TARGET)
-	@$(RM) *.map
+	echo [RM]
+	$(RM) *.o
+	$(RM) $(TARGET)
+	$(RM) *.map
 
 
 kernel: $(OBJS)
-	@echo [LD] $@
-	@$(LD) $(LD_TEXT) $(LD_ENTRY) -s -o kernel.out $(OBJS) $(LIBS)
-	$(OBJCOPY) -O binary kernel.out $(TARGET)
+	echo [LD] $(TARGET)
+	$(LD) $(LD_TEXT) $(LD_ENTRY) -s -o $(TARGET) --oformat binary $(OBJS) $(LIBS) 
 
 # Implicit Rules
 .c.o:
-	@echo [CC] $<
-	@$(CC) $(CFLAGS) -c -o $@ $<
+	echo [CC] $<
+	$(CC) $(CFLAGS) -c -o $@ $<
 .S.o:
-	@echo [AS] $<
-	@$(AS) -f elf -o $@ $<
+	echo [AS] $<
+	$(AS) -f elf -o $@ $<
