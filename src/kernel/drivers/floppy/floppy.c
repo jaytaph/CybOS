@@ -20,8 +20,10 @@
                                       "Unknown type",
                                       "Unknown type" };
 
+// Flag to be set as soon as IRQ happens (set by IRQ handler)
 static volatile Uint8 receivedIRQ = 0;
 
+// Buffer (in DMA memory <16MB) for DMA transfers
 char *dma_floppy_buffer;
 
 
@@ -31,6 +33,7 @@ char *dma_floppy_buffer;
 int wait_status_ready () {
     int i, status;
 
+    // Wait until FDC is ready. Retry multiple times since it might take a while
     for (i=0; i!=500; i++) {
         status = inb (FR_MAIN_STATUS_REGISTER);
         if (status & MSR_MASK_DATAREG) return 1;
@@ -40,15 +43,11 @@ int wait_status_ready () {
 
 
 /**
- *
+ * Wait until a floppy IRQ happens
  */
 void wait_floppy_irq (void) {
-    kprintf ("WaitFloppyIRQ: ");
-
     // Wait until it's not 0
     while (!receivedIRQ) ;
-
-    kprintf ("received\n");
 
     // Reset to 0
     receivedIRQ = 0;
@@ -56,30 +55,30 @@ void wait_floppy_irq (void) {
 
 
 /**
- *
+ * Send commands to FDC
  */
 void send_command (Uint8 command) {
     if (! wait_status_ready()) {
-        kprintf ("Floppy send error");
+        kprintf ("Floppy send error\n");
         kdeadlock ();
     }
 
-    kprintf ("SC: %02X\n", command);
+    kprintf ("SC(%02X)\n", command);
     return outb (FR_DATA_FIFO, command);
 }
 
 
 /**
- * Receives data (or deadlocks)
+ * Receives data from FDC or deadlocks when device is not ready (@TODO: Should not deadlock)
  */
-Uint8 recv_data (void) {
+Uint32 recv_data (void) {
     if (! wait_status_ready()) {
-        kprintf ("Floppy recv error");
+        kprintf ("Floppy recv error\n");
         kdeadlock ();
     }
 
     Uint8 data = inb (FR_DATA_FIFO);
-    kprintf ("RD: %02X\n", data);
+    kprintf ("RD(%02X)\n", data);
     return data;
 }
 
@@ -93,7 +92,7 @@ void floppy_interrupt (regs_t *r) {
 
 
 /**
- * Detect floppy disk
+ * Detect floppy disks
  */
 void detect_floppy_disks (void) {
     Uint8 floppyType, i;
@@ -165,7 +164,7 @@ void set_drive_data (Uint32 step_rate, Uint32 load_time, Uint32 unload_time, Uin
 }
 
 /**
- *
+ * Calibrate floppy disk by setting the cylinder to cylinder 0
  */
 int calibrate_floppy_drive (Uint8 drive) {
     Uint32 st0, cyl;
@@ -203,7 +202,7 @@ void reset_floppy_controller (void) {
     Uint32 st, cyl;
     int i;
 
-    kprintf ("Resetting floppy controler: ");
+    kprintf ("Resetting floppy controler: \n");
 
     // Disable controller
     outb (FR_DIGITAL_OUTPUT_REGISTER, 0x00);
@@ -224,7 +223,7 @@ void reset_floppy_controller (void) {
     set_drive_data (3, 16, 240, 0);
     calibrate_floppy_drive (0);
 
-    kprintf ("done\n");
+    kprintf ("FDC reset done\n");
 }
 
 
@@ -251,7 +250,6 @@ void get_floppy_controller_version (void) {
                  break;
     }
 }
-
 
 /**
  * Converts LBA sector to CHS format
@@ -286,7 +284,11 @@ void read_floppy_sector_CHS (Uint8 drive, Uint32 cylinder, Uint32 head, Uint32 s
 	wait_floppy_irq ();
 
 	// Read status information (but discard it)
-	for (i=0; i<7; i++) recv_data ();
+	for (i=0; i<7; i++) {
+	    Uint8 data = recv_data ();
+	    kprintf ("READSECTOR: DATA %d : %d\n", i, data);
+	}
+
 	check_interrupt_status (&st0,&cyl);
 }
 
@@ -318,27 +320,29 @@ int seek_floppy_track (Uint8 drive, Uint32 cylinder, Uint32 head) {
 /**
  * Reads sector from drive
  */
-void read_floppy_sector (Uint8 drive, Uint32 lba_sector) {
+void read_floppy_sectors (Uint8 drive, Uint32 lba_sector, Uint8 sector_count) {
     Uint32 c,h,s;
 
     // Make sure we have a correct drive
     if (drive >= 4) return;
 
-    kprintf ("Read floppy sector %d:%08X\n", drive, lba_sector);
-
-    // Convert LBA sector to CHS
-    convert_LBA_to_CHS (lba_sector, &c, &h, &s);
-
-    kprintf ("C: %d  H: %d   S: %d\n", c, h, s);
-
     // Start motor
     control_motor (drive, 1);
 
-    // Seek correct cylinder (and head)
-    while (! seek_floppy_track (drive, c, h)) ;
+    for (i=0; i!=sector_count; i++, lba_sector++) {
+        kprintf ("Read floppy sector %d:%08X\n", drive, lba_sector);
 
-    // Read CHS sector
-    read_floppy_sector_CHS (drive, h, c, s);
+        // Convert LBA sector to CHS
+        convert_LBA_to_CHS (lba_sector, &c, &h, &s);
+
+        kprintf ("C: %d  H: %d   S: %d\n", c, h, s);
+
+        // Seek correct cylinder (and head)
+        while (! seek_floppy_track (drive, c, h)) ;
+
+        // Read CHS sector
+        read_floppy_sector_CHS (drive, h, c, s);
+    }
 
     // Shut down motor
     control_motor (drive, 0);
@@ -351,43 +355,32 @@ void read_floppy_sector (Uint8 drive, Uint32 lba_sector) {
  *
  */
 void floppy_init (void) {
-    int size = 512;
-    int i;
+    int size = 512-1;
+    int i,j,o;
 
     // Needed since floppy init depends on IRQ
     sti ();
-
-
-    // @TODO:  Allocate floppy buffer by using the "normal" kmalloc (or dma_kmalloc or something)
-    // Initialize DMA buffer for channel 2 (floppy disk)
-    dma_reset ();
-    dma_mask_channel (DMA_FLOPPY_CHANNEL);
-
-    // Set buffer address
-    dma_reset_flipflop (1);
-    dma_set_address (DMA_FLOPPY_CHANNEL, LO8((int)&dma_floppy_buffer), HI8((int)&dma_floppy_buffer));
-
-    // Set buffer size
-    dma_reset_flipflop (1);
-    dma_set_count (DMA_FLOPPY_CHANNEL, LO8(size), HI8(size));
-
-    // Init for reading
-    dma_set_read (DMA_FLOPPY_CHANNEL);
-    dma_unmask_all ();
 
     detect_floppy_disks ();
     reset_floppy_controller();
     get_floppy_controller_version();
 
-BOCHS_BREAKPOINT
-    for (i=0; i!=16; i++) dma_floppy_buffer[i] = 0x90;
 
-    read_floppy_sector (0, 0);
+    http://www.jbox.dk/sanos/source/sys/osldr/bootfd.c.html
 
-BOCHS_BREAKPOINT
-//    dma_floppy_buffer += 0xC0000000;
 
-    for (i=0; i!=16; i++) kprintf ("%02x ", dma_floppy_buffer[i]);
+    for (i=0; i!=16; i++) kprintf ("%02X ", (Uint8)dma_floppy_buffer[i]);
+    kprintf ("\n");
+
+    buffer = malloc
+    read_floppy_sectors (0, 0, 10, buffer);
+
+    for (o=0,i=0; i!=10; i++) {
+        for (j=0; j!=16; j++, o++) {
+            kprintf ("%02X ", (Uint8)dma_floppy_buffer[o]);
+        }
+        kprintf ("\n");
+    }
 
     for (;;) ;
 

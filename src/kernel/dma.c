@@ -11,34 +11,43 @@
 /**
  *
  */
-void dma_set_address (Uint8 channel, Uint8 low, Uint8 high) {
-    Uint8 port;
+void dma_set_address (Uint8 channel, Uint32 address) {
+    Uint8 port, extended_port, page;
 
     if (channel > 8) return;
 
+    // Get page
+    page = LO8(HI16(address)) & 0x000F;
+
+    kprintf ("Setting DMA channel %d address to PAGE: %08X, LO: %08X and HI: %08X\n", channel, page, LO8(LO16(address)), HI8(LO16(address)) );
+
 	switch (channel) {
-		case 0: port = DMA0_CHAN0_ADDR_REG; break;
-		case 1: port = DMA0_CHAN1_ADDR_REG; break;
-		case 2: port = DMA0_CHAN2_ADDR_REG; break;
-		case 3: port = DMA0_CHAN3_ADDR_REG; break;
-		case 4: port = DMA1_CHAN4_ADDR_REG; break;
-		case 5: port = DMA1_CHAN5_ADDR_REG; break;
-		case 6: port = DMA1_CHAN6_ADDR_REG; break;
-		case 7: port = DMA1_CHAN7_ADDR_REG; break;
+		case 0: port = DMA0_CHAN0_ADDR_REG; extended_port = 0x00; break;    // NO extended poirt for channel 0
+		case 1: port = DMA0_CHAN1_ADDR_REG; extended_port = DMA_PAGE_CHAN1_ADDRBYTE2; break;
+		case 2: port = DMA0_CHAN2_ADDR_REG; extended_port = DMA_PAGE_CHAN2_ADDRBYTE2; break;
+		case 3: port = DMA0_CHAN3_ADDR_REG; extended_port = DMA_PAGE_CHAN3_ADDRBYTE2; break;
+		case 4: port = DMA1_CHAN4_ADDR_REG; extended_port = 0x00; break;    // NO extended poirt for channel 4
+		case 5: port = DMA1_CHAN5_ADDR_REG; extended_port = DMA_PAGE_CHAN5_ADDRBYTE2; break;
+		case 6: port = DMA1_CHAN6_ADDR_REG; extended_port = DMA_PAGE_CHAN6_ADDRBYTE2; break;
+		case 7: port = DMA1_CHAN7_ADDR_REG; extended_port = DMA_PAGE_CHAN7_ADDRBYTE2; break;
 	}
 
-	outb (port, low);
-	outb (port, high);
+    // Output "offset"
+	outb (port, LO8(LO16(address)));
+	outb (port, HI8(LO16(address)));
+	if (extended_port) outb (extended_port, page);  // Output page
 }
 
 
 /**
  *
  */
-void dma_set_count (Uint8 channel, Uint8 low, Uint8 high) {
+void dma_set_size (Uint8 channel, Uint16 size) {
     Uint8 port;
 
 	if (channel > 8) return;
+
+	kprintf ("Setting DMA channel %d count to LO: %08X and HI: %08X\n", channel, LO8(size), HI8(size));
 
 	switch ( channel ) {
 		case 0: port = DMA0_CHAN0_COUNT_REG; break;
@@ -51,29 +60,8 @@ void dma_set_count (Uint8 channel, Uint8 low, Uint8 high) {
 		case 7: port = DMA1_CHAN7_COUNT_REG; break;
 	}
 
-	outb (port, low);
-	outb (port, high);
-}
-
-/**
- *
- */
-void dma_set_external_page_register (Uint8 reg, Uint8 val) {
-	Uint8 port;
-
-	if (reg > 14) return;
-
-	switch (reg) {
-		case 1: port = DMA_PAGE_CHAN1_ADDRBYTE2; break;
-		case 2: port = DMA_PAGE_CHAN2_ADDRBYTE2; break;
-		case 3: port = DMA_PAGE_CHAN3_ADDRBYTE2; break;
-		case 4: return; // Cascade to master dmac
-		case 5: port = DMA_PAGE_CHAN5_ADDRBYTE2; break;
-		case 6: port = DMA_PAGE_CHAN6_ADDRBYTE2; break;
-		case 7: port = DMA_PAGE_CHAN7_ADDRBYTE2; break;
-	}
-
-	outb (port, val);
+	outb (port, LO8(size));
+	outb (port, HI8(size));
 }
 
 

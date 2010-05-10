@@ -29,6 +29,7 @@
   // 64bit tick counter
   Uint64 _kernel_ticks;
 
+  // The tasklist of all cybos processes/tasks
   extern task_t *_task_list;
 
   void tprintf (const char *fmt, ...);
@@ -77,9 +78,10 @@ void kernel_entry (int stack_start, int total_sys_memory) {
 
   /* Allocate a buffer for floppy DMA transfer. Needed here for now since we cannot
    * force <16MB allocation through the new VMM */
-  dma_floppy_buffer = (char *)kmalloc (512);
-  dma_floppy_buffer -= 0xC0000000;
-  kprintf ("Malloced DMA buffer on %08X\n", dma_floppy_buffer);
+  kmalloc_pageboundary_physical (512-1, &dma_floppy_buffer);
+//  dma_floppy_buffer = 0x1000;
+//  dma_floppy_buffer -= 0xC0000000;
+  kprintf ("Malloced DMA buffer on physical %08X\n", dma_floppy_buffer);
 
   kprintf ("MEM ");
   heap_init();
@@ -224,7 +226,7 @@ void kpanic (const char *fmt, ...) {
  * Prints on the construct console (but we don't switch to it)
  */
 int tprintf_help (char c, void **ptr) {
-    // Bochs debug output
+  // Bochs debug output
 #ifdef __DEBUG__
   outb (0xE9, c);
 #endif

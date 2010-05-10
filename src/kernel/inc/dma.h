@@ -99,8 +99,8 @@ enum DMA_MODE_REG_MASK {
 	DMA_MODE_TRANSFER_CASCADE = 0xC0
 };
 
-    void dma_set_address (Uint8 channel, Uint8 low, Uint8 high);
-    void dma_set_count (Uint8 channel, Uint8 low, Uint8 high);
+    void dma_set_address (Uint8 channel, Uint32 address);
+    void dma_set_size (Uint8 channel, Uint16 size);
     void dma_unmask_channel (Uint8 channel);
     void dma_mask_channel (Uint8 channel);
     void dma_reset_flipflop (int dma);
