@@ -30,12 +30,12 @@ char *dma_floppy_buffer;
 /**
  * Waits and returns 1 when FDC is ready or 0 when not ready on time
  */
-int wait_status_ready () {
+int wait_status_ready (fdc_t *fdc) {
     int i, status;
 
     // Wait until FDC is ready. Retry multiple times since it might take a while
     for (i=0; i!=500; i++) {
-        status = inb (FR_MAIN_STATUS_REGISTER);
+        status = inb (fdc->baseAddress + FR_MAIN_STATUS_REGISTER);
         if (status & MSR_MASK_DATAREG) return 1;
     }
     return 0;
@@ -47,7 +47,7 @@ int wait_status_ready () {
  */
 void wait_floppy_irq (void) {
     // Wait until it's not 0
-    while (!receivedIRQ) ;
+    while (! receivedIRQ) ;
 
     // Reset to 0
     receivedIRQ = 0;
@@ -57,27 +57,27 @@ void wait_floppy_irq (void) {
 /**
  * Send commands to FDC
  */
-void send_command (Uint8 command) {
-    if (! wait_status_ready()) {
+void send_command (fdc_t *fdc, Uint8 command) {
+    if (! wait_status_ready(fdc)) {
         kprintf ("Floppy send error\n");
         kdeadlock ();
     }
 
     kprintf ("SC(%02X)\n", command);
-    return outb (FR_DATA_FIFO, command);
+    return outb (fdc->baseAddress + FR_DATA_FIFO, command);
 }
 
 
 /**
  * Receives data from FDC or deadlocks when device is not ready (@TODO: Should not deadlock)
  */
-Uint32 recv_data (void) {
-    if (! wait_status_ready()) {
+Uint32 recv_data (fdc_t *fdc) {
+    if (! wait_status_ready(fdc)) {
         kprintf ("Floppy recv error\n");
         kdeadlock ();
     }
 
-    Uint8 data = inb (FR_DATA_FIFO);
+    Uint8 data = inb (fdc->baseAddress + FR_DATA_FIFO);
     kprintf ("RD(%02X)\n", data);
     return data;
 }
@@ -90,54 +90,138 @@ void floppy_interrupt (regs_t *r) {
     receivedIRQ = 1;
 }
 
-
 /**
- * Detect floppy disks
+ * Sets the new data when switching drive (if needed)
  */
-void detect_floppy_disks (void) {
-    Uint8 floppyType, i;
+void select_drive (fdc_drive_t *drive) {
+    // This drive is already selected on the controller. No need to change it
+    if (drive->fdc->currentDrive == drive->driveNum) return;
 
-    // Read CMOS for number of floppy disks
-    outb (0x70, 0x10);
-    for (i=0; i!=100; i++) ;     // Delay a bit
-    floppyType = inb (0x71);
 
-    kprintf ("\n");
-    kprintf ("Floppy disk types: %02X\n", floppyType);
-    kprintf ("Detected master floppy: %s\n", floppyDescriptions[((floppyType >> 4) & 0x7)]);
-    kprintf ("Detected slave floppy: %s\n", floppyDescriptions[(floppyType & 0x7)]);
+    int step_rate = 0;
+    int unload_time = 0;
+    int load_time = 0;
+    int use_pio = 0;
+
+	Uint32 data = 0;
+	send_command (drive->fdc, FC_SPECIFY);
+
+	data = ( (step_rate & 0xf) << 4) | (unload_time & 0xf);
+	send_command (drive->fdc, data);
+
+	data = (load_time) << 1 | use_pio;
+    send_command (drive->fdc, data);
 }
 
-
-/**
- * Check interrupt status of FDC
- */
-void check_interrupt_status (Uint32 *statusRegister, Uint32 *currentCylinder) {
-    send_command (FC_CHECK_INT);
-    *statusRegister = recv_data ();
-    *currentCylinder = recv_data ();
-}
 
 
 /**
  * Enabled or disables specified drive motor
  */
-void control_motor (Uint8 drive, Uint8 start) {
-    // Drive must be 0-3
-    if (drive > 3) return;
-
-    if (start) {
+void control_motor (fdc_drive_t *drive, Uint8 status) {
+    if (status == MOTOR_ON) {
         // Doable because all drive bits are sequential
-        Uint8 motor = (DOR_MASK_DRIVE0_MOTOR << drive);
-        outb (FR_DIGITAL_OUTPUT_REGISTER, drive | motor | DOR_MASK_RESET | DOR_MASK_DMA);
+        Uint8 motor = (DOR_MASK_DRIVE0_MOTOR << drive->driveNum);   // Find which motor to control
+        outb (drive->fdc->baseAddress + FR_DIGITAL_OUTPUT_REGISTER, drive->driveNum | motor | DOR_MASK_RESET | DOR_MASK_DMA);
+
+        // sleep a bit to spin up the motor
+        int i; for (i=0; i!=200000; i++) ;
     } else {
-        outb (FR_DIGITAL_OUTPUT_REGISTER, drive | DOR_MASK_RESET | DOR_MASK_DMA);
+        outb (drive->fdc->baseAddress + FR_DIGITAL_OUTPUT_REGISTER, drive->driveNum | DOR_MASK_RESET | DOR_MASK_DMA);
+    }
+}
+
+/**
+ * Check interrupt status of FDC
+ */
+void check_interrupt_status (fdc_t *fdc, Uint32 *statusRegister, Uint32 *currentCylinder) {
+    send_command (fdc, FC_CHECK_INT);
+    *statusRegister = recv_data (fdc);
+    *currentCylinder = recv_data (fdc);
+}
+
+/**
+ * Calibrate floppy disk by setting the cylinder to cylinder 0
+ */
+int calibrate_drive (fdc_drive_t *drive) {
+    Uint32 st0, cyl;
+    int i;
+    fdc_t *fdc = drive->fdc;
+
+    // Set motor
+    control_motor (drive, MOTOR_ON);
+
+    // Do a few times
+    for (i=0; i<10; i++) {
+        send_command (fdc, FC_CALIBRATE);
+        send_command (fdc, drive->driveNum);
+        wait_floppy_irq ();
+        check_interrupt_status (fdc, &st0, &cyl);
+
+        // The drive is on cylinder 0, so return
+        if (cyl == 0) {
+            // Shut off motor
+            control_motor (drive, MOTOR_OFF);
+            return 1;
+        }
     }
 
-    // sleep a bit
-    int i;
-    for (i=0; i!=200000; i++) ;
+    // Tried a few times, but floppy drive is still not on cylinder 0, return error
+    control_motor (drive, MOTOR_OFF);
+    return 0;
 }
+
+
+/**
+ *
+ */
+void fdc_init_drive (fdc_t *fdc, Uint8 driveNum, Uint8 driveType) {
+    // Can only do drive 0 or drive 1 (@TODO: what about drive 2 and 3?)
+    if (driveNum > 1) return;
+
+    // Drive type must be 0..7
+    if (driveType > 8) return;
+
+    // Copy geometry data
+    memcpy ((char *)&fdc->drives[driveNum].geometry, (char *)&disk_geometries[driveType], sizeof (fdc_drive_t));
+    fdc->drives[driveNum].driveType = driveType;    // Drive number on the FDC (0 or 1)
+    fdc->drives[driveNum].fdc = fdc;    // Backwards link, needed to find FDC from a fdc_drive_t structure
+
+    // Set default CHS values
+    fdc->drives[driveNum].currentCylinder = 0;
+    fdc->drives[driveNum].currentHead = 0;
+    fdc->drives[driveNum].currentSector = 0;
+
+    // Calibrate drive
+    calibrate_drive (&fdc->drives[driveNum]);
+}
+
+/**
+ * Init floppy drives on the controller
+ */
+void fdc_init_drives (fdc_t *fdc, Uint8 startDriveNum) {
+    Uint8 driveType, i;
+
+    // Read CMOS for number of floppy disks (@TODO: how to read status for second floppy controller?)
+    outb (0x70, 0x10);
+    for (i=0; i!=100; i++) ;     // Delay a bit
+    driveType = inb (0x71);
+
+    kprintf ("\n");
+    kprintf ("Floppy disk types: %02X\n", driveType);
+    kprintf ("Detected master floppy: %s\n", floppyDescriptions[((driveType >> 4) & 0x7)]);
+    kprintf ("Detected slave floppy: %s\n", floppyDescriptions[(driveType & 0x7)]);
+
+    // Init drive 0 and 1, or 2 and 3 when we are the second controller
+    fdc_init_drive (fdc, startDriveNum + 0, (driveType >> 4) & 0x7);
+    fdc_init_drive (fdc, startDriveNum + 1, driveType & 0x7);
+}
+
+
+
+
+
+
 
 
 /**
@@ -151,7 +235,8 @@ void control_motor (Uint8 drive, Uint8 start) {
  * When reading from drive 0, we need to specify this, when reading from drive 1 we need
  * to call with drive 1 data.
  */
-void set_drive_data (Uint32 step_rate, Uint32 load_time, Uint32 unload_time, Uint8 use_pio) {
+/*
+void obs_set_drive_data (Uint32 step_rate, Uint32 load_time, Uint32 unload_time, Uint8 use_pio) {
 	Uint32 data = 0;
 	send_command (FC_SPECIFY);
 
@@ -162,69 +247,51 @@ void set_drive_data (Uint32 step_rate, Uint32 load_time, Uint32 unload_time, Uin
 	kprintf ("Data: %02X\n", data);
     send_command (data);
 }
+*/
+
 
 /**
- * Calibrate floppy disk by setting the cylinder to cylinder 0
+ *
  */
-int calibrate_floppy_drive (Uint8 drive) {
-    Uint32 st0, cyl;
-    int i;
-
-    if (drive >= 4) return 0;
-
-    // Set motor
-    control_motor (drive, 1);
-
-    // Do a few times
-    for (i=0; i<10; i++) {
-        send_command (FC_CALIBRATE);
-        send_command (drive);
-        wait_floppy_irq ();
-        check_interrupt_status (&st0, &cyl);
-
-        // The drive is still on cylinder 0, so return
-        if (!cyl) {
-            // Shut off motor
-            control_motor (drive, 0);
-            return 1;
-        }
-    }
-
-    // Tried a few times, but floppy drive is still not on cylinder 0, return error
-    control_motor (drive, 0);
-    return 0;
+void reset_drive (fdc_drive_t *drive) {
+  // @TODO:   MAKE THIS WORK
+//    // We should set this data depending on the drive type we detected  (1.44MB etc)
+//    set_drive_data (3, 16, 240, 0);
+//    calibrate_floppy_drive (0);
+//
+//    kprintf ("FDC reset done\n");
 }
+
+
 
 /**
  * Resets the floppy controller
  */
-void reset_floppy_controller (void) {
+void reset_controller (fdc_t *fdc) {
     Uint32 st, cyl;
     int i;
 
     kprintf ("Resetting floppy controler: \n");
 
     // Disable controller
-    outb (FR_DIGITAL_OUTPUT_REGISTER, 0x00);
+    outb (fdc->baseAddress + FR_DIGITAL_OUTPUT_REGISTER, 0x00);
 
     // Enable controller
-    outb (FR_DIGITAL_OUTPUT_REGISTER, DOR_MASK_DRIVE0 | DOR_MASK_RESET | DOR_MASK_DMA);
+    outb (fdc->baseAddress + FR_DIGITAL_OUTPUT_REGISTER, DOR_MASK_DRIVE0 | DOR_MASK_RESET | DOR_MASK_DMA);
 
     // Wait for IRQ to happen
     wait_floppy_irq ();
 
     // Sense interrupt status (4 times, why? mechanical delay reason?)
-    for (i=0; i!=4; i++) check_interrupt_status (&st, &cyl);
+    for (i=0; i!=4; i++) check_interrupt_status (fdc, &st, &cyl);
 
     // Set controller to 500Kpbs
-    outb (FR_CONFIGURATION_CONTROL_REGISTER, 0x00); // Set to 500 Kbps
+    outb (fdc->baseAddress + FR_CONFIGURATION_CONTROL_REGISTER, 0x00); // Set to 500 Kbps
 
-    // We should set this data depending on the drive type we detected  (1.44MB etc)
-    set_drive_data (3, 16, 240, 0);
-    calibrate_floppy_drive (0);
-
-    kprintf ("FDC reset done\n");
+    // Reset individual drives
+    for (i=0; i!=2; i++) reset_drive (&fdc->drives[i]);
 }
+
 
 
 
@@ -232,12 +299,12 @@ void reset_floppy_controller (void) {
 /**
  * Return floppy controller version
  */
-void get_floppy_controller_version (void) {
-    kprintf ("Floppy controller: ");
+Uint8 get_controller_version (fdc_t *fdc) {
+    kprintf ("Floppy controller %d: ", fdc->controllerNum);
+    send_command (fdc, FC_VERSION);
 
-    send_command (FC_VERSION);
-    Uint8 v = recv_data ();
-    switch ( v ) {
+    Uint8 controllerVersion = recv_data (fdc);
+    switch (controllerVersion) {
       case 0xFF: kprintf(" no controller found\n");
                  break;
       case 0x80: kprintf(" NEC controller\n");
@@ -246,68 +313,73 @@ void get_floppy_controller_version (void) {
                  break;
       case 0x90: kprintf(" enhanced controller\n");
                  break;
-      default:   kprintf(" unknown controller [%d]\n", v);
+      default:   kprintf(" unknown controller [%d]\n", controllerVersion);
                  break;
     }
+
+    return controllerVersion;
 }
 
 /**
  * Converts LBA sector to CHS format
  */
-void convert_LBA_to_CHS (Uint32 lba_sector, Uint32 *cylinder, Uint32 *head, Uint32 *sector) {
-   *cylinder = lba_sector / ( SECTORS_PER_TRACK * 2 );
-   *head = ( lba_sector % ( SECTORS_PER_TRACK * 2 ) ) / ( SECTORS_PER_TRACK );
-   *sector = lba_sector % SECTORS_PER_TRACK + 1;
+void convert_LBA_to_CHS (fdc_drive_t *drive, Uint32 lba_sector, Uint32 *cylinder, Uint32 *head, Uint32 *sector) {
+   *cylinder = lba_sector / (drive->geometry.sectorsPerTrack * 2 );
+   *head = ( lba_sector % ( drive->geometry.sectorsPerTrack * 2 ) ) / ( drive->geometry.sectorsPerTrack );
+   *sector = lba_sector % drive->geometry.sectorsPerTrack + 1;
 }
 
 /**
  * Reads CHS data
  */
-void read_floppy_sector_CHS (Uint8 drive, Uint32 cylinder, Uint32 head, Uint32 sector) {
+void read_floppy_sector_CHS (fdc_drive_t *drive, Uint32 cylinder, Uint32 head, Uint32 sector) {
 	Uint32 st0, cyl;
-	int i;
 
 	kprintf ("READ_FLOPPY_SECTOR_CHS\n");
 
 	//! read in a sector
-	send_command (FC_READ_SECT | FDC_MULTITRACK | FDC_SKIP | FDC_DENSITY);
-	send_command (head << 2 | drive);
-	send_command (cylinder);
-	send_command (head);
-	send_command (sector);
-	send_command (SECTOR_DTL_512 );
-	send_command ( ( ( sector + 1 ) >= SECTORS_PER_TRACK ) ? SECTORS_PER_TRACK : sector + 1 );
-	send_command (GAP3_LENGTH_3_5 );
-	send_command (0xff );
+	send_command (drive->fdc, FC_READ_SECT | FDC_MULTITRACK | FDC_SKIP | FDC_DENSITY);
+	send_command (drive->fdc, head << 2 | drive->driveNum);
+	send_command (drive->fdc, cylinder);
+	send_command (drive->fdc, head);
+	send_command (drive->fdc, sector);
+	send_command (drive->fdc, drive->geometry.sectorDTL );
+	send_command (drive->fdc,  ( ( sector + 1 ) >= drive->geometry.sectorsPerTrack ) ? drive->geometry.sectorsPerTrack : sector + 1 );
+	send_command (drive->fdc, drive->geometry.gap3 );
+	send_command (drive->fdc, 0xff);
 
 	// Wait for IRQ to happen (ie: sector read by DMA)
 	wait_floppy_irq ();
 
-	// Read status information (but discard it)
-	for (i=0; i<7; i++) {
-	    Uint8 data = recv_data ();
-	    kprintf ("READSECTOR: DATA %d : %d\n", i, data);
-	}
+	// Read status information and save into result
+	drive->result.st0    = recv_data (drive->fdc);
+	drive->result.st1    = recv_data (drive->fdc);
+	drive->result.st2    = recv_data (drive->fdc);
+	drive->result.st3    = recv_data (drive->fdc);
+	drive->result.track  = recv_data (drive->fdc);
+	drive->result.head   = recv_data (drive->fdc);
+	drive->result.sector = recv_data (drive->fdc);
+	drive->result.size   = recv_data (drive->fdc);
 
-	check_interrupt_status (&st0,&cyl);
+	check_interrupt_status (drive->fdc, &st0, &cyl);
 }
 
 
 /**
  * Seek floppy track
  */
-int seek_floppy_track (Uint8 drive, Uint32 cylinder, Uint32 head) {
+int seek_floppy_track (fdc_drive_t *drive, Uint32 cylinder, Uint32 head) {
     Uint32 st0, cyl;
     int i;
 
-    kprintf ("seek_floppy_track (%d, %d, %d)", drive, cylinder, head);
+    kprintf ("seek_floppy_track (%d, %d, %d)", drive->driveNum, cylinder, head);
     for (i=0; i!=10; i++) {
-        send_command (FC_SEEK);
-        send_command ( (head) << 2 | drive);
-        send_command (cylinder);
+        send_command (drive->fdc, FC_SEEK);
+        send_command (drive->fdc, (head) << 2 | drive->driveNum);
+        send_command (drive->fdc, cylinder);
 
         wait_floppy_irq ();
-        check_interrupt_status (&st0, &cyl);
+        check_interrupt_status (drive->fdc, &st0, &cyl);
         kprintf ("ST0: %02X CYL: %02X\n", st0, cyl);
         if (cyl == cylinder) return 1;      // We are at the correct cylinder
     }
@@ -320,20 +392,18 @@ int seek_floppy_track (Uint8 drive, Uint32 cylinder, Uint32 head) {
 /**
  * Reads sector from drive
  */
-void read_floppy_sectors (Uint8 drive, Uint32 lba_sector, Uint8 sector_count) {
+void read_floppy_sectors (fdc_drive_t *drive, Uint32 lba_sector, Uint8 sector_count) {
     Uint32 c,h,s;
-
-    // Make sure we have a correct drive
-    if (drive >= 4) return;
+    int i;
 
     // Start motor
-    control_motor (drive, 1);
+    control_motor (drive, MOTOR_ON);
 
     for (i=0; i!=sector_count; i++, lba_sector++) {
         kprintf ("Read floppy sector %d:%08X\n", drive, lba_sector);
 
         // Convert LBA sector to CHS
-        convert_LBA_to_CHS (lba_sector, &c, &h, &s);
+        convert_LBA_to_CHS (drive, lba_sector, &c, &h, &s);
 
         kprintf ("C: %d  H: %d   S: %d\n", c, h, s);
 
@@ -345,7 +415,7 @@ void read_floppy_sectors (Uint8 drive, Uint32 lba_sector, Uint8 sector_count) {
     }
 
     // Shut down motor
-    control_motor (drive, 0);
+    control_motor (drive, MOTOR_OFF);
 
     return;
 }
@@ -354,21 +424,53 @@ void read_floppy_sectors (Uint8 drive, Uint32 lba_sector, Uint8 sector_count) {
 /**
  *
  */
-void floppy_init (void) {
-    int size = 512-1;
-    int i,j,o;
+void fdc_init_controller (fdc_t *fdc, Uint8 controllerNum, Uint16 baseAddress, char *dma_floppy_buffer) {
+    // Set DMA info
+    fdc->dma.buffer = (char *)dma_floppy_buffer;
+    fdc->dma.page = HI16(LO8((Uint32)dma_floppy_buffer)) & 0x0F;
+    fdc->dma.high = LO16(HI8((Uint32)dma_floppy_buffer));
+    fdc->dma.high = LO16(LO8((Uint32)dma_floppy_buffer));
 
-    // Needed since floppy init depends on IRQ
+    // Set controller number (first or second controller)
+    fdc->controllerNum = controllerNum;
+
+    // Get controller version
+    fdc->version = get_controller_version (fdc);
+
+    fdc->drives[0].driveType = 0x00;        // Set default to no drive
+    fdc->drives[1].driveType = 0x00;        // Set default to no drive
+
+    // Don't init drives when no controller is present
+    if (fdc->version == 0xFF) return;
+
+    // Init floppy drives on this controller
+    fdc_init_drives (fdc, controllerNum * 2);
+
+    // Do a complete reset controller (and the drives)
+    reset_controller (fdc);
+}
+
+
+/**
+ *
+ */
+void fdc_init (void) {
+    int i, baseaddr;
+
+    // Needed since floppy init depends on IRQ's
     sti ();
 
-    detect_floppy_disks ();
-    reset_floppy_controller();
-    get_floppy_controller_version();
 
+    for (i=0; i!=2; i++) {
+        baseaddr = (i == 0) ? FDC0_BASEADDR : FDC1_BASEADDR;
+        fdc_init_controller (&fdc[i], i, FDC0_BASEADDR, dma_floppy_buffer);
+    }
 
-    http://www.jbox.dk/sanos/source/sys/osldr/bootfd.c.html
+    // Done with floppy stuff. No need for IRQ's at this moment
+    cli ();
+}
 
-
+/*
     for (i=0; i!=16; i++) kprintf ("%02X ", (Uint8)dma_floppy_buffer[i]);
     kprintf ("\n");
 
@@ -384,6 +486,4 @@ void floppy_init (void) {
 
     for (;;) ;
 
-    // Not needed anymore for now
-    cli ();
-}
+*/

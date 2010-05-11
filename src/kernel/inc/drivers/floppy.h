@@ -8,8 +8,9 @@
 #ifndef __DRIVERS_FLOPPY_H__
 #define __DRIVERS_FLOPPY_H__
 
-enum DOR_MASK {
+#include "kernel.h"
 
+enum DOR_MASK {
     DOR_MASK_DRIVE0         =   0,  //00000000  = here for completeness sake
     DOR_MASK_DRIVE1         =   1,  //00000001
     DOR_MASK_DRIVE2         =   2,  //00000010
@@ -33,17 +34,17 @@ enum MSR_MASK {
     MSR_MASK_DATAREG            =   0x80   //10000000
 };
 
-enum FloppyRegisters
-{
-   FR_STATUS_REGISTER_A                = 0x3F0, // read-only
-   FR_STATUS_REGISTER_B                = 0x3F1, // read-only
-   FR_DIGITAL_OUTPUT_REGISTER          = 0x3F2,
-   FR_TAPE_DRIVE_REGISTER              = 0x3F3,
-   FR_MAIN_STATUS_REGISTER             = 0x3F4, // read-only
-   FR_DATARATE_SELECT_REGISTER         = 0x3F4, // write-only
-   FR_DATA_FIFO                        = 0x3F5,
-   FR_DIGITAL_INPUT_REGISTER           = 0x3F7, // read-only
-   FR_CONFIGURATION_CONTROL_REGISTER   = 0x3F7  // write-only
+// These numbers are relative to FDC's base address (0x3F0 or 0x370)
+enum FloppyRegisters {
+   FR_STATUS_REGISTER_A                = 0x0, // read-only
+   FR_STATUS_REGISTER_B                = 0x1, // read-only
+   FR_DIGITAL_OUTPUT_REGISTER          = 0x2,
+   FR_TAPE_DRIVE_REGISTER              = 0x3,
+   FR_MAIN_STATUS_REGISTER             = 0x4, // read-only
+   FR_DATARATE_SELECT_REGISTER         = 0x4, // write-only
+   FR_DATA_FIFO                        = 0x5,
+   FR_DIGITAL_INPUT_REGISTER           = 0x7, // read-only
+   FR_CONFIGURATION_CONTROL_REGISTER   = 0x7  // write-only
 };
 
 enum FloppyCommands {
@@ -66,23 +67,93 @@ enum FloppyCommands {
 #define FDC_DENSITY     0x40
 #define FDC_MULTITRACK  0x80
 
-#define SECTOR_DTL_128      0
-#define SECTOR_DTL_256      1
-#define SECTOR_DTL_512      2
-#define SECTOR_DTL_1024     4
+    #define DMA_FLOPPY_CHANNEL 2        // DMA floppy channel is 2
 
-#define GAP3_LENGTH_STD    42
-#define GAP3_LENGTH_5_14   32
-#define GAP3_LENGTH_3_5    27
+    // DMA structure for floppy
+    typedef struct {
+        char *buffer;       // Pointer to DMA buffer
+        Uint8 page;         // Buffer page (only 8 bits, so must be in <16MB range)
+        Uint8 high;         // High 8 bits of buffer address
+        Uint8 low;          // Low 8 bits of buffer address
+    } fdc_dma_t;
+
+    // Holds drive info
+    typedef struct {
+        Uint8 geometry;       // Geometry of disk
+
+        Uint8 maxCylinder;    // Maximum number of CHS
+        Uint8 maxHead;
+        Uint8 sectorsPerTrack;
+
+        Uint8 gap3;           // Misc drive data
+        Uint8 sectorDTL;
+    } fdc_geometry_t;
+
+    // Holds result after a FDC operation (not always all bytes are used)
+    typedef struct {
+        Uint8 st0;
+        Uint8 st1;
+        Uint8 st2;
+        Uint8 st3;
+        Uint8 track;
+        Uint8 head;
+        Uint8 sector;
+        Uint8 size;
+    } fdc_result_t;
 
 
+    enum enum_MotorStatus {
+        MOTOR_OFF   = 0,
+        MOTOR_ON    = 1
+    };
 
-#define SECTORS_PER_TRACK  80
 
-#define DMA_FLOPPY_CHANNEL 2        // DMA floppy channel is 2
+    // global structure
+    typedef struct {
+        Uint8 driveNum;             // Which drive number is this drive
+        Uint8 driveType;            // Drive type (as read from CMOS)
+        struct fdc *fdc;            // Backwards pointer to controller
 
-extern char *dma_floppy_buffer;
+        Uint8 currentCylinder;      // Current CHS of drive
+        Uint8 currentHead;
+        Uint8 currentSector;
 
-    void floppy_init (void);
+        fdc_geometry_t geometry;    // Geometry of drive
+
+        fdc_result_t result;         // Result of last action
+    } fdc_drive_t;
+
+    typedef struct fdc {
+        Uint8        controllerNum;     // Which controller is this (0 or 1)
+        Uint16       baseAddress;      // Controller's base address (0x3F0 or 0x370)
+        Uint8        version;          // Controller version
+        fdc_dma_t    dma;              // DMA transfer buffer
+        fdc_drive_t  drives[2];   // Drive info (max 2 drives per controller)
+
+        Uint8        currentDrive;     // Controller is initialized to which drive?
+    } fdc_t;
+
+    // Base address for floppy controller 0 and 1
+    #define FDC0_BASEADDR 0x3F0
+    #define FDC1_BASEADDR 0x370
+
+    // Constants for drive geometries
+    static fdc_geometry_t disk_geometries[8] = {
+                                           { 0,  0,  0,  0, 0 },  // No drive
+                                           { 0, 40,  9, 32, 2 },  // 360KB 5.25"
+                                           { 0, 80, 15, 32, 2 },  // 1.2MB 5.25"
+                                           { 0, 40,  9, 27, 2 },  // 720KB 3.5"
+                                           { 0, 80, 18, 27, 2 },  // 1.44MB 3.5"
+                                           { 0, 80, 36, 27, 2 },  // 2.88MB 3.5"
+                                           { 0,  0,  0,  0, 0 },  // Unknown
+                                           { 0,  0,  0,  0, 0 }   // Unknown
+                                          };
+
+    extern char *dma_floppy_buffer;
+
+    // Maximum of 2 controllers (each with 2 drives makes 4 drives max)
+    fdc_t fdc[2];
+
+    void fdc_init (void);
 
 #endif //__DRIVERS_FLOPPY_H__
