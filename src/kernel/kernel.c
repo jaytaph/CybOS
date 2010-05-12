@@ -78,9 +78,7 @@ void kernel_entry (int stack_start, int total_sys_memory) {
 
   /* Allocate a buffer for floppy DMA transfer. Needed here for now since we cannot
    * force <16MB allocation through the new VMM */
-  kmalloc_pageboundary_physical (512-1, &dma_floppy_buffer);
-//  dma_floppy_buffer = 0x1000;
-//  dma_floppy_buffer -= 0xC0000000;
+  kmalloc_pageboundary_physical (80*512*18, &dma_floppy_buffer);
   kprintf ("Malloced DMA buffer on physical %08X\n", dma_floppy_buffer);
 
   kprintf ("MEM ");
