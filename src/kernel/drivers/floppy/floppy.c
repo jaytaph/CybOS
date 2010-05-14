@@ -89,7 +89,7 @@ void fdc_wait_for_irq (void) {
 void fdc_send_command (Uint8 command) {
   if (! fdc_wait_status_ready()) kpanic ("Floppy send error\n");
 
-  kprintf ("out(%03X : %02X)\n", _currentDrive->fdc->baseAddress + FR_DATA_FIFO, command);
+//  kprintf ("out(%03X : %02X)\n", _currentDrive->fdc->baseAddress + FR_DATA_FIFO, command);
   return outb (_currentDrive->fdc->baseAddress + FR_DATA_FIFO, command);
 }
 
@@ -101,7 +101,7 @@ Uint32 fdc_recv_data (void) {
   if (! fdc_wait_status_ready()) kpanic ("Floppy recv error\n");
 
   Uint8 data = inb (_currentDrive->fdc->baseAddress + FR_DATA_FIFO);
-  kprintf ("in(%03X : %02X)\n", _currentDrive->fdc->baseAddress + FR_DATA_FIFO, data);
+//  kprintf ("in(%03X : %02X)\n", _currentDrive->fdc->baseAddress + FR_DATA_FIFO, data);
   return data;
 }
 
@@ -368,7 +368,7 @@ int fdc_seek_floppy_cylinder (Uint32 cylinder, Uint8 head) {
 /**
  * Reads SINGLE sector from drive (not very optimized when reading large data blocks)
  */
-void fdc_read_floppy_sector (fdc_drive_t *drive, Uint32 lba_sector) {
+void fdc_read_floppy_sector (fdc_drive_t *drive, Uint32 lba_sector, char *buffer) {
   Uint32 c,h,s;
 
   // Switch active drive
@@ -389,6 +389,9 @@ void fdc_read_floppy_sector (fdc_drive_t *drive, Uint32 lba_sector) {
 
   // Read CHS sector
   fdc_read_floppy_sector_CHS (c, h, s);
+
+  // Copy the data from DMA buffer into the actual buffer
+  memcpy (buffer, fdc->dma.buffer, fdc->dma.size);
 
   // Shut down motor
   fdc_control_motor (0);

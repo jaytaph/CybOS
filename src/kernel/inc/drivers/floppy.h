@@ -136,6 +136,6 @@ enum FloppyCommands {
 
     void fdc_init (void);
     void floppy_interrupt (regs_t *r);
-    void fdc_read_floppy_sector (fdc_drive_t *drive, Uint32 lba_sector);
+    void fdc_read_floppy_sector (fdc_drive_t *drive, Uint32 lba_sector, char *buffer);
 
 #endif //__DRIVERS_FLOPPY_H__

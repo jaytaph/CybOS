@@ -25,6 +25,8 @@
 #include "io.h"
 #include "dma.h"
 #include "drivers/floppy.h"
+#include "vfs.h"
+#include "vfs/fat12.h"
 
   // 64bit tick counter
   Uint64 _kernel_ticks;
@@ -103,11 +105,36 @@ void kernel_entry (int stack_start, int total_sys_memory) {
   // Start interrupts
   sti ();
 
+  kprintf ("VFS ");
+  fs_root = fat12_init (0);
+
+  // Read
+  int i = 0;
+  struct dirent *node = 0;
+  while ( (node = readdir_fs(fs_root, i)) != 0) {
+    kprintf("Found dir '%s'", node->name);
+
+    fs_node_t *fsnode = finddir_fs(fs_root, node->name);
+
+    if ((fsnode->flags&0x7) == FS_DIRECTORY)  {
+      kprintf ("\ndirectory\n");
+    } else {
+      kprintf("\nregular file\n");
+    }
+    i++;
+  }
+
+  for (;;) ;
+
+
+
+
+/*
   int sctr;
   for (sctr=0; sctr!=5; sctr++) {
     int o,i,j;
     kprintf ("-----------------------------------------------\n");
-    fdc_read_floppy_sector (&fdc[0].drives[0], sctr);
+    fdc_read_floppy_sector (&fdc[0].drives[0], sctr, fdb);
     knoflush ();
     for (o=0,i=0; i!=10; i++) {
         for (j=0; j!=16; j++, o++) {
@@ -117,6 +144,10 @@ void kernel_entry (int stack_start, int total_sys_memory) {
     }
     kflush ();
   }
+*/
+
+
+
 
 
   // Initialize multitasking environment

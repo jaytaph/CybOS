@@ -58,7 +58,9 @@ OBJS =  main.o \
         klib.o \
 	dma.o \
         drivers/floppy/floppy.o \
-        vfs.o
+        vfs.o \
+	vfs/fat12.o
+	
 
 
 # Default target
