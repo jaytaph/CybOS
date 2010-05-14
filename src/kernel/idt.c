@@ -18,6 +18,7 @@
 #include "idt.h"
 #include "gdt.h"
 #include "io.h"
+#include "drivers/floppy.h"
 
 
 // Pointer to the kernel IDT
@@ -117,16 +118,19 @@ Uint32 exception_handlers[32] = { (Uint32)&handle_exception0,  (Uint32)&handle_e
 
 
 
-int disable_ints (void) {
+int ints_enabled (void) {
   Uint32 flags;
   int state;
 
-  // Get flags and see if interrupt flag is set
-  __asm__ __volatile__ (" pushfl ;  pop %%eax" : "=a"(flags));
+  __asm__ __volatile__ ("pushfl ; pop %%eax" : "=a"(flags));
   state = flags & 0x200;
 
-  cli ();
+  return state;
+}
 
+int disable_ints (void) {
+  int state = ints_enabled ();
+  cli ();
   return state;
 }
 

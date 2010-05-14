@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/sh 
 
 # This will create a CYBOS (fat12) boot image. Mind that the sectors we need to
 # load BOOTLVL2.BIN are hardcoded in BOOTLVL1.BIN. As soon as the actual bootalize
@@ -16,7 +16,10 @@ mkdosfs -n CYBOS ../fat12.img
 dd if=bootlvl1.bin of=../fat12.img bs=512 seek=0 conv=notrunc
 
 # Mount image
-mkdir /tmp/fat12mnt
+if [ ! -d /tmp/fat12mnt ] ; then
+  mkdir /tmp/fat12mnt
+fi
+
 sudo mount -o loop ../fat12.img /tmp/fat12mnt
 
 # Make items in image
@@ -27,4 +30,3 @@ cp kernel.bin /tmp/fat12mnt/SYSTEM/KERNEL.BIN
 
 # Unmount
 umount /tmp/fat12mnt
-rmdir /tmp/fat12mnt

@@ -11,15 +11,15 @@
 /**
  *
  */
-void dma_set_address (Uint8 channel, Uint32 address) {
+void dma_set_address (Uint8 channel, char *address) {
     Uint8 port, extended_port, page;
 
     if (channel > 8) return;
 
     // Get page
-    page = LO8(HI16(address)) & 0x000F;
+    page = LO8(HI16((Uint32)address)) & 0x000F;
 
-    kprintf ("Setting DMA channel %d address to PAGE: %08X, LO: %08X and HI: %08X\n", channel, page, LO8(LO16(address)), HI8(LO16(address)) );
+    kprintf ("Setting DMA channel %d address to PAGE: %08X, LO: %08X and HI: %08X\n", channel, page, LO8(LO16((Uint32)address)), HI8(LO16((Uint32)address)) );
 
 	switch (channel) {
 		case 0: port = DMA0_CHAN0_ADDR_REG; extended_port = 0x00; break;    // NO extended poirt for channel 0
@@ -33,8 +33,8 @@ void dma_set_address (Uint8 channel, Uint32 address) {
 	}
 
     // Output "offset"
-	outb (port, LO8(LO16(address)));
-	outb (port, HI8(LO16(address)));
+	outb (port, LO8(LO16((Uint32)address)));
+	outb (port, HI8(LO16((Uint32)address)));
 	if (extended_port) outb (extended_port, page);  // Output page
 }
 

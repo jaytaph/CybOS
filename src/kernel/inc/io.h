@@ -17,4 +17,6 @@
   Uint16 inw (Uint32 addr);
   Uint32 inl (Uint32 addr);
 
+  void io_wait (void);
+
 #endif //__IO_H__

@@ -72,6 +72,12 @@
   // Kernel Panic message, no return
   void kpanic (const char *fmt, ...);
 
+  // Set flushing mode off
+  void knoflush ();
+
+  // Set flushing mode on (and actually do the flush)
+  void kflush ();
+
   // Print on kernel_console
   void kprintf (const char *fmt, ...);
 

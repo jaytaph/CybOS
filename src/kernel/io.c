@@ -81,3 +81,11 @@ Uint32 inl (Uint32 addr) {
   return l;
 }
 
+
+/*******************************************************
+ * IO wait function
+ */
+void io_wait (void) {
+  outb (0x80, 0);     // Unused port (only during POST)
+}
+

@@ -29,6 +29,8 @@
   // 64bit tick counter
   Uint64 _kernel_ticks;
 
+  Uint8 _kflush = 1;
+
   // The tasklist of all cybos processes/tasks
   extern task_t *_task_list;
 
@@ -77,9 +79,9 @@ void kernel_entry (int stack_start, int total_sys_memory) {
   paging_init();
 
   /* Allocate a buffer for floppy DMA transfer. Needed here for now since we cannot
-   * force <16MB allocation through the new VMM */
-  kmalloc_pageboundary_physical (80*512*18, &dma_floppy_buffer);
-  kprintf ("Malloced DMA buffer on physical %08X\n", dma_floppy_buffer);
+   * force <16MB allocation through the new VMM yet
+   * @TODO: Remove this as soon as we are able to use kmalloc () */
+  kmalloc_pageboundary_physical (FDC_DMABUFFER_SIZE, (Uint32 *)&floppyDMABuffer);
 
   kprintf ("MEM ");
   heap_init();
@@ -94,8 +96,28 @@ void kernel_entry (int stack_start, int total_sys_memory) {
   kprintf ("DMA ");
   dma_init ();
 
-  kprintf ("FDD ");
-  floppy_init ();
+  // Init floppy disk controllers
+  kprintf ("FDC ");
+  fdc_init ();
+
+  // Start interrupts
+  sti ();
+
+  int sctr;
+  for (sctr=0; sctr!=5; sctr++) {
+    int o,i,j;
+    kprintf ("-----------------------------------------------\n");
+    fdc_read_floppy_sector (&fdc[0].drives[0], sctr);
+    knoflush ();
+    for (o=0,i=0; i!=10; i++) {
+        for (j=0; j!=16; j++, o++) {
+            kprintf ("%02X ", (Uint8)floppyDMABuffer[o]);
+        }
+        kprintf ("\n");
+    }
+    kflush ();
+  }
+
 
   // Initialize multitasking environment
   kprintf ("TSK ");
@@ -196,8 +218,18 @@ void kprintf (const char *fmt, ...) {
   (void)do_printf (fmt, args, kprintf_help, NULL);
   va_end (args);
 
+  if (_kflush) con_flush (_kconsole);
+}
+
+void knoflush () {
+  _kflush = 0;
+}
+
+void kflush () {
+  _kflush = 1;
   con_flush (_kconsole);
 }
+
 
 /************************************
  * Panics the system.

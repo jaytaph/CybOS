@@ -58,6 +58,7 @@
 
   int disable_ints (void);
   void restore_ints (int state);
+  int ints_enabled (void);
 
 
   // Functions
