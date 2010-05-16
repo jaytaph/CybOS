@@ -122,16 +122,16 @@ int fdc_switch_active_drive (fdc_drive_t *drive, int force_select) {
   if (! force_select &&
       _currentDrive->fdc->controllerNum == drive->fdc->controllerNum &&
       _currentDrive->driveNum == drive->driveNum) {
-    kprintf ("fdc_switch_active_drive (%d/%d): already there...\n", drive->fdc->controllerNum, drive->driveNum);
+//    kprintf ("fdc_switch_active_drive (%d/%d): already there...\n", drive->fdc->controllerNum, drive->driveNum);
     return 0;
   }
 
-  kprintf ("fdc_switch_active_drive (%d)", drive->driveNum);
+//  kprintf ("fdc_switch_active_drive (%d)", drive->driveNum);
 
   // Set the current drive
   _currentDrive = drive;
 
-  kprintf ("Specify\n");
+//  kprintf ("Specify\n");
 
     // Initialise drive mode (needed on every switch)
   Uint32 data = 0;
@@ -188,7 +188,7 @@ int fdc_calibrate_drive () {
   // Set motor
   fdc_control_motor (1);
 
-  kprintf ("Calibrate drive %d/%d\n", _currentDrive->fdc->controllerNum, _currentDrive->driveNum);
+//  kprintf ("Calibrate drive %d/%d\n", _currentDrive->fdc->controllerNum, _currentDrive->driveNum);
 
   // Do a few times
   for (i=0; i<10; i++) {
@@ -215,7 +215,7 @@ int fdc_calibrate_drive () {
  *
  */
 void fdc_init_drive (fdc_t *fdc, Uint8 driveNum, Uint8 driveType) {
-  kprintf ("fdc_switch_active_drive (%d/%d)\n", fdc->controllerNum, driveNum);
+//  kprintf ("fdc_switch_active_drive (%d/%d)\n", fdc->controllerNum, driveNum);
   // Can only do drive 0 or drive 1 (@TODO: what about drive 2 and 3?)
   if (driveNum > 1) return;
 
@@ -322,7 +322,7 @@ void fdc_convert_LBA_to_CHS (fdc_drive_t *drive, Uint32 lba_sector, Uint32 *cyli
 void fdc_read_floppy_sector_CHS (Uint32 cylinder, Uint32 head, Uint32 sector) {
   Uint32 st0, cyl;
 
-  kprintf ("READ_FLOPPY_SECTOR_CHS\n");
+//  kprintf ("READ_FLOPPY_SECTOR_CHS\n");
 
   // Tell DMA we are reading from buffer
   dma_set_read (DMA_FLOPPY_CHANNEL);
@@ -363,7 +363,7 @@ int fdc_seek_floppy_cylinder (Uint32 cylinder, Uint8 head) {
   int i;
 
   for (i=0; i!=10; i++) {
-    kprintf ("seek_floppy_cylinder (%d, %d)\n", _currentDrive->driveNum, cylinder, head);
+//    kprintf ("seek_floppy_cylinder (%d, %d)\n", _currentDrive->driveNum, cylinder, head);
 
     fdc_send_command (FC_SEEK);
     fdc_send_command ((head) << 2 | _currentDrive->driveNum);
@@ -371,7 +371,7 @@ int fdc_seek_floppy_cylinder (Uint32 cylinder, Uint8 head) {
 
     fdc_wait_for_irq ();
     fdc_check_interrupt_status (&st0, &cyl);
-    kprintf ("ST0: %02X CYL: %02X\n", st0, cyl);
+//    kprintf ("ST0: %02X CYL: %02X\n", st0, cyl);
     if (cyl == cylinder) return 1;      // We are at the correct cylinder
   }
   // Not (yet) there..

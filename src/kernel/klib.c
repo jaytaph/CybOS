@@ -48,6 +48,14 @@ char *strncpy (char *dst, const char *src, int count) {
 }
 
 // ======================================================================
+char *strcpy (char *dst, const char *src) {
+	char *ret_val = dst;
+
+	for (; (*dst = *src) != 0; ++src, ++dst);
+	return ret_val;
+}
+
+// ======================================================================
 void *memcpy (void *dst_ptr, const void *src_ptr, int count) {
   void *ret_val = dst_ptr;
   const char *src = (const char *)src_ptr;
@@ -63,6 +71,17 @@ void *memset (void *dst, int val, int count) {
 
   for (temp=(char *)dst; count!=0; count--) *temp++=val;
   return dst;
+}
+
+// ======================================================================
+int strncmp (const char *str1, const char *str2, int count) {
+  if (count == 0) return 0;
+
+  do {
+      if (*str1 != *str2++) return (*str1-*(str2-1));
+      if (*str1++ == 0) break;
+  } while (--count != 0);
+  return 0;
 }
 
 // ======================================================================

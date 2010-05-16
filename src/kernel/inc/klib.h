@@ -31,9 +31,11 @@
 
   int do_printf (const char *fmt, va_list args, fnptr fn, void *ptr);
 
+  char *strcpy (char *dst, const char *src);
   char *strncpy (char *dst, const char *src, int count);
   int strlen (const char *str);
   int strcmp (const char *str1, const char *str2);
+  int strncmp (const char *str1, const char *str2, int count);
 
   void *memcpy (void *dst_ptr, const void *src_ptr, int count);
   void *memset (void *dst, int val, int count);

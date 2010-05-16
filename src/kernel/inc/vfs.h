@@ -37,11 +37,11 @@
     struct dirent {
         char    name[128];
         inode_t inode;
-    };
+    } fs_dirent_t;
 
     // File entry
     typedef struct fs_node {
-        inode_t        inode;           // Inode
+        inode_t        inode_nr;        // Inode
         char           name[128];       // Filename
         Uint32         owner;           // Owner ID
         Uint32         length;          // File length

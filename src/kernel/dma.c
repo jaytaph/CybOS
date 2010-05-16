@@ -19,8 +19,6 @@ void dma_set_address (Uint8 channel, char *address) {
     // Get page
     page = LO8(HI16((Uint32)address)) & 0x000F;
 
-    kprintf ("Setting DMA channel %d address to PAGE: %08X, LO: %08X and HI: %08X\n", channel, page, LO8(LO16((Uint32)address)), HI8(LO16((Uint32)address)) );
-
 	switch (channel) {
 		case 0: port = DMA0_CHAN0_ADDR_REG; extended_port = 0x00; break;    // NO extended poirt for channel 0
 		case 1: port = DMA0_CHAN1_ADDR_REG; extended_port = DMA_PAGE_CHAN1_ADDRBYTE2; break;
@@ -46,8 +44,6 @@ void dma_set_size (Uint8 channel, Uint16 size) {
     Uint8 port;
 
 	if (channel > 8) return;
-
-	kprintf ("Setting DMA channel %d count to LO: %08X and HI: %08X\n", channel, LO8(size), HI8(size));
 
 	switch ( channel ) {
 		case 0: port = DMA0_CHAN0_COUNT_REG; break;
