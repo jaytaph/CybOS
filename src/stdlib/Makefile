@@ -28,6 +28,7 @@ OBJS =	stdio/stdio.o \
         string/strncpy.o \
         string/strncmp.o \
         string/strcmp.o \
+        string/strstr.o \
         string/memcpy.o \
         string/memset.o \
         string/movedata.o
