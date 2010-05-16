@@ -76,16 +76,16 @@ enum FloppyCommands {
 
     // Holds drive info
     typedef struct {
-        Uint8 driveinfo;      // driveinfo for this disk
-        Uint8 maxCylinder;    // Maximum number of CHS
-        Uint8 maxHead;
-        Uint8 sectorsPerTrack;
-        Uint8 gap3;           // Misc drive data
-        Uint8 sectorDTL;
-        Uint8 stepRate;
-        Uint8 loadTime;
-        Uint8 unloadTime;
-        Uint8 usePIO;
+        Uint16 driveinfo;      // driveinfo for this disk
+        Uint16 maxCylinder;    // Maximum number of CHS
+        Uint16 maxHead;
+        Uint16 sectorsPerTrack;
+        Uint16 gap3;           // Misc drive data
+        Uint16 sectorDTL;
+        Uint16 stepRate;
+        Uint16 loadTime;
+        Uint16 unloadTime;
+        Uint16 usePIO;
     } fdc_driveinfo_t;
 
     // Holds result after a FDC operation (not always all bytes are used)

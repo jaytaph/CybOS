@@ -15,6 +15,21 @@
 fat12_bpb_t *_bpb;      // Bios Parameter Block
 fat12_fat_t *_fat;      // FAT table
 
+typedef struct {
+	Uint8  numSectors;
+	Uint32 fatOffset;
+	Uint8  fatSizeBytes;
+	Uint8  fatSizeSectors;
+	Uint8  fatEntrySizeBits;
+	Uint32 numRootEntries;
+	Uint32 numRootEntriesPerSector;
+	Uint32 rootEntrySectors;
+	Uint32 rootOffset;
+	Uint32 rootSizeSectors;
+	Uint32 dataOffset;
+} fat12_fatinfo_t;
+
+fat12_fatinfo_t fat12_info;
 
 /**
  *
@@ -112,6 +127,9 @@ fs_node_t *fat12_init (int driveNum) {
 
 
 
+knoflush ();
+
+
   // Allocate and read BPB
 kprintf ("Reading BPB\n");
   _bpb = (fat12_bpb_t *)kmalloc (sizeof (fat12_bpb_t));
@@ -131,25 +149,56 @@ kprintf ("Reading BPB\n");
     kprintf ("HiddenSectors     %08x\n", _bpb->HiddenSectors);
     kprintf ("LongSectors       %08x\n", _bpb->LongSectors);
 
+    // Set global FAT information
+    fat12_info.numSectors              = _bpb->NumSectors;
+    fat12_info.fatOffset               = _bpb->ReservedSectors + _bpb->HiddenSectors;
+    fat12_info.fatSizeBytes            = _bpb->BytesPerSector *_bpb->SectorsPerFat;
+    fat12_info.fatSizeSectors          = _bpb->SectorsPerFat;
+    fat12_info.fatEntrySizeBits        = 8;
+    fat12_info.numRootEntries          = _bpb->NumDirEntries;
+    fat12_info.numRootEntriesPerSector = _bpb->BytesPerSector / 32;
+    fat12_info.rootOffset              = (_bpb->NumberOfFats * _bpb->SectorsPerFat) + 1;
+    fat12_info.rootSizeSectors         = (_bpb->NumDirEntries * 32 ) / _bpb->BytesPerSector;
+    fat12_info.dataOffset              = (_bpb->NumberOfFats * _bpb->SectorsPerFat) + 1;
+
+kflush ();
+
+knoflush ();
+
 kprintf ("Reading FAT\n");
   int i,j,k;
-  _fat = (fat12_fat_t *)kmalloc (_bpb->BytesPerSector * _bpb->SectorsPerFat);
-  int fatSectorLBA = _bpb->HiddenSectors + _bpb->ReservedSectors;
-  for (i=0; i!=(_bpb->BytesPerSector * _bpb->SectorsPerFat / 512); i++) {
-    fdc_read_floppy_sector (&fdc[0].drives[0], fatSectorLBA+i, (char *)_fat+(i*512));
+  _fat = (fat12_fat_t *)kmalloc (fat12_info.fatSizeBytes);
+  for (i=0; i!=fat12_info.fatSizeSectors; i++) {
+    fdc_read_floppy_sector (&fdc[0].drives[0], fat12_info.fatOffset+i, (char *)_fat+(i*512));
+  }
+  for (k=0, i=0; i!=10; i++) {
+    kprintf ("  Entry %04d  : ", i*10);
+    for (j=0; j!=10; j++,k++) kprintf ("%04X ", fat12_get_fat_entry (k));
+    kprintf ("\n");
+  }
+  kprintf ("\n");
+
+kflush ();
+
+kprintf ("RootDirEntry: %d \n", fat12_info.rootOffset);
+
+  fat12_dirent_t *direntbuf = (fat12_dirent_t *)kmalloc (_bpb->BytesPerSector);
+  fat12_dirent_t *dirent;
+  for (i=0; i!=fat12_info.rootSizeSectors; i++) {
+    fdc_read_floppy_sector (&fdc[0].drives[0], fat12_info.rootOffset+i, (char *)direntbuf);
+    for (dirent = direntbuf, j=0; j!=fat12_info.numRootEntriesPerSector; j++,dirent++) {
+
+
+      kprintf ("-------------\n");
+      kprintf ("Filename     : %c%c%c%c%c%c%c%c\n", dirent->Filename[0], dirent->Filename[1], dirent->Filename[2], dirent->Filename[3], dirent->Filename[4], dirent->Filename[5], dirent->Filename[6], dirent->Filename[7]);
+      kprintf ("Ext          : %c%c%c\n", dirent->Ext[0], dirent->Ext[1], dirent->Ext[2]);
+      kprintf ("Attrib       : %02X\n", dirent->Attrib);
+      kprintf ("FirstCluster : %04X\n", dirent->FirstCluster);
+      kprintf ("FileSize     : %02X\n", dirent->FileSize);
+    }
   }
 
-    for (k=0, i=0; i!=10; i++) {
-        kprintf ("  Entry %04d  : ", i*10);
-        for (j=0; j!=10; j++,k++) kprintf ("%04X ", fat12_get_fat_entry (k));
-        kprintf ("\n");
-    }
-    kprintf ("\n");
-
-
   for (;;) ;
-
-
 
   return fs_root;
 }

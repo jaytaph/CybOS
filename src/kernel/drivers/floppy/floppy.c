@@ -19,14 +19,14 @@
 
 // Constants for drive driveinfo
 const fdc_driveinfo_t driveinfo[8] = {
-                                       { 0,  0,  0,  0, 0, 0, 0, 0, 0 },  // No drive
-                                       { 0, 40,  9, 32, 2, 0, 0, 0, 0 },  // 360KB 5.25"
-                                       { 0, 80, 15, 32, 2, 0, 0, 0, 0 },  // 1.2MB 5.25"
-                                       { 0, 40,  9, 27, 2, 0, 0, 0, 0 },  // 720KB 3.5"
-                                       { 0, 80, 18, 27, 0x1b, 2, 6, 240, 0 },  // 1.44MB 3.5"
-                                       { 0, 80, 36, 27, 2, 0, 0, 0, 0 },  // 2.88MB 3.5"
-                                       { 0,  0,  0,  0, 0, 0, 0, 0, 0 },  // Unknown
-                                       { 0,  0,  0,  0, 0, 0, 0, 0, 0 }   // Unknown
+                                       { 0,  0, 0,  0,    0, 0, 0, 0, 0, 0 },  // No drive
+                                       { 0,  0, 0,  0,    0, 0, 0, 0, 0, 0 },  // 360KB 5.25"
+                                       { 0,  0, 0,  0,    0, 0, 0, 0, 0, 0 },  // 1.2MB 5.25"
+                                       { 0,  0, 0,  0,    0, 0, 0, 0, 0, 0 },  // 720KB 3.5"
+                                       { 0, 80, 2, 18, 0x1b, 2, 2, 8, 5, 0 },  // 1.44MB 3.5"
+                                       { 0,  0, 0,  0,    0, 0, 0, 0, 0, 0 },  // 2.88MB 3.5"
+                                       { 0,  0, 0,  0,    0, 0, 0, 0, 0, 0 },  // Unknown
+                                       { 0,  0, 0,  0,    0, 0, 0, 0, 0, 0 }   // Unknown
                                      };
 
 // Floppy drives types as taken from CMOS.  6 and 7 are not used.
@@ -234,6 +234,19 @@ void fdc_init_drive (fdc_t *fdc, Uint8 driveNum, Uint8 driveType) {
   fdc->drives[driveNum].currentHead = 0;
   fdc->drives[driveNum].currentSector = 0;
 
+/*
+  kprintf ("driveinfo\n");
+  kprintf ("DI->maxCylinder %d\n", fdc->drives[driveNum].driveinfo.maxCylinder);
+  kprintf ("DI->maxHead     %d\n", fdc->drives[driveNum].driveinfo.maxHead);
+  kprintf ("DI->spt         %d\n", fdc->drives[driveNum].driveinfo.sectorsPerTrack);
+  kprintf ("DI->gap3        %d\n", fdc->drives[driveNum].driveinfo.gap3);
+  kprintf ("DI->sectorDTL   %d\n", fdc->drives[driveNum].driveinfo.sectorDTL);
+  kprintf ("DI->stepRate    %d\n", fdc->drives[driveNum].driveinfo.stepRate);
+  kprintf ("DI->loadTime    %d\n", fdc->drives[driveNum].driveinfo.loadTime);
+  kprintf ("DI->unloadTime  %d\n", fdc->drives[driveNum].driveinfo.unloadTime);
+  kprintf ("DI->usePIO      %d\n", fdc->drives[driveNum].driveinfo.usePIO);
+*/
+
   // Calibrate drive
   fdc_switch_active_drive (&fdc->drives[driveNum], 1);
   fdc_calibrate_drive ();
@@ -297,9 +310,10 @@ Uint8 fdc_get_controller_version (void) {
  * Converts LBA sector to CHS format
  */
 void fdc_convert_LBA_to_CHS (fdc_drive_t *drive, Uint32 lba_sector, Uint32 *cylinder, Uint32 *head, Uint32 *sector) {
-  *cylinder = lba_sector / (drive->driveinfo.sectorsPerTrack * 2 );
-  *head = ( lba_sector % ( drive->driveinfo.sectorsPerTrack * 2 ) ) / ( drive->driveinfo.sectorsPerTrack );
-  *sector = lba_sector % drive->driveinfo.sectorsPerTrack + 1;
+  *cylinder = lba_sector / (drive->driveinfo.sectorsPerTrack * drive->driveinfo.maxHead);
+  Uint32 tmp = lba_sector % (drive->driveinfo.sectorsPerTrack * drive->driveinfo.maxHead);
+  *head = tmp / drive->driveinfo.sectorsPerTrack;
+  *sector = tmp % drive->driveinfo.sectorsPerTrack + 1;
 }
 
 /**
@@ -319,7 +333,7 @@ void fdc_read_floppy_sector_CHS (Uint32 cylinder, Uint32 head, Uint32 sector) {
   fdc_send_command (cylinder);
   fdc_send_command (head);    // Strange, we already send this info, but FDC needs it twice..
   fdc_send_command (sector);
-  fdc_send_command (_currentDrive->driveinfo.sectorDTL );
+  fdc_send_command (_currentDrive->driveinfo.sectorDTL);
   fdc_send_command (( ( sector + 1 ) >= _currentDrive->driveinfo.sectorsPerTrack ) ? _currentDrive->driveinfo.sectorsPerTrack : sector + 1 );
   fdc_send_command (_currentDrive->driveinfo.gap3 );
   fdc_send_command (0xff);

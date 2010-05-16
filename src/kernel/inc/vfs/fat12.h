@@ -34,6 +34,23 @@ typedef struct {
     Uint16  Reserved[6];
 } fat12_bpb_t;
 
+#pragma pack(1)
+typedef struct {
+  Uint8   Filename[8];           //filename
+  Uint8   Ext[3];                //extension (8.3 filename format)
+  Uint8   Attrib;                //file attributes
+  Uint8   Reserved;
+  Uint8   TimeCreatedMs;         //creation time
+  Uint16  TimeCreated;
+  Uint16  DateCreated;           //creation date
+  Uint16  DateLastAccessed;
+  Uint16  FirstClusterHiBytes;
+  Uint16  LastModTime;           //last modification date/time
+  Uint16  LastModDate;
+  Uint16  FirstCluster;          //first cluster of file data
+  Uint32  FileSize;              //size in bytes
+} fat12_dirent_t;
+
 typedef char * fat12_fat_t;
 
   fs_node_t *fat12_init (int driveNum);
