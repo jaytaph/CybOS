@@ -106,11 +106,13 @@ void kernel_entry (int stack_start, int total_sys_memory) {
   sti ();
 
   kprintf ("VFS ");
-  fs_root = fat12_init (0);
+  vfs_init ();
+  fs_root = fat12_init ();
+// @TODO: Something like this? sys_mount (&fdc[0].drive[0], "/");
 
   // Read
   int i = 0;
-  struct dirent *node = 0;
+  fs_dirent_t *node = 0;
   while ( (node = readdir_fs(fs_root, i)) != 0) {
     kprintf("Found dir '%s'", node->name);
 

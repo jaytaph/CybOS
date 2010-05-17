@@ -34,9 +34,9 @@
 
 
     // Directory entry
-    struct dirent {
+    typedef struct dirent {
         char    name[128];
-        inode_t inode;
+        inode_t inode_nr;
     } fs_dirent_t;
 
     // File entry
@@ -66,7 +66,7 @@
     Uint32 write_fs (fs_node_t *node, Uint32 offset, Uint32 size, char *buffer);
     void open_fs(fs_node_t *node);
     void close_fs(fs_node_t *node);
-    struct dirent *readdir_fs(fs_node_t *node, Uint32 index);
+    fs_dirent_t *readdir_fs(fs_node_t *node, Uint32 index);
     fs_node_t *finddir_fs(fs_node_t *node, char *name);
     void vfs_init (void);
 

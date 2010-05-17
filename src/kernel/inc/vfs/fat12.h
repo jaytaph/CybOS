@@ -9,6 +9,9 @@
 
 #include "drivers/floppy.h"
 
+// Fat structure is array of chars
+typedef char * fat12_fat_t;
+
 #pragma pack(1)
 typedef struct {
     Uint8   jmp_command[3];
@@ -62,11 +65,26 @@ typedef struct {
   Uint32      flags;                  // File flags
   Uint32      currentCluster;         // Current cluser
   Uint16      currentClusterOffset;   // Offset in the cluster
-  fdc_drive_t *currentDrive;          // While drive
 } fat12_file_t;
 
-typedef char * fat12_fat_t;
+typedef struct {
+	Uint8  numSectors;
+	Uint32 fatOffset;
+	Uint8  fatSizeBytes;
+	Uint8  fatSizeSectors;
+	Uint8  fatEntrySizeBits;
+	Uint32 numRootEntries;
+	Uint32 numRootEntriesPerSector;
+	Uint32 rootEntrySectors;
+	Uint32 rootOffset;
+	Uint32 rootSizeSectors;
+	Uint32 dataOffset;
 
-  fs_node_t *fat12_init (int driveNum);
+  fat12_bpb_t *bpb;            // Pointer to Bios Parameter Block
+  fat12_fat_t *fat;            // Pointer to (primary) FAT table
+} fat12_fatinfo_t;
+
+
+  fs_node_t *fat12_init (void);
 
 #endif // __VFS_FAT12_H__

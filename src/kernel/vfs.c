@@ -38,3 +38,7 @@ fs_node_t *finddir_fs(fs_node_t *node, char *name) {
     if ((node->flags & 0x7) != FS_DIRECTORY) return NULL;
     return (node->finddir == NULL) ? NULL : node->finddir (node, name);
 }
+
+void vfs_init (void) {
+  // Create VFS root hierarchy
+}
