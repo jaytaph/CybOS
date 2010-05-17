@@ -391,12 +391,12 @@ void fdc_read_floppy_sector (fdc_drive_t *drive, Uint32 lba_sector, char *buffer
   // Start motor
   fdc_control_motor (1);
 
-  kprintf ("Read floppy sector: %08X\n", lba_sector);
+//  kprintf ("Read floppy sector: %08X\n", lba_sector);
 
   // Convert LBA sector to CHS
   fdc_convert_LBA_to_CHS (_currentDrive, lba_sector, &c, &h, &s);
 
-  kprintf ("C: %d  H: %d   S: %d\n", c, h, s);
+//  kprintf ("C: %d  H: %d   S: %d\n", c, h, s);
 
   // Seek correct cylinder (and head)
   while (! fdc_seek_floppy_cylinder (c, h)) ;

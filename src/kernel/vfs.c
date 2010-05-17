@@ -28,12 +28,14 @@ void close_fs(fs_node_t *node) {
 }
 
 struct dirent *readdir_fs(fs_node_t *node, Uint32 index) {
+  kprintf ("\n\nreaddir_fs (%s, %d)\n", node->name, index);
     // Check if it's a directory
     if ((node->flags & 0x7) != FS_DIRECTORY) return NULL;
     return (node->readdir == NULL) ? NULL : node->readdir (node, index);
 }
 
 fs_node_t *finddir_fs(fs_node_t *node, char *name) {
+  kprintf ("\n\nfinddir_fs (%s, '%s')\n", node->name, name);
     // Check if it's a directory
     if ((node->flags & 0x7) != FS_DIRECTORY) return NULL;
     return (node->finddir == NULL) ? NULL : node->finddir (node, name);

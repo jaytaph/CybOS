@@ -13,11 +13,13 @@
 
 fat12_fatinfo_t fat12_info;   // FAT information table (offsets and sizes)
 
-fs_dirent_t dirent;   // Entry that gets returned by fat12_[read|find]dir
+fs_dirent_t dirent;   // Entry that gets returned by fat12_readdir
+fs_node_t filenode;   // Entry that gets returned by fat12_finddir
 
 // Forward defines
 void fat12_convert_dos_to_c_filename (char *longName, const char *dosName);
 void fat12_convert_c_to_dos_filename (const char *longName, char *dosName);
+Uint16 fat12_get_next_cluster (Uint16 cluster);
 
 /**
  *
@@ -50,7 +52,6 @@ void fat12_close (fs_node_t *node) {
 }
 
 
-
 /**
  *
  */
@@ -70,45 +71,150 @@ fs_dirent_t *fat12_readdir (fs_node_t *node, Uint32 index) {
 
   // Do we need to read the root directory?
   if (node->inode_nr == 0) {
-    // Read from correct root directory sector
-
     // @TODO: we should read from block device instead of direct from floppy
     fdc_read_floppy_sector (&fdc[0].drives[0], fat12_info.rootOffset+sectorNeeded, (char *)direntbuf);
 
-    // Seek correcy entry
-    fat12_dirent_t *direntbufptr = direntbuf;
-    for (i=0; i!=indexNeeded; i++) direntbufptr+=sizeof (fat12_dirent_t);
-
-    // No more entries when first char of filename is 0
-    if (direntbufptr->Filename[0] == 0) {
-      kfree ((Uint32)direntbuf);
-      return NULL;
-    }
-
-    // Create returning value
-    fat12_convert_dos_to_c_filename (dirent.name, (char *)direntbufptr->Filename);
-    dirent.inode_nr = direntbufptr->FirstCluster;
-
-    kfree ((Uint32)direntbuf);
-    return &dirent;
-
   } else {
-    // Read from subdirectory (starting on cluster inode_nr)
-    kpanic ("Cannot read from subdir yet.");
+    // First start cluster (which is the INODE number :P), and seek N'th cluster
+    Uint16 cluster = node->inode_nr;
+    for (i=0; i!=sectorNeeded; i++) cluster = fat12_get_next_cluster (cluster);
+
+    // Read this cluster
+    fdc_read_floppy_sector (&fdc[0].drives[0], fat12_info.dataOffset+cluster, (char *)direntbuf);
   }
 
+  // Seek correcy entry
+  fat12_dirent_t *direntbufptr = direntbuf;
+  for (i=0; i!=indexNeeded; i++) direntbufptr+=sizeof (fat12_dirent_t);
+
+  // No more entries when first char of filename is 0
+  if (direntbufptr->Filename[0] == 0) {
+    kfree ((Uint32)direntbuf);
+    return NULL;
+  }
+
+  // Create returning value
+  fat12_convert_dos_to_c_filename (dirent.name, (char *)direntbufptr->Filename);
+  dirent.inode_nr = direntbufptr->FirstCluster;
 
   kfree ((Uint32)direntbuf);
-  return NULL;
+  return &dirent;
 }
+
+
+/**
+ * Returns:
+ *   0 = end of buffer, need more data
+ *   1 = found item. filenode is filled
+ *   2 = no more entries
+ */
+int fat12_parseDirectorySector (fat12_dirent_t *direntbuf, fs_node_t *node, const char *dosName) {
+  kprintf ("fat12_parseDirectorySector\n");
+  fat12_dirent_t *direntbufptr = direntbuf;
+  int j;
+
+  // Browse all entries in the sector
+  for (j=0; j!=fat12_info.numRootEntriesPerSector; j++, direntbufptr++) {
+    // No more entries when first char of filename is 0
+    if (direntbufptr->Filename[0] == 0) return 2;
+
+    // Is this the correct file?
+    if (strncmp (dosName, (char *)direntbufptr->Filename, 11) == 0) {
+      // Copy parent data (so we don't have to set functions etc)
+      memcpy (&filenode, node, sizeof (fs_node_t));
+
+      // Create returning value
+      filenode.inode_nr = direntbufptr->FirstCluster;
+      fat12_convert_dos_to_c_filename (filenode.name, (char *)direntbufptr->Filename);
+      filenode.owner = 0;
+      filenode.length = direntbufptr->FileSize;
+      filenode.flags = (direntbufptr->Attrib == 0x10) ? FS_DIRECTORY : FS_FILE;
+      filenode.ptr = 0;
+
+      return 1;
+    }
+  } // for entries
+
+  // All entries parsed, more entries probably available and not yet found
+  return 0;
+}
+
 
 /**
  *
  */
 fs_node_t *fat12_finddir (fs_node_t *node, char *name) {
-    // Check if it's a directory
-    if ((node->flags & 0x7) != FS_DIRECTORY) return NULL;
-    return (node->finddir == NULL) ? NULL : node->finddir (node, name);
+  char dosName[12];
+  int i;
+
+  // Check if it's a directory
+  if ((node->flags & 0x7) != FS_DIRECTORY) return NULL;
+
+  // Convert filename to FAT name
+  fat12_convert_c_to_dos_filename (name, dosName);
+
+  // Allocate buffer memory for directory entry
+  fat12_dirent_t *direntbuf = (fat12_dirent_t *)kmalloc (fat12_info.bpb->BytesPerSector);
+
+  // Do we need to read the root directory?
+  if (node->inode_nr == 0) {
+    // Read all root directory sectors until we reach the correct one or end of sectors
+
+    for (i=0; i!=fat12_info.rootSizeSectors; i++) {
+      // Read directory sector
+      fdc_read_floppy_sector (&fdc[0].drives[0], fat12_info.rootOffset+i, (char *)direntbuf);
+
+      int ret = fat12_parseDirectorySector (direntbuf, node, dosName);
+      switch (ret) {
+        case 0 :
+                  // More directories needed, read next sector
+                  break;
+        case 1 :
+                  // Directory found
+                  kfree ((Uint32)direntbuf);
+                  return &filenode;
+        case 2 :
+                  // No directory found and end of buffer
+                  kfree ((Uint32)direntbuf);
+                  return NULL;
+      }
+    } // for sectors
+
+  } else {
+    // Read 'normal' subdirectory
+
+    Uint16 cluster = node->inode_nr;
+    kprintf ("Cluster: %04x\n", cluster);
+
+    // Do as long as we have file entries (always padded on sector which is always divved by 512)
+    do {
+      // read 1 sector at a time
+      fdc_read_floppy_sector (&fdc[0].drives[0], fat12_info.dataOffset+cluster, (char *)direntbuf);
+
+      int ret = fat12_parseDirectorySector (direntbuf, node, dosName);
+      switch (ret) {
+        case 0 :
+                  // More directories needed, read next sector
+                  break;
+        case 1 :
+                  // Directory found
+                  kfree ((Uint32)direntbuf);
+                  return &filenode;
+        case 2 :
+                  // No directory found and end of buffer
+                  kfree ((Uint32)direntbuf);
+                  return NULL;
+      }
+
+      // Fetch next cluster from file
+      cluster = fat12_get_next_cluster (cluster);
+      kprintf ("New Cluster: %04x\n", cluster);
+      // Repeat until we hit end of cluster list
+    } while (cluster > 0x002 && cluster <= 0xFF7);
+  }
+
+  kfree ((Uint32)direntbuf);
+  return NULL;
 }
 
 
@@ -313,7 +419,7 @@ fs_node_t *fat12_init (void) {
   fat12_info.numRootEntriesPerSector = fat12_info.bpb->BytesPerSector / 32;
   fat12_info.rootOffset              = (fat12_info.bpb->NumberOfFats * fat12_info.bpb->SectorsPerFat) + 1;
   fat12_info.rootSizeSectors         = (fat12_info.bpb->NumDirEntries * 32 ) / fat12_info.bpb->BytesPerSector;
-  fat12_info.dataOffset              = fat12_info.rootOffset + (fat12_info.bpb->NumberOfFats * fat12_info.bpb->SectorsPerFat) + 1 - 2;
+  fat12_info.dataOffset              = fat12_info.rootOffset + fat12_info.rootSizeSectors - 2;
 
 /*
   kprintf ("FAT12INFO\n");
