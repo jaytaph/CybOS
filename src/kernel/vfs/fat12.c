@@ -66,6 +66,11 @@ fs_dirent_t *fat12_readdir (fs_node_t *node, Uint32 index) {
   int sectorNeeded = index / dirsPerSector;   // Sector we need (@TODO: problem when sector != cluster)
   int indexNeeded = index % dirsPerSector;    // N'th entry in this sector needed
 
+//  kprintf ("dirsPerSector : %d\n", dirsPerSector);
+//  kprintf ("sectorNeeded  : %d\n", sectorNeeded);
+//  kprintf ("indexNeeded   : %d\n", indexNeeded);
+
+
   // Create entry that holds 1 sector
   fat12_dirent_t *direntbuf = (fat12_dirent_t *)kmalloc (fat12_info.bpb->BytesPerSector);
 
@@ -109,7 +114,7 @@ fs_dirent_t *fat12_readdir (fs_node_t *node, Uint32 index) {
  *   2 = no more entries
  */
 int fat12_parseDirectorySector (fat12_dirent_t *direntbuf, fs_node_t *node, const char *dosName) {
-  kprintf ("fat12_parseDirectorySector\n");
+//  kprintf ("fat12_parseDirectorySector\n");
   fat12_dirent_t *direntbufptr = direntbuf;
   int j;
 
@@ -117,6 +122,8 @@ int fat12_parseDirectorySector (fat12_dirent_t *direntbuf, fs_node_t *node, cons
   for (j=0; j!=fat12_info.numRootEntriesPerSector; j++, direntbufptr++) {
     // No more entries when first char of filename is 0
     if (direntbufptr->Filename[0] == 0) return 2;
+
+//    kprintf ("Equal: '%s' and '%s' \n", dosName, direntbufptr->Filename);
 
     // Is this the correct file?
     if (strncmp (dosName, (char *)direntbufptr->Filename, 11) == 0) {
@@ -184,7 +191,7 @@ fs_node_t *fat12_finddir (fs_node_t *node, char *name) {
     // Read 'normal' subdirectory
 
     Uint16 cluster = node->inode_nr;
-    kprintf ("Cluster: %04x\n", cluster);
+//    kprintf ("Cluster: %04x\n", cluster);
 
     // Do as long as we have file entries (always padded on sector which is always divved by 512)
     do {
@@ -208,7 +215,7 @@ fs_node_t *fat12_finddir (fs_node_t *node, char *name) {
 
       // Fetch next cluster from file
       cluster = fat12_get_next_cluster (cluster);
-      kprintf ("New Cluster: %04x\n", cluster);
+//      kprintf ("New Cluster: %04x\n", cluster);
       // Repeat until we hit end of cluster list
     } while (cluster > 0x002 && cluster <= 0xFF7);
   }
@@ -264,6 +271,17 @@ void fat12_convert_c_to_dos_filename (const char *longName, char *dosName) {
   for (i=0; i!=11; i++) dosName[i] = ' ';
   dosName[11] = 0;
 
+  if (strcmp (longName, ".") == 0) {
+    dosName[0] = '.';
+    return;
+  }
+
+  if (strcmp (longName, "..") == 0) {
+    dosName[0] = '.';
+    dosName[1] = '.';
+    return;
+  }
+
   // Find offset of the extension
   i=0;
   char *extension = NULL;
@@ -309,7 +327,7 @@ fat12_dirent_t *obs_fat12_search_root_directory (const char *dirName) {
   fat12_convert_c_to_dos_filename (dirName, dosName);
 
   kflush ();
-  kprintf ("LONG2DOS : '%s'", dosName);
+//  kprintf ("LONG2DOS : '%s'", dosName);
 
   // Browse all root directory sectors
   fat12_dirent_t *direntbuf = (fat12_dirent_t *)kmalloc (fat12_info.bpb->BytesPerSector);

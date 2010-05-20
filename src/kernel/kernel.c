@@ -39,30 +39,39 @@
   void tprintf (const char *fmt, ...);
 
 
+/**
+ *
+ */
 void readdir (fs_node_t *root, int depth) {
+  fs_dirent_t *node;
   int index = 0;
   int j;
-  fs_dirent_t *node = NULL;
 
-  while ( (node = readdir_fs(root, index)) != NULL) {
-    fs_node_t *fsnode = finddir_fs(root, node->name);
-    if (! fsnode) break;
+  while (node = readdir_fs (root, index), node != NULL) {
+    fs_node_t *fsnode = finddir_fs (root, node->name);
+    if (! fsnode) continue;
+
+//    kprintf ("\n");
+//    kprintf ("--------------------\n");
+//    kprintf ("NAME: '%s'\n", fsnode->name);
+//    kprintf ("INODE: '%d'\n", fsnode->inode_nr);
+//    kprintf ("--------------------\n");
 
     kprintf ("\n");
-    kprintf ("--------------------\n");
-    kprintf ("NAME: '%s'\n", fsnode->name);
-    kprintf ("INODE: '%d'\n", fsnode->inode_nr);
-    kprintf ("--------------------\n");
-
     for (j=0; j!=depth; j++) kprintf ("  ");
-    if ((fsnode->flags&0x7) == FS_DIRECTORY)  {
-      kprintf ("<%s>\n", fsnode->name);
-      if (fsnode->name[0] != '.') readdir (fsnode, depth+1);
+    if ((fsnode->flags & FS_DIRECTORY) == FS_DIRECTORY)  {
+      kprintf ("*** OUTPUT: <%s>\n", fsnode->name);
+      if (fsnode->name[0] != '.') {
+        kprintf ("Entering directory...\n");
+        readdir (fsnode, depth+1);
+      }
     } else {
-      kprintf ("%s\n", fsnode->name);
+      kprintf ("*** OUTPUT: %s\n", fsnode->name);
     }
+    kprintf ("Doing next entry, node is still '%s'\n", root->name);
     index++;
   }
+  kprintf ("Done in directory...\n");
 }
 
 

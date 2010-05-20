@@ -23,38 +23,34 @@
 
     struct fs_node; // Forward declaration
 
-    // File function defines
-    typedef Uint32(*read_type_t)(struct fs_node *, Uint32, Uint32, char *);
-    typedef Uint32(*write_type_t)(struct fs_node *, Uint32, Uint32, char *);
-    typedef void (*open_type_t)(struct fs_node *);
-    typedef void (*close_type_t)(struct fs_node *);
-    typedef struct dirent * (*readdir_type_t)(struct fs_node *, Uint32);
-    typedef struct fs_node * (*finddir_type_t)(struct fs_node *, char *);
+    // All available file operations
+    struct fs_file_ops {
+      Uint32(*read)(struct fs_node *, Uint32, Uint32, char *);
+      Uint32(*write)(struct fs_node *, Uint32, Uint32, char *);
+      void (*open)(struct fs_node *);
+      void (*close)(struct fs_node *);
+      struct dirent * (*readdir)(struct fs_node *, Uint32);
+      struct fs_node * (*finddir)(struct fs_node *, char *);
+    };
 
 
 
     // Directory entry
     typedef struct dirent {
-        char    name[128];
-        inode_t inode_nr;
+        char    name[128];    // Name of the directory
+        inode_t inode_nr;     // Inode
     } fs_dirent_t;
 
     // File entry
     typedef struct fs_node {
-        inode_t        inode_nr;        // Inode
-        char           name[128];       // Filename
-        Uint32         owner;           // Owner ID
-        Uint32         length;          // File length
-        Uint32         flags;           // Node type
+        inode_t             inode_nr;        // Inode
+        char                name[128];       // Filename
+        Uint32              owner;           // Owner ID
+        Uint32              length;          // File length
+        Uint32              flags;           // Node type
 
-        read_type_t    read;            // Function pointers
-        write_type_t   write;
-        open_type_t    open;
-        close_type_t   close;
-        readdir_type_t readdir;
-        finddir_type_t finddir;
-
-        struct fs_node  *ptr;           // Symlink and mount points
+        struct fs_file_ops  fileops;         // File operations
+        struct fs_node      *ptr;            // Symlink and mount points
     } fs_node_t;
 
 
