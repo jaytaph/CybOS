@@ -12,8 +12,8 @@
     // Defines for flags
     #define FS_FILE          0x01
     #define FS_DIRECTORY     0x02
-    #define FS_CHARDEVICE    0x03
-    #define FS_BLOCKDEVICE   0x04
+    #define FS_CHARDEVICE    0x03   // Major and minor must be set
+    #define FS_BLOCKDEVICE   0x04   // Major and minor must be set
     #define FS_PIPE          0x05
     #define FS_SYMLINK       0x06
     #define FS_MOUNTPOINT    0x08
@@ -48,6 +48,8 @@
         Uint32              owner;           // Owner ID
         Uint32              length;          // File length
         Uint32              flags;           // Node type
+        Uint8               majorNum;        // Major number (only for devices)
+        Uint8               minorNum;        // Minor number (only for devices)
 
         struct fs_file_ops  fileops;         // File operations
         struct fs_node      *ptr;            // Symlink and mount points

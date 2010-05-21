@@ -44,12 +44,20 @@
  */
 void readdir (fs_node_t *root, int depth) {
   fs_dirent_t *node;
+  fs_dirent_t stacknode;
+  fs_node_t stackfsnode;
   int index = 0;
   int j;
 
   while (node = readdir_fs (root, index), node != NULL) {
+    // Copy node, this will be overwritten on recursive call
+    memcpy (&stacknode, node, sizeof (fs_node_t));
+
     fs_node_t *fsnode = finddir_fs (root, node->name);
     if (! fsnode) continue;
+
+    memcpy (&stackfsnode, fsnode, sizeof (fs_node_t));
+
 
 //    kprintf ("\n");
 //    kprintf ("--------------------\n");
@@ -135,19 +143,22 @@ void kernel_entry (int stack_start, int total_sys_memory) {
   kprintf ("DMA ");
   dma_init ();
 
-  // Init floppy disk controllers
+  kprintf ("VFS ");
+  vfs_init ();
+
+  kprintf ("DEV ");
+  device_init ();
+
+  // Init floppy disk controllers and drives
   kprintf ("FDC ");
   fdc_init ();
 
   // Start interrupts
   sti ();
 
-  kprintf ("VFS ");
-  vfs_init ();
-
   kprintf ("FAT ");
   fs_root = fat12_init ();
-// @TODO: Something like this? sys_mount (&fdc[0].drive[0], "/");
+  // @ later on, something like this? : sys_mount ("/DEVICES/FLOPPY0", "/", fat12);
 
   // Read root directory (with depth 0)
   readdir (fs_root, 0);

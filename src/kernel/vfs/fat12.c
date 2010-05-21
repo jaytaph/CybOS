@@ -85,6 +85,7 @@ fs_dirent_t *fat12_readdir (fs_node_t *node, Uint32 index) {
     for (i=0; i!=sectorNeeded; i++) cluster = fat12_get_next_cluster (cluster);
 
     // Read this cluster
+    // @TODO: we should read from block device instead of direct from floppy
     fdc_read_floppy_sector (&fdc[0].drives[0], fat12_info.dataOffset+cluster, (char *)direntbuf);
   }
 
@@ -169,6 +170,7 @@ fs_node_t *fat12_finddir (fs_node_t *node, char *name) {
 
     for (i=0; i!=fat12_info.rootSizeSectors; i++) {
       // Read directory sector
+      // @TODO: we should read from block device instead of direct from floppy
       fdc_read_floppy_sector (&fdc[0].drives[0], fat12_info.rootOffset+i, (char *)direntbuf);
 
       int ret = fat12_parseDirectorySector (direntbuf, node, dosName);
@@ -196,6 +198,7 @@ fs_node_t *fat12_finddir (fs_node_t *node, char *name) {
     // Do as long as we have file entries (always padded on sector which is always divved by 512)
     do {
       // read 1 sector at a time
+      // @TODO: we should read from block device instead of direct from floppy
       fdc_read_floppy_sector (&fdc[0].drives[0], fat12_info.dataOffset+cluster, (char *)direntbuf);
 
       int ret = fat12_parseDirectorySector (direntbuf, node, dosName);
@@ -334,6 +337,7 @@ fat12_dirent_t *obs_fat12_search_root_directory (const char *dirName) {
   fat12_dirent_t *direntbufptr = direntbuf;
   for (i=0; i!=fat12_info.rootSizeSectors; i++) {
     // Read directory sector
+    // @TODO: we should read from block device instead of direct from floppy
     fdc_read_floppy_sector (&fdc[0].drives[0], fat12_info.rootOffset+i, (char *)direntbuf);
 
     // Browse all entries in the sector
@@ -409,6 +413,7 @@ fs_node_t *fat12_init (void) {
 
   // Allocate and read BPB
   fat12_info.bpb = (fat12_bpb_t *)kmalloc (sizeof (fat12_bpb_t));
+  // @TODO: we should read from block device instead of direct from floppy
   fdc_read_floppy_sector (&fdc[0].drives[0], 0, (char *)fat12_info.bpb);
 
 /*
@@ -458,6 +463,7 @@ fs_node_t *fat12_init (void) {
   int i;
   fat12_info.fat = (fat12_fat_t *)kmalloc (fat12_info.fatSizeBytes);
   for (i=0; i!=fat12_info.fatSizeSectors; i++) {
+    // @TODO: we should read from block device instead of direct from floppy
     fdc_read_floppy_sector (&fdc[0].drives[0], fat12_info.fatOffset+i, (char *)fat12_info.fat+(i*512));
   }
 /*
@@ -473,6 +479,7 @@ fs_node_t *fat12_init (void) {
   fat12_dirent_t *direntbuf = (fat12_dirent_t *)kmalloc (_bpb->BytesPerSector);
   fat12_dirent_t *dirent;
   for (i=0; i!=fat12_info.rootSizeSectors; i++) {
+    // @TODO: we should read from block device instead of direct from floppy
     fdc_read_floppy_sector (&fdc[0].drives[0], fat12_info.rootOffset+i, (char *)direntbuf);
     for (dirent = direntbuf, j=0; j!=fat12_info.numRootEntriesPerSector; j++,dirent++) {
       kprintf ("-------------\n");
@@ -532,6 +539,7 @@ void fat12_read_file_data (fat12_file_t *file, char *buffer, Uint32 byte_count) 
 
   do {
     // Read current cluster  @TODO: error when cluster size != sector size!
+    // @TODO: we should read from block device instead of direct from floppy
     fdc_read_floppy_sector (&fdc[0].drives[0], file->currentCluster, (char *)cluster);
 
     // Do we have some bytes left in this cluster? Read them all by default

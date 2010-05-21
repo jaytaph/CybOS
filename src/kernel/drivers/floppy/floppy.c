@@ -216,7 +216,7 @@ int fdc_calibrate_drive () {
  */
 void fdc_init_drive (fdc_t *fdc, Uint8 driveNum, Uint8 driveType) {
 //  kprintf ("fdc_switch_active_drive (%d/%d)\n", fdc->controllerNum, driveNum);
-  // Can only do drive 0 or drive 1 (@TODO: what about drive 2 and 3?)
+  // Can only do drive 0 or drive 1
   if (driveNum > 1) return;
 
   // Drive type must be 0..7
@@ -227,12 +227,30 @@ void fdc_init_drive (fdc_t *fdc, Uint8 driveNum, Uint8 driveType) {
 
   fdc->drives[driveNum].driveType = driveType;    // Drive number on the FDC (0 or 1)
   fdc->drives[driveNum].driveNum = driveNum;
-  fdc->drives[driveNum].fdc = fdc;    // Backwards link, needed to find FDC from a fdc_drive_t structure
+  fdc->drives[driveNum].fdc = fdc;                // Backwards link, needed to find FDC from a fdc_drive_t structure
 
   // Set default CHS values
   fdc->drives[driveNum].currentCylinder = 0;
   fdc->drives[driveNum].currentHead = 0;
   fdc->drives[driveNum].currentSector = 0;
+
+
+  // Register device so we can access it
+  device_t *device = (device_t *)kmalloc (sizeof (device_t));
+  device->majorNum = 1;
+  device->minorNum = (fdc->controllerNum * 2) + driveNum;
+
+  device->read = fdc_block_read;
+  device->write = fdc_block_write;
+  device->open = fdc_block_open;
+  device->close = fdc_block_close;
+  device->seek = fdc_block_seek;
+
+  char filename[11];
+  strcpy (filename, "FLOPPY");
+  filename[6] = (char)("0" + device->minorNum);
+
+  device_register (device, filename);
 
 /*
   kprintf ("driveinfo\n");
@@ -483,4 +501,26 @@ void fdc_init (void) {
 
   // Done with floppy stuff. No need for IRQ's at this moment
   cli ();
+}
+
+
+
+Uint32 fdc_block_read (Uint8 major, Uint8 minor, Uint32 offset, Uint32 size, char *buffer) {
+  kprintf ("fdc_block_read(%d, %d, %d, %d, %08X)\n", major, minor, offset, size, buffer);
+}
+Uint32 fdc_block_write (Uint8 major, Uint8 minor, Uint32 offset, Uint32 size, char *buffer) {
+  kprintf ("fdc_block_write(%d, %d, %d, %d, %08X)\n", major, minor, offset, size, buffer);
+  kprintf ("write to floppy not supported yet\n");
+}
+void fdc_block_open(Uint8 major, Uint8 minor) {
+  kprintf ("fdc_block_open(%d, %d)\n", major, minor);
+  // Doesn't do anything. Device already open?
+}
+void fdc_block_close(Uint8 major, Uint8 minor) {
+  kprintf ("fdc_block_close(%d, %d)\n", major, minor);
+  // Doesn't do anything. Device never closes?
+}
+void fdc_block_seek(Uint8 major, Uint8 minor, Uint32 offset, Uint8 direction) {
+  kprintf ("fdc_block_seek(%d, %d, %d, %d)\n", major, minor, offset, direction);
+  // Doesn't do anything.
 }
