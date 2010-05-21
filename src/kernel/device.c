@@ -39,7 +39,7 @@ int register_device (device_t *dev, const char *filename) {
   tmp->next = dev;
   dev->next = NULL;
 
-  // @TODO: add filename to /DEVICES/filename directory
+  // @TODO: add filename to /DEVICES/filename directory ??
 
 
   return 1;

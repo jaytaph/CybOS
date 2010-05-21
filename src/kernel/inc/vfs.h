@@ -25,15 +25,19 @@
 
     // All available file operations
     struct fs_file_ops {
+    };
+
+
+    struct fs_mount_t {
+      block_dev_t  *device;       // Which device is used to acces this mount
+
       Uint32(*read)(struct fs_node *, Uint32, Uint32, char *);
       Uint32(*write)(struct fs_node *, Uint32, Uint32, char *);
       void (*open)(struct fs_node *);
       void (*close)(struct fs_node *);
       struct dirent * (*readdir)(struct fs_node *, Uint32);
       struct fs_node * (*finddir)(struct fs_node *, char *);
-    };
-
-
+    }
 
     // Directory entry
     typedef struct dirent {
@@ -51,8 +55,7 @@
         Uint8               majorNum;        // Major number (only for devices)
         Uint8               minorNum;        // Minor number (only for devices)
 
-        struct fs_file_ops  fileops;         // File operations
-        struct fs_node      *ptr;            // Symlink and mount points
+        struct fs_mount_t   mount;           // Link to the mount data
     } fs_node_t;
 
 
@@ -66,6 +69,7 @@
     void close_fs(fs_node_t *node);
     fs_dirent_t *readdir_fs(fs_node_t *node, Uint32 index);
     fs_node_t *finddir_fs(fs_node_t *node, char *name);
+
     void vfs_init (void);
 
 

@@ -9,6 +9,15 @@
 
     #include "ktype.h"
 
+    /* All major node numbers for devices. By accessing the file, the kernel
+     * knows which driver is responsible for handling */
+    #define DEV_MAJOR_MISC          0   // Misc devices (null, zero, rand etc)
+    #define DEV_MAJOR_FDC           1   // Floppy disks
+    #define DEV_MAJOR_HDD           2   // Hard disks
+    #define DEV_MAJOR_CONSOLES      3   // Consoles (3,0 = kconsole)
+
+
+
     typedef struct {
       Uint8  majorNum;            // Major device node
       Uint8  minorNum;            // Minor device node

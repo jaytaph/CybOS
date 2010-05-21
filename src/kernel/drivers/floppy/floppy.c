@@ -237,7 +237,7 @@ void fdc_init_drive (fdc_t *fdc, Uint8 driveNum, Uint8 driveType) {
 
   // Register device so we can access it
   device_t *device = (device_t *)kmalloc (sizeof (device_t));
-  device->majorNum = 1;
+  device->majorNum = DEV_MAJOR_FLOPPY;
   device->minorNum = (fdc->controllerNum * 2) + driveNum;
 
   device->read = fdc_block_read;
@@ -246,6 +246,7 @@ void fdc_init_drive (fdc_t *fdc, Uint8 driveNum, Uint8 driveType) {
   device->close = fdc_block_close;
   device->seek = fdc_block_seek;
 
+  // Create device name
   char filename[11];
   strcpy (filename, "FLOPPY");
   filename[6] = (char)("0" + device->minorNum);
