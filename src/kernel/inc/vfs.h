@@ -1,3 +1,5 @@
+
+
 /******************************************************************************
  *
  *  File        : vfs.h
@@ -58,6 +60,10 @@
     typedef struct {
       char tag[15];
       char name[100];
+
+      // NOTE: FILESYSTEMS MUST TAKE CARE OF THEIR OWN REFCOUNT IF THERE IS GLOBAL DATA
+      Uint32 (*mount)(struct vfs_node *, device_t *);    // Called when a device is mounted to a specific node
+      Uint32 (*umount)(struct vfs_node);                 // Called when a device is unmounted
     } vfs_info_t;
 
     // There will be a maximum of 100 different filesystems that can be loaded (@todo: linkedlist)
@@ -84,6 +90,7 @@
         Uint8         majorNum;        // Major number (only for devices)
         Uint8         minorNum;        // Minor number (only for devices)
 
+        vfs_fileops_t *old_fileops;    // Saved when another system is mounted on top
         vfs_fileops_t *fileops;        // Link to the file operations for this file
     } vfs_node_t;
 
@@ -102,6 +109,7 @@
 
 
     int sys_mount (const char *device, const char *mount_point, const char *fs_type);
+    int sys_umount (const char *mount_point);
 
     void vfs_init (void);
 

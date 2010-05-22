@@ -13,7 +13,7 @@
 #include "vfs/cybfs.h"
 
 
-vfs_info_t cybfs_vfs_info = { "cybfs", "CybOS File System" };
+vfs_info_t cybfs_vfs_info = { "cybfs", "CybOS File System", NULL, NULL };
 
 
 char helloworlddata[] = "Hello world!\nThis file is the first readable file from CybOS!\n\nHave fun!\n\0";

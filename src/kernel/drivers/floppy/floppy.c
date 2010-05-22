@@ -13,10 +13,15 @@
 /**
  * Functions that explicitly use output commands (like read,seek,reset etc), do not get
  * the fdc_drive_t argument but use the _currentDrive. This is because the controller
- * needs to be initialized to the correct drive.
+ * needs to be initialized to the correct drive. It only remembers the settings for 1 drive
+ * so we must switch settings when we use a different drive. The _currentDrive variable
+ * holds the data that is currently set in the FDC. Note: since we can have 2 fdc's, we should
+ * have 2 _currentDrives (per controller). However, for simplicity we do not. So if you are
+ * reading from fdc0drive1 and writing to fdc1drive1 for example, it would continously switch
+ * but it really would not have to.
  */
 
-// Constants for drive driveinfo
+// Constants for drive driveinfo. These are hardcoded per drive type
 const fdc_driveinfo_t driveinfo[8] = {
                                        { 0,  0, 0,  0,    0, 0, 0, 0, 0, 0 },  // No drive
                                        { 0,  0, 0,  0,    0, 0, 0, 0, 0, 0 },  // 360KB 5.25"
@@ -42,7 +47,7 @@ const char *floppyTypes[] = { "no drive",
 // Flag to be set as soon as IRQ happens (set by IRQ handler)
 static volatile Uint8 fdc_receivedIRQ = 0;
 
-// Buffer (in DMA memory <16MB) for DMA transfers, TODO: @allocate per controller
+// Buffer (in DMA memory <16MB) for DMA transfers, @TODO: @allocate per controller
 char *floppyDMABuffer;
 
 // There can be only 1 drive active since all drives use IRQ6/DMA2. This var holds
@@ -121,18 +126,13 @@ int fdc_switch_active_drive (fdc_drive_t *drive, int force_select) {
   if (! force_select &&
       _currentDrive->fdc->controllerNum == drive->fdc->controllerNum &&
       _currentDrive->driveNum == drive->driveNum) {
-//    kprintf ("fdc_switch_active_drive (%d/%d): already there...\n", drive->fdc->controllerNum, drive->driveNum);
     return 0;
   }
-
-//  kprintf ("fdc_switch_active_drive (%d)", drive->driveNum);
 
   // Set the current drive
   _currentDrive = drive;
 
-//  kprintf ("Specify\n");
-
-    // Initialise drive mode (needed on every switch)
+  // Initialise drive mode (needed on every switch)
   Uint32 data = 0;
   fdc_send_command (FC_SPECIFY);
 
@@ -148,7 +148,6 @@ int fdc_switch_active_drive (fdc_drive_t *drive, int force_select) {
 
   return 1;
 }
-
 
 
 /**
@@ -168,6 +167,7 @@ void fdc_control_motor (Uint8 motorOn) {
   }
 }
 
+
 /**
  * Check interrupt status of FDC
  */
@@ -176,6 +176,7 @@ void fdc_check_interrupt_status (Uint32 *statusRegister, Uint32 *currentCylinder
   *statusRegister = fdc_recv_data ();
   *currentCylinder = fdc_recv_data ();
 }
+
 
 /**
  * Calibrate floppy disk by setting the cylinder to cylinder 0
@@ -186,8 +187,6 @@ int fdc_calibrate_drive () {
 
   // Set motor
   fdc_control_motor (1);
-
-//  kprintf ("Calibrate drive %d/%d\n", _currentDrive->fdc->controllerNum, _currentDrive->driveNum);
 
   // Do a few times
   for (i=0; i<10; i++) {
@@ -208,9 +207,6 @@ int fdc_calibrate_drive () {
   fdc_control_motor (0);
   return 0;
 }
-
-
-
 
 
 /**
@@ -247,9 +243,11 @@ void fdc_reset_controller (fdc_t *fdc) {
  * Return floppy controller version
  */
 Uint8 fdc_get_controller_version (void) {
+  // Fetch version for this controller
   fdc_send_command (FC_VERSION);
-
   Uint8 controllerVersion = fdc_recv_data ();
+
+  // Do we support it?
   switch (controllerVersion) {
     case 0xFF: // No controller. Does not matter
                break;
@@ -263,8 +261,10 @@ Uint8 fdc_get_controller_version (void) {
                break;
   }
 
+  // Apparently so...
   return controllerVersion;
 }
+
 
 /**
  * Converts LBA sector to CHS format
@@ -276,13 +276,12 @@ void fdc_convert_LBA_to_CHS (fdc_drive_t *drive, Uint32 lba_sector, Uint32 *cyli
   *sector = tmp % drive->driveinfo.sectorsPerTrack + 1;
 }
 
+
 /**
  * Reads CHS data
  */
 void fdc_read_floppy_sector_CHS (Uint32 cylinder, Uint32 head, Uint32 sector) {
   Uint32 st0, cyl;
-
-//  kprintf ("READ_FLOPPY_SECTOR_CHS\n");
 
   // Tell DMA we are reading from buffer
   dma_set_read (DMA_FLOPPY_CHANNEL);
@@ -311,6 +310,7 @@ void fdc_read_floppy_sector_CHS (Uint32 cylinder, Uint32 head, Uint32 sector) {
   _currentDrive->result.sector = fdc_recv_data ();
   _currentDrive->result.size   = fdc_recv_data ();
 
+  // We need to fetch the status back
   fdc_check_interrupt_status (&st0, &cyl);
 }
 
@@ -323,17 +323,17 @@ int fdc_seek_floppy_cylinder (Uint32 cylinder, Uint8 head) {
   int i;
 
   for (i=0; i!=10; i++) {
-//    kprintf ("seek_floppy_cylinder (%d, %d)\n", _currentDrive->driveNum, cylinder, head);
-
+    // Send seek command
     fdc_send_command (FC_SEEK);
     fdc_send_command ((head) << 2 | _currentDrive->driveNum);
     fdc_send_command (cylinder);
 
+    // Wait for controller and check if we are present on the correct cylinder
     fdc_wait_for_irq ();
     fdc_check_interrupt_status (&st0, &cyl);
-//    kprintf ("ST0: %02X CYL: %02X\n", st0, cyl);
     if (cyl == cylinder) return 1;      // We are at the correct cylinder
   }
+
   // Not (yet) there..
   return 0;
 }
@@ -350,8 +350,6 @@ void fdc_read_floppy_sector (fdc_drive_t *drive, Uint32 lba_sector, char *buffer
 
   // Start motor
   fdc_control_motor (1);
-
-//  kprintf ("Read floppy sector: %08X\n", lba_sector);
 
   // Convert LBA sector to CHS
   fdc_convert_LBA_to_CHS (_currentDrive, lba_sector, &c, &h, &s);

@@ -32,11 +32,13 @@
   // 64bit tick counter
   Uint64 _kernel_ticks;
 
+  // When set to 1, the kernel console automatically flushes after each character plotted.
   Uint8 _kflush = 1;
 
   // The tasklist of all cybos processes/tasks
   extern task_t *_task_list;
 
+  // Forward defines
   void tprintf (const char *fmt, ...);
   int get_boot_parameter (const char *boot_parameters, const char *arg, char *buffer);
 

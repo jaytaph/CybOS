@@ -24,7 +24,34 @@ void fat12_convert_c_to_dos_filename (const char *longName, char *dosName);
 Uint16 fat12_get_next_cluster (Uint16 cluster);
 
 
-vfs_info_t fat12_vfs_info = { "fat12", "FAT File System (FAT12)" };
+// Holds how many times a FAT12 mount is mounted
+static int fat12_mountcount = 0;
+
+/**
+ * Called when a device that holds a FAT12 image gets mounted onto a mount_point
+ */
+Uint32 fat12_mount (struct vfs_node *mount_point, device_t *dev) {
+  // Increase mount count
+  fat12_mountcount++;
+}
+
+/**
+ * Called when a mount_point gets unmounted
+ */
+Uint32 fat12_umount (struct vfs_node *mount_point) {
+  // Decrease FAT12 mount count
+  fat12_mountcount--;
+
+  if (fat12_mountcount == 0) {
+    kprintf ("All FAT12 mounts are unmounted.\n");
+  } else {
+    kprintf ("There are still %d FAT12 mounts left.\n", fat12_mountcount);
+  }
+}
+
+
+
+vfs_info_t fat12_vfs_info = { "fat12", "FAT File System (FAT12)", fat12_mount, fat12_umount };
 
 
 /**
@@ -407,6 +434,13 @@ vfs_node_t *fat12_init_root_node (void) {
  * Initialises the FAT12 on current drive
  */
 void fat12_init (void) {
+  // Register filesystem to the VFS
+  vfs_register_filesystem (&fat12_vfs_info);
+}
+
+
+// @TODO: This must be removed and initialized when we are mounting a system (only at that point do we have a device)
+void obsolete_fat12_init (void) {
   // Allocate root node for this filesystem
 //  vfs_node_t *fat12_root_node = fat12_init_root_node ();
 
@@ -498,9 +532,6 @@ void fat12_init (void) {
     }
   }
 */
-
-  // Register filesystem to the VFS
-  vfs_register_filesystem (&fat12_vfs_info);
 }
 
 

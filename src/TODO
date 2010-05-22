@@ -7,9 +7,6 @@ Things todo (prioritized top down)
  (*) High level paging support
  (*) Virtual Memory Manager
  (*) Freeing unused memory between 0x90000 and 0x9FFFF after init
-        * PAGEDIR         0x9F000
-        * PAGETABLE_1MB   0x9E000
-        * KERNEL_IDT_ADDR 0x9C000
  (*) IDT GDT through kmalloc instead of fixed addresses
  (*) idletask (and others) on ring3
  (*) Signals
@@ -26,3 +23,4 @@ Things todo (prioritized top down)
  ( ) Kernel.bin gzip (?)
  (*) kernel-init commands from boot (ie: root=/DEVICES/FLOPPY0)
  ( ) Errors should be done better. (errno.h)
+ ( ) Fix all TODO's and @TODO's
