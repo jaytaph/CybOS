@@ -21,9 +21,17 @@ void device_init (void) {
 
 /**
  * Adds device entry to the device list and creates file system entry
+ * @TODO: Use linked list for devices as well
  */
 int device_register (device_t *dev, const char *filename) {
   device_t *tmp = devices;
+
+  // There are no devices yet, this is the first device. Special case
+  if (devices == NULL) {
+    devices = dev;
+    dev->next = NULL;
+    return 1;
+  }
 
   // See if device already exists
   while (tmp) {
@@ -33,7 +41,7 @@ int device_register (device_t *dev, const char *filename) {
 
   // Send end of device list
   tmp = devices;
-  while (tmp->next != NULL) tmp = (device_t *)tmp->next;
+  while (tmp->next) tmp = (device_t *)tmp->next;
 
   // Add device to end
   tmp->next = (struct device_t *)dev;

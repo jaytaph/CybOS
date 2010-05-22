@@ -115,12 +115,12 @@ void kernel_entry (int stack_start, int total_sys_memory, char *boot_params) {
   kprintf ("DEV ");
   device_init ();     // Creates /DEVICES
 
+  // Start interrupts, needed because we now do IRQ's for floppy access
+  sti ();
+
   // Init floppy disk controllers and drives
   kprintf ("FDC ");
   fdc_init ();
-
-  // Start interrupts, needed because we now do IRQ's for floppy
-  sti ();
 
   kprintf ("FAT ");
   fat12_init ();

@@ -372,6 +372,92 @@ void fdc_read_floppy_sector (fdc_drive_t *drive, Uint32 lba_sector, char *buffer
 }
 
 
+
+Uint32 fdc_block_read (Uint8 major, Uint8 minor, Uint32 offset, Uint32 size, char *buffer) {
+  kprintf ("fdc_block_read(%d, %d, %d, %d, %08X)\n", major, minor, offset, size, buffer);
+  return 0;
+}
+Uint32 fdc_block_write (Uint8 major, Uint8 minor, Uint32 offset, Uint32 size, char *buffer) {
+  kprintf ("fdc_block_write(%d, %d, %d, %d, %08X)\n", major, minor, offset, size, buffer);
+  kprintf ("write to floppy not supported yet\n");
+  return 0;
+}
+void fdc_block_open(Uint8 major, Uint8 minor) {
+  kprintf ("fdc_block_open(%d, %d)\n", major, minor);
+  // Doesn't do anything. Device already open?
+}
+void fdc_block_close(Uint8 major, Uint8 minor) {
+  kprintf ("fdc_block_close(%d, %d)\n", major, minor);
+  // Doesn't do anything. Device never closes?
+}
+void fdc_block_seek(Uint8 major, Uint8 minor, Uint32 offset, Uint8 direction) {
+  kprintf ("fdc_block_seek(%d, %d, %d, %d)\n", major, minor, offset, direction);
+  // Doesn't do anything.
+}
+
+
+/**
+ *
+ */
+void fdc_init_drive (fdc_t *fdc, Uint8 driveNum, Uint8 driveType) {
+//  kprintf ("fdc_switch_active_drive (%d/%d)\n", fdc->controllerNum, driveNum);
+  // Can only do drive 0 or drive 1
+  if (driveNum > 1) return;
+
+  // Drive type must be 0..7
+  if (driveType > 8) return;
+
+  // Copy driveinfo data for this drive
+  memcpy ((char *)&fdc->drives[driveNum].driveinfo, (char *)&driveinfo[driveType], sizeof (fdc_drive_t));
+
+  fdc->drives[driveNum].driveType = driveType;    // Drive number on the FDC (0 or 1)
+  fdc->drives[driveNum].driveNum = driveNum;
+  fdc->drives[driveNum].fdc = fdc;                // Backwards link, needed to find FDC from a fdc_drive_t structure
+
+  // Set default CHS values
+  fdc->drives[driveNum].currentCylinder = 0;
+  fdc->drives[driveNum].currentHead = 0;
+  fdc->drives[driveNum].currentSector = 0;
+
+
+  // Register device so we can access it
+  device_t *device = (device_t *)kmalloc (sizeof (device_t));
+  device->majorNum = DEV_MAJOR_FDC;
+  device->minorNum = (fdc->controllerNum * 2) + driveNum;
+
+  device->read = fdc_block_read;
+  device->write = fdc_block_write;
+  device->open = fdc_block_open;
+  device->close = fdc_block_close;
+  device->seek = fdc_block_seek;
+
+  // Create device name
+  // @TODO: use sprintf(filename, "FLOPPY%d", device->minorNum);
+  char filename[11];
+  strcpy ((char *)&filename, "FLOPPY");
+  filename[6] = '0' + device->minorNum;
+
+  device_register (device, filename);
+
+/*
+  kprintf ("driveinfo\n");
+  kprintf ("DI->maxCylinder %d\n", fdc->drives[driveNum].driveinfo.maxCylinder);
+  kprintf ("DI->maxHead     %d\n", fdc->drives[driveNum].driveinfo.maxHead);
+  kprintf ("DI->spt         %d\n", fdc->drives[driveNum].driveinfo.sectorsPerTrack);
+  kprintf ("DI->gap3        %d\n", fdc->drives[driveNum].driveinfo.gap3);
+  kprintf ("DI->sectorDTL   %d\n", fdc->drives[driveNum].driveinfo.sectorDTL);
+  kprintf ("DI->stepRate    %d\n", fdc->drives[driveNum].driveinfo.stepRate);
+  kprintf ("DI->loadTime    %d\n", fdc->drives[driveNum].driveinfo.loadTime);
+  kprintf ("DI->unloadTime  %d\n", fdc->drives[driveNum].driveinfo.unloadTime);
+  kprintf ("DI->usePIO      %d\n", fdc->drives[driveNum].driveinfo.usePIO);
+*/
+
+  // Calibrate drive
+  fdc_switch_active_drive (&fdc->drives[driveNum], 1);
+  fdc_calibrate_drive ();
+}
+
+
 /**
  *
  */
@@ -425,105 +511,15 @@ void fdc_init_controller (fdc_t *fdc, Uint8 controllerNum, Uint32 baseAddress, c
   fdc_reset_controller (fdc);
 }
 
-
 /**
  *
  */
 void fdc_init (void) {
   int i, fdcBaseAddr;
 
-  // Needed since floppy init depends on IRQ's
-  sti ();
-
   // Try to initialise 2 controllers
   for (i=0; i!=2; i++) {
     fdcBaseAddr = (i == 0) ? FDC0_BASEADDR : FDC1_BASEADDR;
     fdc_init_controller (&fdc[i], i, fdcBaseAddr, floppyDMABuffer, FDC_DMABUFFER_SIZE);
   }
-
-  // Done with floppy stuff. No need for IRQ's at this moment
-  cli ();
-}
-
-
-
-Uint32 fdc_block_read (Uint8 major, Uint8 minor, Uint32 offset, Uint32 size, char *buffer) {
-  kprintf ("fdc_block_read(%d, %d, %d, %d, %08X)\n", major, minor, offset, size, buffer);
-}
-Uint32 fdc_block_write (Uint8 major, Uint8 minor, Uint32 offset, Uint32 size, char *buffer) {
-  kprintf ("fdc_block_write(%d, %d, %d, %d, %08X)\n", major, minor, offset, size, buffer);
-  kprintf ("write to floppy not supported yet\n");
-}
-void fdc_block_open(Uint8 major, Uint8 minor) {
-  kprintf ("fdc_block_open(%d, %d)\n", major, minor);
-  // Doesn't do anything. Device already open?
-}
-void fdc_block_close(Uint8 major, Uint8 minor) {
-  kprintf ("fdc_block_close(%d, %d)\n", major, minor);
-  // Doesn't do anything. Device never closes?
-}
-void fdc_block_seek(Uint8 major, Uint8 minor, Uint32 offset, Uint8 direction) {
-  kprintf ("fdc_block_seek(%d, %d, %d, %d)\n", major, minor, offset, direction);
-  // Doesn't do anything.
-}
-
-
-/**
- *
- */
-void fdc_init_drive (fdc_t *fdc, Uint8 driveNum, Uint8 driveType) {
-//  kprintf ("fdc_switch_active_drive (%d/%d)\n", fdc->controllerNum, driveNum);
-  // Can only do drive 0 or drive 1
-  if (driveNum > 1) return;
-
-  // Drive type must be 0..7
-  if (driveType > 8) return;
-
-  // Copy driveinfo data for this drive
-  memcpy ((char *)&fdc->drives[driveNum].driveinfo, (char *)&driveinfo[driveType], sizeof (fdc_drive_t));
-
-  fdc->drives[driveNum].driveType = driveType;    // Drive number on the FDC (0 or 1)
-  fdc->drives[driveNum].driveNum = driveNum;
-  fdc->drives[driveNum].fdc = fdc;                // Backwards link, needed to find FDC from a fdc_drive_t structure
-
-  // Set default CHS values
-  fdc->drives[driveNum].currentCylinder = 0;
-  fdc->drives[driveNum].currentHead = 0;
-  fdc->drives[driveNum].currentSector = 0;
-
-
-  // Register device so we can access it
-  device_t *device = (device_t *)kmalloc (sizeof (device_t));
-  device->majorNum = DEV_MAJOR_FDC;
-  device->minorNum = (fdc->controllerNum * 2) + driveNum;
-
-  device->read = fdc_block_read;
-  device->write = fdc_block_write;
-  device->open = fdc_block_open;
-  device->close = fdc_block_close;
-  device->seek = fdc_block_seek;
-
-  // Create device name
-  char filename[11];
-  strcpy (filename, "FLOPPY");
-  filename[6] = (char)("0" + device->minorNum);
-
-  device_register (device, filename);
-
-/*
-  kprintf ("driveinfo\n");
-  kprintf ("DI->maxCylinder %d\n", fdc->drives[driveNum].driveinfo.maxCylinder);
-  kprintf ("DI->maxHead     %d\n", fdc->drives[driveNum].driveinfo.maxHead);
-  kprintf ("DI->spt         %d\n", fdc->drives[driveNum].driveinfo.sectorsPerTrack);
-  kprintf ("DI->gap3        %d\n", fdc->drives[driveNum].driveinfo.gap3);
-  kprintf ("DI->sectorDTL   %d\n", fdc->drives[driveNum].driveinfo.sectorDTL);
-  kprintf ("DI->stepRate    %d\n", fdc->drives[driveNum].driveinfo.stepRate);
-  kprintf ("DI->loadTime    %d\n", fdc->drives[driveNum].driveinfo.loadTime);
-  kprintf ("DI->unloadTime  %d\n", fdc->drives[driveNum].driveinfo.unloadTime);
-  kprintf ("DI->usePIO      %d\n", fdc->drives[driveNum].driveinfo.usePIO);
-*/
-
-  // Calibrate drive
-  fdc_switch_active_drive (&fdc->drives[driveNum], 1);
-  fdc_calibrate_drive ();
 }
