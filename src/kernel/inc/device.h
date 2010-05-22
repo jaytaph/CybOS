@@ -16,8 +16,6 @@
     #define DEV_MAJOR_HDD           2   // Hard disks
     #define DEV_MAJOR_CONSOLES      3   // Consoles (3,0 = kconsole)
 
-
-
     typedef struct {
       Uint8  majorNum;            // Major device node
       Uint8  minorNum;            // Minor device node
@@ -34,7 +32,7 @@
 
 
   int device_register (device_t *dev, const char *filename);
-  int device_unregister (device_node *dev);
+  int device_unregister (device_t *dev);
   void device_init (void);
 
 #endif // __DEVICE_H__

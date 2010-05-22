@@ -15,8 +15,8 @@
 
 fat12_fatinfo_t fat12_info;   // FAT information table (offsets and sizes)
 
-fs_dirent_t dirent;   // Entry that gets returned by fat12_readdir
-fs_node_t filenode;   // Entry that gets returned by fat12_finddir
+vfs_dirent_t dirent;   // Entry that gets returned by fat12_readdir
+vfs_node_t filenode;   // Entry that gets returned by fat12_finddir
 
 // Forward defines
 void fat12_convert_dos_to_c_filename (char *longName, const char *dosName);
@@ -26,36 +26,38 @@ Uint16 fat12_get_next_cluster (Uint16 cluster);
 /**
  *
  */
-Uint32 fat12_read (fs_node_t *node, Uint32 offset, Uint32 size, char *buffer) {
-    return node->block->read (node->block->major, node->block->minor, offset, size, buffer);
+Uint32 fat12_read (vfs_node_t *node, Uint32 offset, Uint32 size, char *buffer) {
+  return 0;
+//    return node->block->read (node->block->major, node->block->minor, offset, size, buffer);
 }
 
 /**
  *
  */
-Uint32 fat12_write (fs_node_t *node, Uint32 offset, Uint32 size, char *buffer) {
-  return node->block->write (node->block->major, node->block->minor, offset, size, buffer);
+Uint32 fat12_write (vfs_node_t *node, Uint32 offset, Uint32 size, char *buffer) {
+  return 0;
+//  return node->block->write (node->block->major, node->block->minor, offset, size, buffer);
 }
 
 /**
  *
  */
-void fat12_open (fs_node_t *node) {
-  node->block->open (node->block->major, node->block->minor);
+void fat12_open (vfs_node_t *node) {
+//  node->block->open (node->block->major, node->block->minor);
 }
 
 /**
  *
  */
-void fat12_close (fs_node_t *node) {
-  node->block->close (node->block->major, node->block->minor);
+void fat12_close (vfs_node_t *node) {
+//  node->block->close (node->block->major, node->block->minor);
 }
 
 
 /**
  *
  */
-fs_dirent_t *fat12_readdir (fs_node_t *node, Uint32 index) {
+vfs_dirent_t *fat12_readdir (vfs_node_t *node, Uint32 index) {
   int i;
 
   // Check if it's a directory
@@ -72,7 +74,7 @@ fs_dirent_t *fat12_readdir (fs_node_t *node, Uint32 index) {
   // Do we need to read the root directory?
   if (node->inode_nr == 0) {
     Uint32 offset = (fat12_info.rootOffset+sectorNeeded) * fat12_info.bpb->BytesPerSector;
-    node->block->read (node->block->major, node->block->minor, offset, fat12_info.bpb->BytesPerSector, direntbuf);
+//@TODO    node->block->read (node->block->major, node->block->minor, offset, fat12_info.bpb->BytesPerSector, direntbuf);
 
   } else {
     // First start cluster (which is the INODE number :P), and seek N'th cluster
@@ -81,7 +83,7 @@ fs_dirent_t *fat12_readdir (fs_node_t *node, Uint32 index) {
 
     // Read this cluster
     Uint32 offset = (fat12_info.dataOffset+cluster) * fat12_info.bpb->BytesPerSector;
-    node->block->read (node->block->major, node->block->minor, offset, fat12_info.bpb->BytesPerSector, direntbuf);
+//@TODO    node->block->read (node->block->major, node->block->minor, offset, fat12_info.bpb->BytesPerSector, direntbuf);
   }
 
   // Seek correcy entry
@@ -109,7 +111,7 @@ fs_dirent_t *fat12_readdir (fs_node_t *node, Uint32 index) {
  *   1 = found item. filenode is filled
  *   2 = no more entries
  */
-int fat12_parseDirectorySector (fat12_dirent_t *direntbuf, fs_node_t *node, const char *dosName) {
+int fat12_parseDirectorySector (fat12_dirent_t *direntbuf, vfs_node_t *node, const char *dosName) {
 //  kprintf ("fat12_parseDirectorySector\n");
   fat12_dirent_t *direntbufptr = direntbuf;
   int j;
@@ -124,7 +126,7 @@ int fat12_parseDirectorySector (fat12_dirent_t *direntbuf, fs_node_t *node, cons
     // Is this the correct file?
     if (strncmp (dosName, (char *)direntbufptr->Filename, 11) == 0) {
       // Copy parent data (so we don't have to set functions etc)
-      memcpy (&filenode, node, sizeof (fs_node_t));
+      memcpy (&filenode, node, sizeof (vfs_node_t));
 
       // Create returning value
       filenode.inode_nr = direntbufptr->FirstCluster;
@@ -132,7 +134,6 @@ int fat12_parseDirectorySector (fat12_dirent_t *direntbuf, fs_node_t *node, cons
       filenode.owner = 0;
       filenode.length = direntbufptr->FileSize;
       filenode.flags = (direntbufptr->Attrib == 0x10) ? FS_DIRECTORY : FS_FILE;
-      filenode.ptr = 0;
 
       return 1;
     }
@@ -146,7 +147,7 @@ int fat12_parseDirectorySector (fat12_dirent_t *direntbuf, fs_node_t *node, cons
 /**
  *
  */
-fs_node_t *fat12_finddir (fs_node_t *node, char *name) {
+vfs_node_t *fat12_finddir (vfs_node_t *node, char *name) {
   char dosName[12];
   int i;
 
@@ -166,7 +167,7 @@ fs_node_t *fat12_finddir (fs_node_t *node, char *name) {
     for (i=0; i!=fat12_info.rootSizeSectors; i++) {
       // Read directory sector
       Uint32 offset = (fat12_info.rootOffset+i) * fat12_info.bpb->BytesPerSector;
-      node->block->read (node->block->major, node->block->minor, offset, fat12_info.bpb->BytesPerSector, direntbuf);
+//@TODO      node->block->read (node->block->major, node->block->minor, offset, fat12_info.bpb->BytesPerSector, direntbuf);
 
       int ret = fat12_parseDirectorySector (direntbuf, node, dosName);
       switch (ret) {
@@ -194,7 +195,7 @@ fs_node_t *fat12_finddir (fs_node_t *node, char *name) {
     do {
       // read 1 sector at a time
       Uint32 offset = (fat12_info.dataOffset+cluster) * fat12_info.bpb->BytesPerSector;
-      node->block->read (node->block->major, node->block->minor, offset, fat12_info.bpb->BytesPerSector, direntbuf);
+//@TODO      node->block->read (node->block->major, node->block->minor, offset, fat12_info.bpb->BytesPerSector, direntbuf);
 
       int ret = fat12_parseDirectorySector (direntbuf, node, dosName);
       switch (ret) {
@@ -333,7 +334,7 @@ fat12_dirent_t *obs_fat12_search_root_directory (const char *dirName) {
   for (i=0; i!=fat12_info.rootSizeSectors; i++) {
     // Read directory sector
     Uint32 offset = (fat12_info.rootOffset+i) * fat12_info.bpb->BytesPerSector;
-    node->block->read (node->block->major, node->block->minor, offset, fat12_info.bpb->BytesPerSector, direntbuf);
+//@TODO    node->block->read (node->block->major, node->block->minor, offset, fat12_info.bpb->BytesPerSector, direntbuf);
 
     // Browse all entries in the sector
     for (j=0; j!=fat12_info.numRootEntriesPerSector; j++,direntbufptr++) {
@@ -367,9 +368,10 @@ fat12_dirent_t *obs_fat12_search_root_directory (const char *dirName) {
 /**
  * Allocates and initalizes the FAT12's entry root-node
  */
-fs_node_t *fat12_init_root_node (void) {
+/*
+vfs_node_t *fat12_init_root_node (void) {
   // Allocate root node
-  fs_node_t *root_node = (fs_node_t *)kmalloc (sizeof (fs_node_t));
+  vfs_node_t *root_node = (vfs_node_t *)kmalloc (sizeof (vfs_node_t));
 
   // Copy and set data
   strncpy (root_node->name, "root", 4);   // Never referenced, so name does not matter
@@ -394,15 +396,15 @@ fs_node_t *fat12_init_root_node (void) {
   // Return the node
   return root_node;
 }
-
+*/
 
 
 /**
  * Initialises the FAT12 on current drive
  */
-void fat12_init () {
+void fat12_init (void) {
   // Allocate root node for this filesystem
-  fs_node_t *fat12_root_node = fat12_init_root_node ();
+//  vfs_node_t *fat12_root_node = fat12_init_root_node ();
 
   // Zero out fat table
   memset (&fat12_info, 0, sizeof (fat12_fatinfo_t));
@@ -412,7 +414,7 @@ void fat12_init () {
 
   // Read first sector
   Uint32 offset = 0;
-  node->block->read (node->block->major, node->block->minor, offset, fat12_info.bpb->BytesPerSector, (char *)fat12_info.bpb);
+//@TODO  node->block->read (node->block->major, node->block->minor, offset, fat12_info.bpb->BytesPerSector, (char *)fat12_info.bpb);
 
 
 
@@ -464,7 +466,7 @@ void fat12_init () {
   fat12_info.fat = (fat12_fat_t *)kmalloc (fat12_info.fatSizeBytes);
   for (i=0; i!=fat12_info.fatSizeSectors; i++) {
     Uint32 offset = (fat12_info.fatOffset+i) * fat12_info.bpb->BytesPerSector;
-    node->block->read (node->block->major, node->block->minor, offset, fat12_info.bpb->BytesPerSector, (char *)fat12_info.fat+(i*512));
+//@TODO    node->block->read (node->block->major, node->block->minor, offset, fat12_info.bpb->BytesPerSector, (char *)fat12_info.fat+(i*512));
   }
 /*
   for (k=0, i=0; i!=10; i++) {
@@ -480,7 +482,7 @@ void fat12_init () {
   fat12_dirent_t *dirent;
   for (i=0; i!=fat12_info.rootSizeSectors; i++) {
     Uint32 offset = (fat12_info.rootOffset+i) * fat12_info.bpb->BytesPerSector;
-    node->block->read (node->block->major, node->block->minor, offset, fat12_info.bpb->BytesPerSector, direntbuf);
+//@TODO    node->block->read (node->block->major, node->block->minor, offset, fat12_info.bpb->BytesPerSector, direntbuf);
 
     for (dirent = direntbuf, j=0; j!=fat12_info.numRootEntriesPerSector; j++,dirent++) {
       kprintf ("-------------\n");
@@ -492,8 +494,6 @@ void fat12_init () {
     }
   }
 */
-
-  return fat12_root_node;
 }
 
 
@@ -541,7 +541,7 @@ void fat12_read_file_data (fat12_file_t *file, char *buffer, Uint32 byte_count) 
   do {
     // Read current cluster  @TODO: error when cluster size != sector size!
     Uint32 offset = file->currentCluster * fat12_info.bpb->BytesPerSector;
-    node->block->read (node->block->major, node->block->minor, offset, fat12_info.bpb->BytesPerSector, cluster);
+//@TODO    node->block->read (node->block->major, node->block->minor, offset, fat12_info.bpb->BytesPerSector, cluster);
 
     // Do we have some bytes left in this cluster? Read them all by default
     int count = 512-file->currentClusterOffset;

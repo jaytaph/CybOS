@@ -57,9 +57,11 @@ OBJS =  main.o \
         mutexasm.o \
         klib.o \
 	dma.o \
+	device.o \
         drivers/floppy/floppy.o \
         vfs.o \
-	vfs/fat12.o
+	vfs/fat12.o \
+	vfs/cybfs.o
 	
 
 

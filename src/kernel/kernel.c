@@ -27,6 +27,7 @@
 #include "drivers/floppy.h"
 #include "vfs.h"
 #include "vfs/fat12.h"
+#include "vfs/cybfs.h"
 
   // 64bit tick counter
   Uint64 _kernel_ticks;
@@ -42,44 +43,94 @@
 /**
  *
  */
-void readdir (fs_node_t *root, int depth) {
-  fs_dirent_t *node;
-  fs_dirent_t stacknode;
-  fs_node_t stackfsnode;
+void readdir (vfs_node_t *root, int depth) {
+  vfs_dirent_t *unsafe_dirent;
+  vfs_node_t *unsafe_node;
+  vfs_dirent_t local_dirent;
+  vfs_node_t local_node;
   int index = 0;
   int j;
 
-  while (node = readdir_fs (root, index), node != NULL) {
-    // Copy node, this will be overwritten on recursive call
-    memcpy (&stacknode, node, sizeof (fs_node_t));
+//  kprintf ("void readdir (%s, %d) {\n", root->name, depth);
 
-    fs_node_t *fsnode = finddir_fs (root, node->name);
-    if (! fsnode) continue;
+/*
+  dirent = vfs_readdir (root, 0);
+  node = vfs_finddir (root, dirent->name);
+  kprintf ("*** ENTRY: %d %s\n", node->inode_nr, node->name);
+  dirent = vfs_readdir (root, 1);
+  node = vfs_finddir (root, dirent->name);
+  kprintf ("*** ENTRY: %d %s\n", node->inode_nr, node->name);
+  dirent = vfs_readdir (root, 2);
+  node = vfs_finddir (root, dirent->name);
+  kprintf ("*** ENTRY: %d %s\n", node->inode_nr, node->name);
+  dirent = vfs_readdir (root, 3);
+  node = vfs_finddir (root, dirent->name);
+  kprintf ("*** ENTRY: %d %s\n", node->inode_nr, node->name);
+  dirent = vfs_readdir (root, 4);
+  node = vfs_finddir (root, dirent->name);
+  kprintf ("*** ENTRY: %d %s\n", node->inode_nr, node->name);
 
-    memcpy (&stackfsnode, fsnode, sizeof (fs_node_t));
+  dirent = vfs_readdir (root, 0);
+  node = vfs_finddir (root, dirent->name);
+  kprintf ("*** ENTRY: %d %s\n", node->inode_nr, node->name);
+
+  dirent = vfs_readdir (node, 0);
+  node = vfs_finddir (node, dirent->name);
+  kprintf ("*** ENTRY: %d %s\n", node->inode_nr, node->name);
+
+  for (;;);
+*/
+
+  while (unsafe_dirent = vfs_readdir (root, index), unsafe_dirent != NULL) {
+//    kprintf ("* Increasing index to %d\n", index+1);
+    index++;
+
+    // Copy to local scope
+//    kprintf ("* Saving dirent\n");
+    memcpy (&local_dirent, unsafe_dirent, sizeof (vfs_dirent_t));
+
+    // File cannot be found (huh?)
+//    kprintf ("* Finddir on %s\n", local_dirent.name);
+    unsafe_node = vfs_finddir (root, local_dirent.name);
+//    kprintf ("Finddir returned: %08X\n", unsafe_node);
+    if (! unsafe_node) continue;
+
+//    kprintf ("* Saving node %s\n", unsafe_node->name);
+
+    // Copy to local scope
+    memcpy (&local_node, unsafe_node, sizeof (vfs_node_t));
 
 
+//    kprintf ( "* Done. Now displaying\n");
 //    kprintf ("\n");
 //    kprintf ("--------------------\n");
 //    kprintf ("NAME: '%s'\n", fsnode->name);
 //    kprintf ("INODE: '%d'\n", fsnode->inode_nr);
 //    kprintf ("--------------------\n");
 
-    kprintf ("\n");
+//    kprintf ("\n");
     for (j=0; j!=depth; j++) kprintf ("  ");
-    if ((fsnode->flags & FS_DIRECTORY) == FS_DIRECTORY)  {
-      kprintf ("*** OUTPUT: <%s>\n", fsnode->name);
-      if (fsnode->name[0] != '.') {
-        kprintf ("Entering directory...\n");
-        readdir (fsnode, depth+1);
+    if ((local_node.flags & FS_DIRECTORY) == FS_DIRECTORY)  {
+      kprintf ("<%s>\n", local_node.name);
+      if (local_node.name[0] != '.') {
+//        kprintf ("Entering directory...\n");
+        readdir (&local_node, depth+1);
       }
     } else {
-      kprintf ("*** OUTPUT: %s\n", fsnode->name);
+      kprintf ("%s\n", local_node.name);
+
+      if (local_node.length != 0) {
+        char buf[512];
+        Uint32 size = vfs_read (&local_node, 0, 512, (char *)&buf);
+        kprintf ("--- File contents (%d bytes) -----------------\n", size);
+        kprintf ("%s", buf);
+        kprintf ("--- End File contents -------------\n");
+      }
     }
-    kprintf ("Doing next entry, node is still '%s'\n", root->name);
-    index++;
+//    kprintf ("Doing next entry, node is still '%s'\n", root->name);
+//    kprintf ("-----------------------------\n");
   }
-  kprintf ("Done in directory...\n");
+//  kprintf ("Done in directory...\n");
 }
 
 
@@ -102,9 +153,8 @@ void kernel_entry (int stack_start, int total_sys_memory) {
   kprintf ("Initializing CybOS kernel v%s.%s (%s)\n", KERNEL_VERSION_MAJOR, KERNEL_VERSION_MINOR, KERNEL_COMPILER);
   kprintf ("This kernel was compiled at %s on %s\n", KERNEL_COMPILE_TIME, KERNEL_COMPILE_DATE);
   kprintf ("Available system memory: %dKB (%dMB)\n", total_sys_memory / 1024, total_sys_memory / (1024*1024));
-  kprintf ("\n");
 
-  kprintf ("Initializing kernel components: [ ");
+  kprintf ("Initializing kernel components: \n[ ");
 
   kprintf ("GDT ");
   gdt_init ();
@@ -145,23 +195,29 @@ void kernel_entry (int stack_start, int total_sys_memory) {
 
   kprintf ("VFS ");
   vfs_init ();
+  cybfs_init ();      // Create CybFS root system
 
   kprintf ("DEV ");
-  device_init ();
+  device_init ();     // Creates /DEVICES
 
-  // Init floppy disk controllers and drives
-  kprintf ("FDC ");
-  fdc_init ();
+//  // Init floppy disk controllers and drives
+//  kprintf ("FDC ");
+//  fdc_init ();
 
-  // Start interrupts
-  sti ();
+  kprintf ("]\n");
 
-  kprintf ("FAT ");
-  fs_root = fat12_init ();
+//  // Start interrupts, needed because we now do IRQ's for floppy
+//  sti ();
+
+//  kprintf ("FAT ");
+//  fat12_init ();
+
+//  sys_mount ("/DEVICES/FLOPPY0", "/", "FAT12");
+
   // @ later on, something like this? : sys_mount ("/DEVICES/FLOPPY0", "/", fat12);
 
   // Read root directory (with depth 0)
-  readdir (fs_root, 0);
+  readdir (vfs_root, 0);
 
   kprintf ("All done.\n");
   for (;;) ;

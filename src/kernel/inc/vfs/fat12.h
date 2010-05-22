@@ -85,6 +85,6 @@ typedef struct {
 } fat12_fatinfo_t;
 
 
-  fs_node_t *fat12_init (void);
+  void fat12_init (void);
 
 #endif // __VFS_FAT12_H__
