@@ -10,6 +10,8 @@
     #include "ktype.h"
     #include "device.h"
 
+    #define VFS_MAX_FILESYSTEMS     100     // Maximum 100 filesystem
+
     // Defines for flags
     #define FS_FILE          0x01
     #define FS_DIRECTORY     0x02
@@ -51,6 +53,21 @@
       struct vfs_node * (*finddir)(struct vfs_node *, const char *);
     } vfs_fileops_t;
 
+
+    // Info block that is needed to register the filesystem
+    typedef struct {
+      char tag[15];
+      char name[100];
+    } vfs_info_t;
+
+    // There will be a maximum of 100 different filesystems that can be loaded (@todo: linkedlist)
+    vfs_info_t vfs_systems[VFS_MAX_FILESYSTEMS];
+
+    int vfs_register_filesystem (vfs_info_t *info);
+    int vfs_unregister_filesystem (const char *tag);
+
+
+
     // Directory entry
     typedef struct dirent {
         char    name[128];    // Name of the directory
@@ -82,6 +99,9 @@
     void vfs_close (vfs_node_t *node);
     vfs_dirent_t *vfs_readdir (vfs_node_t *node, Uint32 index);
     vfs_node_t *vfs_finddir (vfs_node_t *node, const char *name);
+
+
+    int sys_mount (const char *device, const char *mount_point, const char *fs_type);
 
     void vfs_init (void);
 

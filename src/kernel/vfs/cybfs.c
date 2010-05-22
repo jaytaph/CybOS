@@ -13,6 +13,9 @@
 #include "vfs/cybfs.h"
 
 
+vfs_info_t cybfs_vfs_info = { "cybfs", "CybOS File System" };
+
+
 char helloworlddata[] = "Hello world!\nThis file is the first readable file from CybOS!\n\nHave fun!\n\0";
 
 
@@ -72,6 +75,9 @@ void cybfs_init () {
 
   // Copy default file hierachy
   memcpy (&cybfs_nodes, &default_layout, sizeof (default_layout));
+
+  // Register filesystem to the VFS
+  vfs_register_filesystem (&cybfs_vfs_info);
 }
 
 

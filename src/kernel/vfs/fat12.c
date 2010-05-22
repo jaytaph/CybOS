@@ -23,6 +23,10 @@ void fat12_convert_dos_to_c_filename (char *longName, const char *dosName);
 void fat12_convert_c_to_dos_filename (const char *longName, char *dosName);
 Uint16 fat12_get_next_cluster (Uint16 cluster);
 
+
+vfs_info_t fat12_vfs_info = { "fat12", "FAT File System (FAT12)" };
+
+
 /**
  *
  */
@@ -494,6 +498,9 @@ void fat12_init (void) {
     }
   }
 */
+
+  // Register filesystem to the VFS
+  vfs_register_filesystem (&fat12_vfs_info);
 }
 
 

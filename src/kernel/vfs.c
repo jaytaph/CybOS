@@ -72,11 +72,11 @@ vfs_node_t *vfs_finddir(vfs_node_t *node, const char *name) {
   return node->fileops->finddir (node, name);
 }
 
+
 /**
- *
+ * // Create VFS root entry point.
  */
-void vfs_init (void) {
-  // Create VFS root hierarchy.
+void vfs_create_root_node () {
   vfs_node_t *node = (vfs_node_t *)kmalloc (sizeof (vfs_node_t));
 
   node->inode_nr = 0;
@@ -91,4 +91,84 @@ void vfs_init (void) {
 
   // This node is the main root
   vfs_root = node;
+}
+
+/**
+ * Return 1 when filesystem is registered (FAT12, CYBFS etc). 0 otherwise
+ */
+int vfs_is_registered (const char *tag) {
+  int i;
+
+  // Scan all fs slots
+  for (i=0; i!=VFS_MAX_FILESYSTEMS; i++) {
+    if (strcmp (tag, vfs_systems[i].tag) == 0) return 1;
+  }
+
+  // Not found
+  return 0;
+}
+
+/**
+ * Registers a new filesystem to the VFS
+ */
+int vfs_register_filesystem (vfs_info_t *info) {
+  int i;
+
+  // Scan all fs slots
+  for (i=0; i!=VFS_MAX_FILESYSTEMS; i++) {
+    // Already enabled, try next slot
+    if (vfs_systems[i].tag[0]) continue;
+
+    memcpy (&vfs_systems[i], info, sizeof (vfs_info_t));
+    return 1;
+  }
+
+  // No more room :(
+  return 0;
+}
+
+/**
+ * Unregisters a filesystem by tagname
+ */
+int vfs_unregister_filesystem (const char *tag) {
+  int i;
+
+  /* @TODO: see if we have mountpoints present that uses this filesystem. If so, we cannot
+   * disable this filesystem */
+
+  for (i=0; i!=VFS_MAX_FILESYSTEMS; i++) {
+    if (strcmp (tag, vfs_systems[i].tag) == 0) {
+      // disable filesystem. This is now a free slot again..
+      vfs_systems[i].tag[0] = 0;
+      return 1;
+    }
+  }
+
+  // Nothing found
+  return 0;
+}
+
+
+/**
+ *
+ */
+void vfs_init (void) {
+  // Clear all fs slot data
+  memset (vfs_systems, 0, sizeof (vfs_systems));
+
+  vfs_create_root_node ();
+}
+
+
+/**
+ *
+ */
+int sys_mount (const char *device, const char *mount_point, const char *fs_type) {
+  // Check if filesystem is registered
+  if (! vfs_is_registered (fs_type)) {
+    return 0;
+  }
+
+  kprintf ("Mounting %s onto %s as a %s filesystem\n", device, mount_point, fs_type);
+  return 1;
 }

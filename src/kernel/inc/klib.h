@@ -36,6 +36,7 @@
   int strlen (const char *str);
   int strcmp (const char *str1, const char *str2);
   int strncmp (const char *str1, const char *str2, int count);
+  char *strstr (const char *str1, const char *str2);
 
   void *memcpy (void *dst_ptr, const void *src_ptr, int count);
   void *memset (void *dst, int val, int count);

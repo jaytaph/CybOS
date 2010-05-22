@@ -24,4 +24,5 @@ Things todo (prioritized top down)
  ( ) Network driver
  ( ) IPv4 Stack
  ( ) Kernel.bin gzip (?)
- (*) kernel-init commands from boot (ie: root=/DEVICES/FLOPPY0) 
+ (*) kernel-init commands from boot (ie: root=/DEVICES/FLOPPY0)
+ ( ) Errors should be done better. (errno.h)

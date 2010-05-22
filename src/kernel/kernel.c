@@ -38,100 +38,7 @@
   extern task_t *_task_list;
 
   void tprintf (const char *fmt, ...);
-
-
-/**
- *
- */
-void readdir (vfs_node_t *root, int depth) {
-  vfs_dirent_t *unsafe_dirent;
-  vfs_node_t *unsafe_node;
-  vfs_dirent_t local_dirent;
-  vfs_node_t local_node;
-  int index = 0;
-  int j;
-
-//  kprintf ("void readdir (%s, %d) {\n", root->name, depth);
-
-/*
-  dirent = vfs_readdir (root, 0);
-  node = vfs_finddir (root, dirent->name);
-  kprintf ("*** ENTRY: %d %s\n", node->inode_nr, node->name);
-  dirent = vfs_readdir (root, 1);
-  node = vfs_finddir (root, dirent->name);
-  kprintf ("*** ENTRY: %d %s\n", node->inode_nr, node->name);
-  dirent = vfs_readdir (root, 2);
-  node = vfs_finddir (root, dirent->name);
-  kprintf ("*** ENTRY: %d %s\n", node->inode_nr, node->name);
-  dirent = vfs_readdir (root, 3);
-  node = vfs_finddir (root, dirent->name);
-  kprintf ("*** ENTRY: %d %s\n", node->inode_nr, node->name);
-  dirent = vfs_readdir (root, 4);
-  node = vfs_finddir (root, dirent->name);
-  kprintf ("*** ENTRY: %d %s\n", node->inode_nr, node->name);
-
-  dirent = vfs_readdir (root, 0);
-  node = vfs_finddir (root, dirent->name);
-  kprintf ("*** ENTRY: %d %s\n", node->inode_nr, node->name);
-
-  dirent = vfs_readdir (node, 0);
-  node = vfs_finddir (node, dirent->name);
-  kprintf ("*** ENTRY: %d %s\n", node->inode_nr, node->name);
-
-  for (;;);
-*/
-
-  while (unsafe_dirent = vfs_readdir (root, index), unsafe_dirent != NULL) {
-//    kprintf ("* Increasing index to %d\n", index+1);
-    index++;
-
-    // Copy to local scope
-//    kprintf ("* Saving dirent\n");
-    memcpy (&local_dirent, unsafe_dirent, sizeof (vfs_dirent_t));
-
-    // File cannot be found (huh?)
-//    kprintf ("* Finddir on %s\n", local_dirent.name);
-    unsafe_node = vfs_finddir (root, local_dirent.name);
-//    kprintf ("Finddir returned: %08X\n", unsafe_node);
-    if (! unsafe_node) continue;
-
-//    kprintf ("* Saving node %s\n", unsafe_node->name);
-
-    // Copy to local scope
-    memcpy (&local_node, unsafe_node, sizeof (vfs_node_t));
-
-
-//    kprintf ( "* Done. Now displaying\n");
-//    kprintf ("\n");
-//    kprintf ("--------------------\n");
-//    kprintf ("NAME: '%s'\n", fsnode->name);
-//    kprintf ("INODE: '%d'\n", fsnode->inode_nr);
-//    kprintf ("--------------------\n");
-
-//    kprintf ("\n");
-    for (j=0; j!=depth; j++) kprintf ("  ");
-    if ((local_node.flags & FS_DIRECTORY) == FS_DIRECTORY)  {
-      kprintf ("<%s>\n", local_node.name);
-      if (local_node.name[0] != '.') {
-//        kprintf ("Entering directory...\n");
-        readdir (&local_node, depth+1);
-      }
-    } else {
-      kprintf ("%s\n", local_node.name);
-
-      if (local_node.length != 0) {
-        char buf[512];
-        Uint32 size = vfs_read (&local_node, 0, 512, (char *)&buf);
-        kprintf ("--- File contents (%d bytes) -----------------\n", size);
-        kprintf ("%s", buf);
-        kprintf ("--- End File contents -------------\n");
-      }
-    }
-//    kprintf ("Doing next entry, node is still '%s'\n", root->name);
-//    kprintf ("-----------------------------\n");
-  }
-//  kprintf ("Done in directory...\n");
-}
+  int get_boot_parameter (const char *boot_parameters, const char *arg, char *buffer);
 
 
 /****************************************************************************
@@ -157,8 +64,13 @@ void kernel_entry (int stack_start, int total_sys_memory, char *boot_params) {
   kprintf ("\n");
 
 
-  kprintf ("Initializing kernel components: \n[ ");
+  /**
+   * Init global kernel components that always need to be available
+   */
 
+  kprintf ("Init components: [ ");
+
+  // Setup (new) global descriptor table
   kprintf ("GDT ");
   gdt_init ();
 
@@ -180,13 +92,13 @@ void kernel_entry (int stack_start, int total_sys_memory, char *boot_params) {
 
   /* Allocate a buffer for floppy DMA transfer. Needed here for now since we cannot
    * force <16MB allocation through the new VMM yet
-   * @TODO: Remove this as soon as we are able to use kmalloc () */
+   * @TODO: Remove this as soon as we are able to use kmalloc_dma () */
   kmalloc_pageboundary_physical (FDC_DMABUFFER_SIZE, (Uint32 *)&floppyDMABuffer);
 
   kprintf ("MEM ");
   heap_init();
 
-  // Everything is initialized for the kernel?
+  // @TODO: Must this be here, or later on when we are right before switching?
   _current_pagedirectory = clone_pagedirectory (_kernel_pagedirectory);
   set_pagedirectory (_current_pagedirectory);
 
@@ -198,70 +110,68 @@ void kernel_entry (int stack_start, int total_sys_memory, char *boot_params) {
 
   kprintf ("VFS ");
   vfs_init ();
-  cybfs_init ();      // Create CybFS root system
+  cybfs_init ();      // Creates CybFS root system
 
   kprintf ("DEV ");
   device_init ();     // Creates /DEVICES
 
-//  // Init floppy disk controllers and drives
-//  kprintf ("FDC ");
-//  fdc_init ();
+  // Init floppy disk controllers and drives
+  kprintf ("FDC ");
+  fdc_init ();
 
-  kprintf ("]\n");
+  // Start interrupts, needed because we now do IRQ's for floppy
+  sti ();
 
-//  // Start interrupts, needed because we now do IRQ's for floppy
-//  sti ();
-
-//  kprintf ("FAT ");
-//  fat12_init ();
-
-//  sys_mount ("/DEVICES/FLOPPY0", "/", "FAT12");
-
-  // @ later on, something like this? : sys_mount ("/DEVICES/FLOPPY0", "/", fat12);
-
-  // Read root directory (with depth 0)
-  readdir (vfs_root, 0);
-
-  kprintf ("All done.\n");
-  for (;;) ;
-
-
-
-/*
-  int sctr;
-  for (sctr=0; sctr!=5; sctr++) {
-    int o,i,j;
-    kprintf ("-----------------------------------------------\n");
-    fdc_read_floppy_sector (&fdc[0].drives[0], sctr, fdb);
-    knoflush ();
-    for (o=0,i=0; i!=10; i++) {
-        for (j=0; j!=16; j++, o++) {
-            kprintf ("%02X ", (Uint8)floppyDMABuffer[o]);
-        }
-        kprintf ("\n");
-    }
-    kflush ();
-  }
-*/
-
-
-
-
+  kprintf ("FAT ");
+  fat12_init ();
 
   // Initialize multitasking environment
   kprintf ("TSK ");
   sched_init ();
 
   kprintf ("]\n");
-  kprintf ("Kernel initialization done. Unable to free %d bytes.\nTransfering control to user mode.\n\n\n", _unfreeable_kmem);
+  kprintf ("Kernel initialization done. Unable to free %d bytes.\n", _unfreeable_kmem);
 
-//  thread_create_kernel_thread ((Uint32)&thread_proc_kernel, "Kernel Task", CONSOLE_USE_KCONSOLE);
-//  thread_create_kernel_thread ((Uint32)&thread_proc1, "Task 1", CONSOLE_USE_KCONSOLE);
-//  thread_create_kernel_thread ((Uint32)&thread_proc2, "Task 2", CONSOLE_USE_KCONSOLE);
-//  thread_create_kernel_thread ((Uint32)&thread_proc1, "Task 3", CONSOLE_USE_KCONSOLE);
-//  thread_create_kernel_thread ((Uint32)&thread_proc1, "Task 4", CONSOLE_USE_KCONSOLE);
-//  thread_create_kernel_thread ((Uint32)&thread_proc1, "Task 5", CONSOLE_USE_KCONSOLE);
-//  thread_create_kernelz_thread ((Uint32)&thread_proc_status, "Process Status", CONSOLE_USE_KCONSOLE);
+
+  kprintf ("\n");
+  kprintf ("File system drivers loaded: \n");
+  int i;
+  for (i=0; i!=VFS_MAX_FILESYSTEMS; i++) {
+    if (! vfs_systems[i].tag[0]) continue;
+    kprintf ("%10s %s\n", vfs_systems[i].tag, vfs_systems[i].name);
+  }
+  kprintf ("\n");
+
+
+  /*
+   * All done with kernel initialization. Mount the root filesystem to the correct one. This is
+   * passed by the boot loader.
+   */
+  kprintf ("Mounting root filesystem\n");
+
+  // Find root device or panic when not found
+  char root_device[255];
+  if (! get_boot_parameter (boot_params, "root=", (char *)&root_device)) {
+    kpanic ("No root= parameter given. Cannot continue!\n");
+  }
+
+  // Find the root system type and mount the system to root
+  char root_type[10] = "";
+  get_boot_parameter (boot_params, "root_type=", (char *)&root_type);
+
+  int ret = sys_mount (root_device, "/", root_type);
+  if (! ret) kpanic ("Error while mounting root filesystem. Cannot continue!\n");
+
+
+
+  /*
+   * We are mounted, next, jump to usermode, fork into a new task (INIT) which
+   * executes /SYSTEM/INIT.
+   */
+
+  char init_prog[50] = "/SYSTEM/INIT";
+  get_boot_parameter (boot_params, "init=", (char *)&init_prog);
+  kprintf ("Transfering control to user mode and starting %s.\n\n\n", init_prog);
 
   // Switch to ring3 and start interrupts automatically
   switch_to_usermode ();
@@ -269,6 +179,7 @@ void kernel_entry (int stack_start, int total_sys_memory, char *boot_params) {
   int pid = fork ();
 
   if (pid == 0) {
+    // @TODO: sys_exec (init_prog);
     strncpy (_current_task->name, "init", 30);
 
     pid = fork ();
@@ -303,6 +214,38 @@ void kernel_entry (int stack_start, int total_sys_memory, char *boot_params) {
   for (;;) idle ();
 }
 
+
+/************************************
+ * Returns 0-terminated boot parameter. Arg must be 'arg=' format.
+ */
+int get_boot_parameter (const char *boot_parameters, const char *arg, char *buffer) {
+  // Find argument or return when not found
+  char *c = strstr (boot_parameters, arg);
+  if (c == NULL) return 0;
+
+  // Start from end of 'key='
+  c += strlen (arg);
+
+  Uint32 l = 0;
+
+  // If we started with a quote, end on quote, not a space
+  char tc = ' ';
+  if (*c == '\'' || *c == '"') {
+    tc = *c;    // Skip begin quote
+    c++;        // I can do C++ me...
+  }
+
+  // Find first space (or end of string)
+  while (*(c+l) != tc && *(c+l) != 0) l++;
+
+  // Copy and escape it into boot param return value
+  strncpy(buffer, c, l);
+  buffer[l] = 0;
+
+  return 1;
+}
+
+
 /************************************
  * Switch to construct and deadlock the system
  */
@@ -336,6 +279,7 @@ int kprintf_help (char c, void **ptr) {
   return 0;
 }
 
+
 /************************************
  * Prints on the construct console (but we don't switch to it)
  */
@@ -349,10 +293,18 @@ void kprintf (const char *fmt, ...) {
   if (_kflush) con_flush (_kconsole);
 }
 
+
+/************************************
+ * Disables kernel console flushing
+ */
 void knoflush () {
   _kflush = 0;
 }
 
+
+/************************************
+ * Enabled kernel console flushing and forces a flush
+ */
 void kflush () {
   _kflush = 1;
   con_flush (_kconsole);
@@ -403,61 +355,5 @@ void tprintf (const char *fmt, ...) {
 
   // Flush output
   __asm__ __volatile__ ("int	$" SYSCALL_INT_STR " \n\t" : : "a" (SYS_CONFLUSH));
-}
-
-
-
-
-/************************************
- * The kernel constructor. Task 1 (the primary task after the kernel idle
- * task) loads the constructor which operates on console 1.
- */
-void construct (void) {
-  char s[256];
-
-  kprintf ("Welcome to the construct. deadlocking\n");
-
-  // Remove me...
-  for (;;) ;
-
-
-  // Repeat until heel lang
-  while (1) {
-    con_printf (_kconsole, "\nKRN> ");
-    con_gets (_kconsole, s, 255);
-    con_printf (_kconsole, "\n");
-
-    if (strcmp (s, "help")==0) {
-        con_printf (_kconsole, " Commands: \n");
-        con_printf (_kconsole, "\n");
-        con_printf (_kconsole, " [ ] reboot                Reboots system.\n");
-        con_printf (_kconsole, " [ ] pit [frequency]       Set IRQ0 (timer) interval to freqency or shows\n");
-        con_printf (_kconsole, "                           current frequency.\n");
-        con_printf (_kconsole, " [ ] echo [tty] [string]   Prints 'string' to console number 'tty'\n");
-        con_printf (_kconsole, " [*] tasks                 Shows task list\n");
-        con_printf (_kconsole, " [*] gdt                   Shows Global Descriptor Table information\n");
-        con_printf (_kconsole, " [ ] idt                   Shows Interrupt Descriptor Table information\n");
-        con_printf (_kconsole, "\n");
-        con_printf (_kconsole, " [*] Functioning    [ ] Not implemented\n");
-    } else
-    if (strcmp (s, "reboot")==0) {
-      con_printf (_kconsole, "REBOOT not implemented.\n");
-
-    } else if (strcmp (s, "task")==0) {
-      con_printf (_kconsole, "PID     TASK                STAT  PRIO  CON    RT0  RT1  RT2  RT3\n");
-      con_printf (_kconsole, "-----------------------------------------------------------------\n");
-
-    } else if (strcmp (s, "echo")==0) {
-      con_printf (_kconsole, "ECHO not implemented.\n");
-    } else if (strcmp (s, "pit")==0) {
-      con_printf (_kconsole, "PIT not implemented.\n");
-    } else if (strcmp (s, "gdt")==0) {
-      cmd_print_gdt (0);
-    } else if (strcmp (s, "idt")==0) {
-      con_printf (_kconsole, "IDT not implemented.\n");
-    } else {
-      con_printf (_kconsole, "Command not found. Type 'help' for commands.\n");
-    }
-  }
 }
 
