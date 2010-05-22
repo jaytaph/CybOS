@@ -137,7 +137,7 @@ void readdir (vfs_node_t *root, int depth) {
 /****************************************************************************
  * Startup of the kernel.
  */
-void kernel_entry (int stack_start, int total_sys_memory) {
+void kernel_entry (int stack_start, int total_sys_memory, char *boot_params) {
   // No interruptions until we decide to start again
   cli ();
 
@@ -153,6 +153,9 @@ void kernel_entry (int stack_start, int total_sys_memory) {
   kprintf ("Initializing CybOS kernel v%s.%s (%s)\n", KERNEL_VERSION_MAJOR, KERNEL_VERSION_MINOR, KERNEL_COMPILER);
   kprintf ("This kernel was compiled at %s on %s\n", KERNEL_COMPILE_TIME, KERNEL_COMPILE_DATE);
   kprintf ("Available system memory: %dKB (%dMB)\n", total_sys_memory / 1024, total_sys_memory / (1024*1024));
+  if (boot_params != NULL) kprintf ("Boot parameters: %s\n", boot_params);
+  kprintf ("\n");
+
 
   kprintf ("Initializing kernel components: \n[ ");
 

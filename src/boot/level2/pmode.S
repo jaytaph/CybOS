@@ -36,6 +36,9 @@
         extendedmem_below16   dw 0
         extendedmem_above16   dw 0
 
+        ; Boot parameters that are passed on to the kernel
+        boot_parameters db "root=/DEVICE/FLOPPY0 TESTARG1=yes TESTARG2=no",0
+
 
 ; --------------------------------
 ; Start of pmode
@@ -147,6 +150,7 @@ PM_START:
         add  eax, ebx
         add  eax, 0x100000              ; Add the standard 1 megabyte
 
+        push boot_parameters ; Push parameter 3: Boot parameter list
         push eax             ; Push parameter 2: int total_sys_memory
         push STACK_PM_ABS    ; Push parameter 1: int stack_start
         push 0xDEADBEEF      ; Dummy return address

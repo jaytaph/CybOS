@@ -48,8 +48,8 @@ StartRelocated:
     mov  [BootDriveID], dl              ; Save boot drive
 
     %include "level2/preload.S"     ; Pre loading stuff
-	%include "level2/loader.S"      ; FAT12 loader of the kernel
-	%include "level2/pmode.S"       ; Protected mode entering code
+    %include "level2/loader.S"      ; FAT12 loader of the kernel
+    %include "level2/pmode.S"       ; Protected mode entering code
     ; NOTE: PMODE.S JUMPS TO KERNEL
 
 
