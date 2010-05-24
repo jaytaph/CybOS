@@ -1,6 +1,3 @@
-MOUNTING MUST BE IMPLEMENTED CORRECTLY... STILL THINKING ABOUT IT
-
-
 /******************************************************************************
  *
  *  File        : vfs.c
@@ -166,19 +163,46 @@ void vfs_init (void) {
 /**
  *
  */
+int sys_umount (const char *mount_point) {
+  kprintf ("Unmounting %s \n", mount_point);
+
+  // Get VFS node
+  vfs_node_t *node = vfs_get_node (mount_point);
+  if (node == NULL) return 0;   // Node not found, incorrect path
+
+  if (node->flags & FS_MOUNTPOINT != FS_MOUNTPOINT) return 0; // Path is not mounted
+
+  // Do unmounting of filesystem itself
+  node->fileops->unmount (node);
+
+  // Remove from VFS
+  node->flags &= ~FS_MOUNTPOINT;
+  node->fileops = node->old_fileops;
+}
+
+/**
+ *
+ */
 int sys_mount (const char *device, const char *mount_point, const char *fs_type) {
+  vfs_node_t *node = vfs_get_node (mount_point);
+  if (! node) return 0;   // Path not found
+
   // Cannot mount if mount_point is not a directory
-  if ((mount_point->flags & 0x7) != FS_DIRECTORY) return 0;
+  if ((node->flags & 0x7) != FS_DIRECTORY) return 0;
+
+  // Something already mounted
+  if (node->flags & FS_MOUNTPOINT == FS_MOUNTPOINT) return 0;
 
   // Check if filesystem is registered
   if (! vfs_is_registered (fs_type)) return 0;
 
-  kprintf ("Mounting %s onto %s as a %s filesystem\n", device, mount_point, fs_type);
+  kprintf ("Mounting %s onto %s as a %s filesystem\n", device, mount_point, fs_type);\
 
   // Remove mount flag
   mount_point->flags |= FS_MOUNTPOINT;
   mount_point->old_fileops = mount_point->fileops;
   mount_point->fileops =
+
 
   return 1;
 }
