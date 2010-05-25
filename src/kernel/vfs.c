@@ -79,15 +79,17 @@ vfs_node_t *vfs_finddir(vfs_node_t *node, const char *name) {
 void vfs_create_root_node () {
   vfs_node_t *node = (vfs_node_t *)kmalloc (sizeof (vfs_node_t));
 
-  node->inode_nr = 0;
-  strcpy (node->name, "vfs root");
-  node->owner = 0;
-  node->length = 0;
-  node->flags = FS_DIRECTORY | FS_MOUNTPOINT;
-  node->majorNum = 0;
+  node->inode_nr = 0;                 // @TODO: check if we need to start on inode_nr 1. 0 could become a special case
+  strcpy (node->name, "vfs root");    // Name doesn't matter. We always address the root node as '/'
+  node->owner = 0;                    // No owner
+  node->length = 0;                   // No (file) length
+  node->flags = FS_DIRECTORY;         // This node is a directory
+  node->flags |= FS_MOUNTPOINT;       // And this node is a mount point as well
+  node->majorNum = 0;                 // No major / minor node numbers
   node->minorNum = 0;
 
-  node->fileops = &cybfs_fops;    // Handled by CybFS
+  // @TODO: root node should be more simplerer and be handled by using sys_mount("/", NULL, "cybfs");
+  node->fileops = &cybfs_fops;        // Node is handled by CybFS
 
   // This node is the main root
   vfs_root = node;

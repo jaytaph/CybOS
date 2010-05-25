@@ -45,8 +45,6 @@
 */
 
     typedef struct {
-      device_t  *device;       // Which device is used to acces this mount
-
       Uint32(*read)(struct vfs_node *, Uint32, Uint32, char *);
       Uint32(*write)(struct vfs_node *, Uint32, Uint32, char *);
       void (*open)(struct vfs_node *);
@@ -64,6 +62,8 @@
       // NOTE: FILESYSTEMS MUST TAKE CARE OF THEIR OWN REFCOUNT IF THERE IS GLOBAL DATA
       Uint32 (*mount)(struct vfs_node *, device_t *);    // Called when a device is mounted to a specific node
       Uint32 (*umount)(struct vfs_node);                 // Called when a device is unmounted
+
+      device_t  *device;       // Which device is used to acces this mount
     } vfs_info_t;
 
     // There will be a maximum of 100 different filesystems that can be loaded (@todo: linkedlist)
