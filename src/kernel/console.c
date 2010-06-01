@@ -40,7 +40,9 @@ int console_init (void) {
 
   // Create a construct. We assume that that works...
   if ( (_kconsole = (console_t *)sys_console (SYS_CONSOLE_CREATE, 0, "Construct")) == NULL) {
-    // TODO: We could print something directly to the screen (*0xb8000?)
+    // Cannot create console, print '!' and deadlock
+    unsigned char *vga = (unsigned char *)0xF00B8000;
+    *vga = '!';
     for (;;) { }
   }
 
@@ -94,9 +96,9 @@ int sys_console (int subcommand, console_t *console, char *name) {
 /********************************************************************
  * Creates and initializes a console entry in the table.
  *
- * Todo:
- *   - Add video mode for independand video modes trough the consoles
- *   - Add max X and max Y coordinates for independant screen sizes.
+ * @odo:
+ *   - Add video mode for independent video modes trough the consoles
+ *   - Add max X and max Y coordinates for independent screen sizes.
  *
  * In  : name    = name of the console
  *
@@ -115,7 +117,7 @@ console_t *create_console (char *name, int visible) {
 
   console->opx    = 1;  // Old cursor positions (must be different than
   console->opy    = 1;  // px and py otherwise cursor won't be updated
-                                     // until the first new cursor position change)
+                        // until the first new cursor position change)
   console->px     = 0;  // Cursor positions
   console->py     = 0;
 
@@ -123,10 +125,10 @@ console_t *create_console (char *name, int visible) {
 
   b = (Uint8 *)0xF000044A;  console->max_px = *b;        // Retreive console sizes from BIOS
   b = (Uint8 *)0xF0000484;  console->max_py = (*b) + 1;
-  console->attr   = 0x07;                 // Standard attribute
+  console->attr   = 0x07;                                // Standard attribute
 
-    // Calculate size of the buffer.
-  // (note: times two cause of the char-attr thingy)
+  // Calculate size of the buffer.
+  // (note: times two because of the char-attr thingy)
   console->size = console->max_py * console->max_px * 2;
 
   // Allocate a console buffer in kernel memory

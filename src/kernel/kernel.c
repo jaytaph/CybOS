@@ -128,13 +128,11 @@ void kernel_entry (int stack_start, int total_sys_memory, char *boot_params) {
 
   // Initialize interrupt timer
   kprintf ("PIT ");
-  pit_set_frequency (100);
+  pit_set_frequency (100);      // Set PIT frequency to 1000 ints per second (1ms apart)
 
   // Initialise timer
   kprintf ("TIM ");
   timer_init ();
-
-  for (;;) ;
 
   // Create interrupt and exception handlers
   kprintf ("IDT ");
@@ -195,6 +193,9 @@ void kernel_entry (int stack_start, int total_sys_memory, char *boot_params) {
     kprintf ("'%10s' => %s\n", vfs_systems[i].tag, vfs_systems[i].name);
   }
   kprintf ("\n");
+
+
+  for (;;) ;
 
 
   // Display root directory hierarchy
