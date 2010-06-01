@@ -9,5 +9,6 @@
 #define __TIMER_H__
 
   int timer_interrupt (int rpl);
+  void timer_init (void);
 
 #endif // __TIMER_H__

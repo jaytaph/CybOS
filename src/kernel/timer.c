@@ -7,6 +7,10 @@
 #include "kernel.h"
 #include "schedule.h"
 
+// Convert BCD number to binary. As taken from linux-0.0.1
+#define BCD_TO_BIN(val) ((val)=((val)&15) + ((val)>>4)*10)
+
+// Number of ticks each process may use (before forced scheduling to another process)
 Uint32 _schedule_ticks = SCHEDULE_TICKS;
 
 /**
@@ -49,5 +53,33 @@ int timer_interrupt (int rpl) {
 
   // No reschedule
   return 0;
+}
+
+/**
+ *
+ */
+void timer_init (void) {
+  Uint8 d,m,y,h,i,s;
+
+  // Wait for RTC to be in sync
+  do { outb (0x70, 10); } while (inb (0x71) & 0x80);
+
+  // Read RTC data
+  outb (0x70, 0); s = inb (0x71);   // Seconds
+  outb (0x70, 2); i = inb (0x71);   // Minutes
+  outb (0x70, 4); h = inb (0x71);   // Hours
+  outb (0x70, 7); d = inb (0x71);   // Day of month
+  outb (0x70, 8); m = inb (0x71);   // Month
+  outb (0x70, 9); y = inb (0x71);   // Year
+
+  // Decode from BCD to binary
+  BCD_TO_BIN (s);
+  BCD_TO_BIN (i);
+  BCD_TO_BIN (h);
+  BCD_TO_BIN (d);
+  BCD_TO_BIN (m);
+  BCD_TO_BIN (y);
+
+  // @TODO: Do something with this info
 }
 

@@ -43,6 +43,52 @@
   int get_boot_parameter (const char *boot_parameters, const char *arg, char *buffer);
 
 
+
+
+/**
+ *
+ */
+void readdir (vfs_node_t *root, int depth) {
+  vfs_dirent_t *unsafe_dirent;
+  vfs_node_t *unsafe_node;
+  vfs_dirent_t local_dirent;
+  vfs_node_t local_node;
+  int index = 0;
+  int j;
+
+  while (unsafe_dirent = vfs_readdir (root, index), unsafe_dirent != NULL) {
+    index++;
+
+    // Copy to local scope
+    memcpy (&local_dirent, unsafe_dirent, sizeof (vfs_dirent_t));
+
+    // File cannot be found (huh?)
+    unsafe_node = vfs_finddir (root, local_dirent.name);
+    if (! unsafe_node) continue;
+
+    // Copy to local scope
+    memcpy (&local_node, unsafe_node, sizeof (vfs_node_t));
+
+    for (j=0; j!=depth; j++) kprintf ("  ");
+    if ((local_node.flags & FS_DIRECTORY) == FS_DIRECTORY)  {
+      kprintf ("<%s>\n", local_node.name);
+      if (local_node.name[0] != '.') {
+        readdir (&local_node, depth+1);
+      }
+    } else {
+      kprintf ("%s\n", local_node.name);
+
+      if (local_node.length != 0) {
+        char buf[512];
+        Uint32 size = vfs_read (&local_node, 0, 512, (char *)&buf);
+        kprintf ("--- File contents (%d bytes) -----------------\n", size);
+        kprintf ("%s", buf);
+        kprintf ("--- End File contents -------------\n");
+      }
+    }
+  }
+}
+
 /****************************************************************************
  * Startup of the kernel.
  */
@@ -83,6 +129,12 @@ void kernel_entry (int stack_start, int total_sys_memory, char *boot_params) {
   // Initialize interrupt timer
   kprintf ("PIT ");
   pit_set_frequency (100);
+
+  // Initialise timer
+  kprintf ("TIM ");
+  timer_init ();
+
+  for (;;) ;
 
   // Create interrupt and exception handlers
   kprintf ("IDT ");
@@ -140,9 +192,15 @@ void kernel_entry (int stack_start, int total_sys_memory, char *boot_params) {
   int i;
   for (i=0; i!=VFS_MAX_FILESYSTEMS; i++) {
     if (! vfs_systems[i].tag[0]) continue;
-    kprintf ("%10s %s\n", vfs_systems[i].tag, vfs_systems[i].name);
+    kprintf ("'%10s' => %s\n", vfs_systems[i].tag, vfs_systems[i].name);
   }
   kprintf ("\n");
+
+
+  // Display root directory hierarchy
+  readdir (vfs_root, 0);
+
+  for (;;) ;
 
 
   /*
@@ -158,12 +216,14 @@ void kernel_entry (int stack_start, int total_sys_memory, char *boot_params) {
   }
 
   // Find the root system type and mount the system to root
-  char root_type[10] = "";
+  char root_type[10] = "";    // Autodetect when empty
   get_boot_parameter (boot_params, "root_type=", (char *)&root_type);
 
-  int ret = sys_mount (root_device, "/", root_type);
+  int ret = sys_mount (root_device, "/PROGRAMS", root_type);
   if (! ret) kpanic ("Error while mounting root filesystem. Cannot continue!\n");
 
+  // Display root directory hierarchy
+  readdir (vfs_root, 0);
 
 
   /*
@@ -358,4 +418,3 @@ void tprintf (const char *fmt, ...) {
   // Flush output
   __asm__ __volatile__ ("int	$" SYSCALL_INT_STR " \n\t" : : "a" (SYS_CONFLUSH));
 }
-

@@ -1,5 +1,4 @@
-Things todo (prioritized top down)
-
+Things todo:
  (*) Fork()
  (*) change CYBOS_TASK, TPAGEDIRECTORY etc etc into size_t, pid_t etc
  ( ) Refactor
@@ -13,14 +12,15 @@ Things todo (prioritized top down)
  (*) Stack onto heap instead of 0xE0000000
  (*) DMA
  (*) Floppy controler
- (*) VFS
+ (-) VFS
  (*) EXT2
  (*) FAT12
  (*) CybFS
  ( ) FAT16
  ( ) Network driver
  ( ) IPv4 Stack
- ( ) Kernel.bin gzip (?)
+ (-) Kernel.bin gzip
  (*) kernel-init commands from boot (ie: root=/DEVICES/FLOPPY0)
  ( ) Errors should be done better. (errno.h)
  ( ) Fix all TODO's and @TODO's
+ (*) Timer init

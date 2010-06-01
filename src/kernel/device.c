@@ -75,4 +75,19 @@ int device_unregister (device_t *dev) {
   return 0;
 }
 
+/**
+ *
+ */
+int device_get_device (int majorNum, int minorNum, device_t *device) {
+  device_t *tmp = devices;
+
+  while (tmp) {
+    // Found?
+    if (tmp->majorNum == majorNum && tmp->minorNum == minorNum) {
+      device = tmp;
+      return 1;
+    }
+  }
+  return 0;
+}
 

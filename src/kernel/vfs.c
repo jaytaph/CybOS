@@ -12,6 +12,16 @@
 
 vfs_node_t *vfs_root = NULL;      // Root of the filesystem
 
+typedef struct {
+  char          enabled;        // 0 = disabled, 1 = enabled
+  int           mount_index;    // Mounted onto which other mount
+  inode_t       inode_nr;       // Inode nr of the mounted directory
+  device_t      *device;        // Which device is mounted onto here
+  vfs_info_t    info;           // File operations for this mount
+} vfs_mount_t;
+
+vfs_mount_t vfs_mount_table[VFS_MAX_MOUNTS];    // Mount table
+
 
 /**
  *
@@ -79,17 +89,15 @@ vfs_node_t *vfs_finddir(vfs_node_t *node, const char *name) {
 void vfs_create_root_node () {
   vfs_node_t *node = (vfs_node_t *)kmalloc (sizeof (vfs_node_t));
 
-  node->inode_nr = 0;                 // @TODO: check if we need to start on inode_nr 1. 0 could become a special case
-  strcpy (node->name, "vfs root");    // Name doesn't matter. We always address the root node as '/'
-  node->owner = 0;                    // No owner
-  node->length = 0;                   // No (file) length
-  node->flags = FS_DIRECTORY;         // This node is a directory
-  node->flags |= FS_MOUNTPOINT;       // And this node is a mount point as well
-  node->majorNum = 0;                 // No major / minor node numbers
+  node->inode_nr = 0;
+  strcpy (node->name, "vfs root");
+  node->owner = 0;
+  node->length = 0;
+  node->flags = FS_DIRECTORY | FS_MOUNTPOINT;
+  node->majorNum = 0;
   node->minorNum = 0;
 
-  // @TODO: root node should be more simplerer and be handled by using sys_mount("/", NULL, "cybfs");
-  node->fileops = &cybfs_fops;        // Node is handled by CybFS
+  node->fileops = &cybfs_fileops;    // Handled by CybFS
 
   // This node is the main root
   vfs_root = node;
@@ -140,6 +148,9 @@ int vfs_unregister_filesystem (const char *tag) {
 
   for (i=0; i!=VFS_MAX_FILESYSTEMS; i++) {
     if (strcmp (tag, vfs_systems[i].tag) == 0) {
+      // System is still mounted at least 1 time
+      if (vfs_systems[i].ref_count > 0) return 0;
+
       // disable filesystem. This is now a free slot again..
       vfs_systems[i].tag[0] = 0;
       return 1;
@@ -150,6 +161,24 @@ int vfs_unregister_filesystem (const char *tag) {
   return 0;
 }
 
+/**
+ *
+ */
+int vfs_get_vfs (const char *tag, vfs_info_t *info) {
+  int i;
+
+  // Browse all registered file systems
+  for (i=0; i!=VFS_MAX_FILESYSTEMS; i++) {
+    // Is it taken? (ie: tag is not empty)
+    if (strcmp (tag, vfs_systems[i].tag) == 0) {
+      info = &vfs_systems[i];
+      return 1;
+    }
+  }
+
+  // Not found
+  return 0;
+}
 
 /**
  *
@@ -158,6 +187,9 @@ void vfs_init (void) {
   // Clear all fs slot data
   memset (vfs_systems, 0, sizeof (vfs_systems));
 
+  // Clear all mount tables
+  memset (vfs_mount_table, 0, sizeof (vfs_mount_table));
+
   vfs_create_root_node ();
 }
 
@@ -165,46 +197,129 @@ void vfs_init (void) {
 /**
  *
  */
-int sys_umount (const char *mount_point) {
-  kprintf ("Unmounting %s \n", mount_point);
+vfs_node_t *vfs_get_node_from_path (const char *path, vfs_node_t *cur_node) {
+  char component[255];
+  char *c = (char *)path;
+  int cs;
 
-  // Get VFS node
-  vfs_node_t *node = vfs_get_node (mount_point);
-  if (node == NULL) return 0;   // Node not found, incorrect path
+  kprintf ("vfs_get_node_from_path('%s')\n", path);
 
-  if (node->flags & FS_MOUNTPOINT != FS_MOUNTPOINT) return 0; // Path is not mounted
+  // This is a absolute path, start from root node (don't care
+  if (*c == '/') {
+    kprintf ("Starting from <root>\n");
+    cur_node = vfs_root;    // This is the root node, start from here
+  }
 
-  // Do unmounting of filesystem itself
-  node->fileops->unmount (node);
+  // From this point, it's relative again
+  while (*c) {
+    if (*c == '/') c++;   // Skip directory separator if one is found (including root separator)
 
-  // Remove from VFS
-  node->flags &= ~FS_MOUNTPOINT;
-  node->fileops = node->old_fileops;
+    /* Cur_node MUST be a directory, since the next thing we read is a directory component
+     * and we still have something left on the path */
+    if ((cur_node->flags & 0x7) != FS_DIRECTORY) {
+      kprintf ("component is not a directory\n\n");
+      return NULL;
+    }
+
+    // Find next directory component (or to end of string)
+    for (cs = 0 ; *(c+cs) != '/' && *(c+cs) != 0; cs++);
+
+    // Separate this directory component
+    strncpy (component, c, cs);
+
+    // Increase to next entry (starting at the directory separator)
+    c+=cs;
+
+    kprintf ("Next component: '%s' (from inode %d)\n", component, cur_node->inode_nr);
+
+    // Dot directory, skip since we stay on the same node
+    if (strcmp (component, ".") == 0) continue;   // We could vfs_finddir deal with it, or do it ourself, we are faster
+
+    // Find the entry if it exists
+    cur_node = vfs_finddir (cur_node, component);
+    if (! cur_node) {
+      kprintf ("component not found\n\n");
+      return NULL;   // Cannot find node... error :(
+    }
+
+  }
+
+  kprintf ("All done.. returning vfs inode: %d\n\n", cur_node->inode_nr);
+
+  return cur_node;
 }
+
+
+
 
 /**
  *
  */
-int sys_mount (const char *device, const char *mount_point, const char *fs_type) {
-  vfs_node_t *node = vfs_get_node (mount_point);
-  if (! node) return 0;   // Path not found
+int sys_umount (const char *mount_point) {
+  kpanic ("Unmounting %s \n", mount_point);
+
+  // if (vfs_mount_table[i].vfs_info.ref_count == 0) kpanic ("Something is wrong. We have a mounted system but the vfs_systems table says it's not mounted. halting.");
+  // vfs_mount_table[i].vfs_info.ref_count--;
+
+  return 0;
+}
+
+
+/**
+ *
+ */
+int sys_mount (const char *device_path, const char *mount_path, const char *fs_type) {
+  int i;
+
+  // Check mount point
+  vfs_node_t *mount_node = vfs_get_node_from_path (mount_path, vfs_root);
+  if (! mount_node) return 0;   // Path not found
 
   // Cannot mount if mount_point is not a directory
-  if ((node->flags & 0x7) != FS_DIRECTORY) return 0;
+  if ((mount_node->flags & 0x7) != FS_DIRECTORY) return 0;
 
-  // Something already mounted
-  if (node->flags & FS_MOUNTPOINT == FS_MOUNTPOINT) return 0;
+  // This path is already mounted
+  if ( (mount_node->flags & FS_MOUNTPOINT) == FS_MOUNTPOINT) return 0;
 
-  // Check if filesystem is registered
-  if (! vfs_is_registered (fs_type)) return 0;
+  // Check device
+  vfs_node_t *dev_node = vfs_get_node_from_path (device_path, vfs_root);
+  if (! dev_node) return 0;   // Path not found
 
-  kprintf ("Mounting %s onto %s as a %s filesystem\n", device, mount_point, fs_type);\
+  // Cannot mount device if it's not a block device
+  if ((mount_node->flags & 0x7) != FS_BLOCKDEVICE) return 0;
 
-  // Remove mount flag
-  mount_point->flags |= FS_MOUNTPOINT;
-  mount_point->old_fileops = mount_point->fileops;
-  mount_point->fileops =
+  // Browse mount table, find first free slot
+  for (i=0; i!=VFS_MAX_MOUNTS; i++) {
+    // Find free slot
+    if (vfs_mount_table[i].enabled) continue;
 
+    // Everything is ok now...
+    kprintf ("Mounting %s onto %s as a %s filesystem\n", device_path, mount_path, fs_type);
 
-  return 1;
+    vfs_mount_table[i].mount_index = 0;
+    vfs_mount_table[i].inode_nr = mount_node->inode_nr;
+    if (! device_get_device (dev_node->majorNum, dev_node->minorNum, &vfs_mount_table[i].device)) {
+      // Cannot find the device registered
+      return 0;
+    }
+
+/*
+    if (! vfs_get_vfs (fs_type, &vfs_mount_table[i].vfs_info) {
+      // Cannot find registered file system
+      return 0;
+    }
+
+    // Increase the reference counter for this filesystem
+    vfs_mount_table[i].vfs_info.ref_count++;
+*/
+    // This entry is enabled (@TODO: do this atomic / irq_disabled)
+    vfs_mount_table[i].enabled = 1;
+
+    return 1;
+  }
+
+  // Could not find a free slot
+  return 0;
 }
+
+

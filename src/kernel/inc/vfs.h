@@ -13,6 +13,7 @@
     #include "device.h"
 
     #define VFS_MAX_FILESYSTEMS     100     // Maximum 100 filesystem
+    #define VFS_MAX_MOUNTS          255     // Maximum 255 mounts can be made
 
     // Defines for flags
     #define FS_FILE          0x01
@@ -24,26 +25,11 @@
     #define FS_MOUNTPOINT    0x08
 
     // Inode define
-    typedef Uint32 inode_t;
+    typedef Uint32 inode_t;     // Unique identified on the current mounted filesystem
 
     struct vfs_node; // Forward declaration
 
-/*
-    // All available file operations
-    struct vfs_file_ops {
-    };
-
-
-    struct vfs_t {
-      Uint32(*read)(struct vfs_node *, Uint32, Uint32, char *);
-      Uint32(*write)(struct vfs_node *, Uint32, Uint32, char *);
-      void (*open)(struct vfs_node *);
-      void (*close)(struct vfs_node *);
-      struct dirent * (*readdir)(struct vfs_node *, Uint32);
-      struct fs_node * (*finddir)(struct vfs_node *, const char *);
-    };
-*/
-
+    // File operations
     typedef struct {
       Uint32(*read)(struct vfs_node *, Uint32, Uint32, char *);
       Uint32(*write)(struct vfs_node *, Uint32, Uint32, char *);
@@ -53,18 +39,23 @@
       struct vfs_node * (*finddir)(struct vfs_node *, const char *);
     } vfs_fileops_t;
 
+    // Mount operations
+    typedef struct {
+      Uint32 (*mount)(struct vfs_node *, device_t *);    // Called when a device is mounted to a specific node
+      Uint32 (*umount)(struct vfs_node *);               // Called when a device is unmounted
+    } vfs_mountops_t;
+
 
     // Info block that is needed to register the filesystem
     typedef struct {
-      char tag[15];
-      char name[100];
+      char            tag[15];           // VFS tag (FAT12, EXT3, REISERFS, JFS etc)
+      char            name[100];         // More detailed name
+      vfs_mountops_t  *mountops;         // Mount operations
+      vfs_fileops_t   *fileops;          // File operations
 
-      // NOTE: FILESYSTEMS MUST TAKE CARE OF THEIR OWN REFCOUNT IF THERE IS GLOBAL DATA
-      Uint32 (*mount)(struct vfs_node *, device_t *);    // Called when a device is mounted to a specific node
-      Uint32 (*umount)(struct vfs_node);                 // Called when a device is unmounted
-
-      device_t  *device;       // Which device is used to acces this mount
+      int             ref_count;         // Number of times this system is mounted
     } vfs_info_t;
+
 
     // There will be a maximum of 100 different filesystems that can be loaded (@todo: linkedlist)
     vfs_info_t vfs_systems[VFS_MAX_FILESYSTEMS];

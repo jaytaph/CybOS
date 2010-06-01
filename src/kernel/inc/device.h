@@ -34,5 +34,6 @@
   int device_register (device_t *dev, const char *filename);
   int device_unregister (device_t *dev);
   void device_init (void);
+  int device_get_device (int majorNum, int minorNum, device_t *device);
 
 #endif // __DEVICE_H__

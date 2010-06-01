@@ -1,6 +1,6 @@
 # $header$
 
-#.SILENT : 
+.SILENT : 
 
 # Standard compiler programs
 CC       = gcc

@@ -33,6 +33,7 @@ static int fat12_mountcount = 0;
 Uint32 fat12_mount (struct vfs_node *mount_point, device_t *dev) {
   // Increase mount count
   fat12_mountcount++;
+  return 1;
 }
 
 /**
@@ -47,6 +48,7 @@ Uint32 fat12_umount (struct vfs_node *mount_point) {
   } else {
     kprintf ("There are still %d FAT12 mounts left.\n", fat12_mountcount);
   }
+  return 1;
 }
 
 
