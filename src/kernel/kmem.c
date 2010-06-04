@@ -16,10 +16,10 @@
 // Memory top of the kernel
 Uint32 _k_preheap_start = NULL;       // Start of the kernel heap
 Uint32 _k_preheap_top = NULL;         // end of the kernel heap
-Uint32 _memory_total = 0;        // total bytes of physical memory
+Uint32 _memory_total = 0;             // total bytes of physical memory
 
-Uint32 _preheap_start = NULL;        // 'normal' heap start
-Uint32 _preheap_top   = NULL;        // 'normal' heap end
+Uint32 _preheap_start = NULL;         // 'normal' heap start
+Uint32 _preheap_top   = NULL;         // 'normal' heap end
 
 
 /*
@@ -42,9 +42,6 @@ Uint32 _unfreeable_kmem = 0;
 void kmem_switch_malloc (void *kmalloc, void *kfree) {
   _func_kmalloc = kmalloc;
   _func_kfree = kfree;
-
-//  _func_kmalloc = &_heap_kmalloc;
-//  _func_kfree = &_heap_kfree;
 }
 
 /************************************************************************
@@ -60,8 +57,6 @@ int kmem_init (int total_sys_memory) {
 
   // This will setup the heap.
   _k_preheap_start = (unsigned int)&end;    // _k_preheap_start will start immediatly after the end of the code. No need to align (actually, we should maybe?)
-
-//kprintf ("Heap starts at %08X\n", _k_preheap_start);
 
   // Top of the heap is the start of the heap.. nothing used..
   _k_preheap_top = _k_preheap_start;
@@ -112,8 +107,7 @@ void *_preheap_kmalloc (Uint32 size, int pageboundary, Uint32 *physical_address)
  * kfree when we haven't initialized the heap yet. It cannot free anything!
  */
 void _preheap_kfree (Uint32 ptr) {
-  kprintf ("preheap_kfree() called. Not available!");
-  kdeadlock ();
+  kpanic ("preheap_kfree() called. Not available!");
 }
 
 

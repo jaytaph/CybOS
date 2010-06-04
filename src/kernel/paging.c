@@ -302,7 +302,6 @@ void create_pageframe (pagedirectory_t *directory, Uint32 dst_address, int pagel
   // The page for this address is already present
   if (directory->tables[dst_table]->pages[dst_page] != NULL) return;
 
-
   Uint32 frame_index = bm_findfirst (framebitmap);
   if (frame_index == -1) kpanic ("Out of frames in framebitmap!");  // TODO: Should swap here?
   bm_set (framebitmap, frame_index);
@@ -463,10 +462,11 @@ int paging_init () {
   int i, framecount;
 
   // Allocate a bitmap big enough to hold 1 bit for each page of memory
-  framecount = _memory_total / 0x1000;                       // We use 4KB pages. Framecount is the number of frames of PHYSICAL memory
-  framebitmap = (bitmap_t *)kmalloc (sizeof (bitmap_t));        // This hold the allocated pages in each bit
+  framecount = _memory_total / 0x1000;                        // We use 4KB pages. Framecount is the number of frames of PHYSICAL memory
+  framebitmap = (bitmap_t *)kmalloc (sizeof (bitmap_t));      // This hold the allocated pages in each bit
   framebitmap->bitsize = 32;                                  // We use chars in our map (means 8 bits per "index")
   framebitmap->size = framecount / framebitmap->bitsize;      // Keep the size. Might come in handy later.
+  framebitmap->firstempty = 0;                                // First empty slot
   framebitmap->map = (Uint32 *)kmalloc (framebitmap->size);   // Now allocate memory for the map
   memset (framebitmap->map, 0, framebitmap->size);            // And clear all bits
 
