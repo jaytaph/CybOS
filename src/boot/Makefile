@@ -26,5 +26,5 @@ bootlvl2:
 # Clean up
 clean:
 	echo [RM]
-	$(RM) $(BOOTLVL1_TARGET)
-	$(RM) $(BOOTLVL2_TARGET)
+	$(RM) $(BOOTLVL1_TARGET) || true
+	$(RM) $(BOOTLVL2_TARGET) || true

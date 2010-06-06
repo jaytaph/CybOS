@@ -12,7 +12,7 @@ Things todo:
  (*) Stack onto heap instead of 0xE0000000
  (*) DMA
  (*) Floppy controler
- (-) VFS
+ (*) VFS
  (*) EXT2
  (*) FAT12
  (*) CybFS
@@ -24,3 +24,5 @@ Things todo:
  ( ) Errors should be done better. (errno.h)
  ( ) Fix all TODO's and @TODO's
  (*) Timer init
+ ( ) Create VFS node caches (root:inodenr linked list)
+ ( ) mount() func has obsolete *dev parameter (already present in *mount)

@@ -401,6 +401,12 @@ int stack_init (Uint32 src_stack_top) {
   Uint32 new_esp, new_ebp;
   Uint32 stacklength, kernel_stack_top;
   int i;
+
+  /* Clone the current page directory. We use our cloned PD from now on, not the original
+   * kernel directory. @TODO: figure out exactly why and how this works */
+  _current_pagedirectory = clone_pagedirectory (_kernel_pagedirectory);
+  set_pagedirectory (_current_pagedirectory);
+
 /*
   // Allocate room for a new stack
   // @TODO: THIS ALREADY WORKS, BUT WE USE 0xCF000000 for easy debugging!

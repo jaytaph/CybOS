@@ -66,7 +66,7 @@
   extern console_t *_kconsole;      // Console for kernel info (first screen)
 
   // Kernel Entry Point
-  void kernel_entry (int stack_start, int total_sys_memory, char *boot_params);
+  void kernel_entry (int stack_start, int total_sys_memory, const char *boot_params);
 
   // Kernel Deadlock, no return
   void kdeadlock (void);

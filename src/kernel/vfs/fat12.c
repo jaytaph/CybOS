@@ -7,11 +7,42 @@
  *
  *****************************************************************************/
 
-#include "vfs.h"
-#include "vfs/fat12.h"
 #include "kernel.h"
 #include "kmem.h"
+#include "vfs.h"
+#include "vfs/fat12.h"
 #include "drivers/floppy.h"
+
+// File operations
+static struct vfs_fileops fat12_fileops = {
+    .read = fat12_read, .write = fat12_write,
+    .open = fat12_open, .close = fat12_close,
+    .readdir = fat12_readdir, .finddir = fat12_finddir
+};
+
+// Mount operations
+static struct vfs_mountops fat12_mountops = {
+    .mount = fat12_mount, .umount = fat12_umount
+};
+
+// Global structure
+static vfs_info_t fat12_vfs_info = { .tag = "fat12",
+                              .name = "FAT12 File System",
+                              .mountops = &fat12_mountops
+                            };
+
+// Root supernode
+static vfs_node_t fat12_supernode = {
+  .inode_nr = 0,
+  .name = "/",
+  .owner = 0,
+  .length = 0,
+  .flags = FS_DIRECTORY,
+  .majorNum = 0,
+  .minorNum = 0,
+  .fileops = &fat12_fileops,
+};
+
 
 fat12_fatinfo_t fat12_info;   // FAT information table (offsets and sizes)
 
@@ -24,50 +55,154 @@ void fat12_convert_c_to_dos_filename (const char *longName, char *dosName);
 Uint16 fat12_get_next_cluster (Uint16 cluster);
 
 
-// Holds how many times a FAT12 mount is mounted
-static int fat12_mountcount = 0;
 
 /**
  * Called when a device that holds a FAT12 image gets mounted onto a mount_point
  */
-Uint32 fat12_mount (struct vfs_node *mount_point, device_t *dev) {
-  // Increase mount count
-  fat12_mountcount++;
-  return 1;
+vfs_node_t *fat12_mount (struct vfs_mount *mount, device_t *dev, const char *path) {
+  kprintf ("fat12_mount\n");
+
+  // Allocate fat12_info for this mount
+  mount->fs_data = kmalloc (sizeof (fat12_fatinfo_t));
+  fat12_fatinfo_t *fat12_info = mount->fs_data; // Alias for easier usage
+  if (!fat12_info) goto cleanup;
+  memset (fat12_info, 0, sizeof (fat12_fatinfo_t));
+
+  // Allocate and read BPB
+  fat12_info->bpb = (fat12_bpb_t *)kmalloc (sizeof (fat12_bpb_t));
+  if (!fat12_info->bpb) goto cleanup;
+  memset (fat12_info->bpb, 0, sizeof (fat12_bpb_t));
+
+  // Read boot sector from disk
+  int rb = mount->dev->read (mount->dev->majorNum, mount->dev->minorNum, 0, 512, (char *)fat12_info->bpb);
+  if (rb != 512) {
+    kprintf ("Cannot read enough bytes from boot sector (%d read, %d needed)\n", rb, fat12_info->bpb->BytesPerSector);
+    goto cleanup;
+  }
+
+/*
+  kprintf ("OEMName           %c%c%c%c%c%c%c%c\n", fat12_info->bpb->OEMName[0],fat12_info->bpb->OEMName[1],fat12_info->bpb->OEMName[2],fat12_info->bpb->OEMName[3],fat12_info->bpb->OEMName[4],fat12_info->bpb->OEMName[5],fat12_info->bpb->OEMName[6],fat12_info->bpb->OEMName[7]);
+  kprintf ("BytesPerSector    %04x\n", fat12_info->bpb->BytesPerSector);
+  kprintf ("SectorsPerCluster %02x\n", fat12_info->bpb->SectorsPerCluster);
+  kprintf ("ReservedSectors   %04x\n", fat12_info->bpb->ReservedSectors);
+  kprintf ("NumberOfFats      %02x\n", fat12_info->bpb->NumberOfFats);
+  kprintf ("NumDirEntries     %04x\n", fat12_info->bpb->NumDirEntries);
+  kprintf ("NumSectors        %04x\n", fat12_info->bpb->NumSectors);
+  kprintf ("Media             %02x\n", fat12_info->bpb->Media);
+  kprintf ("SectorsPerFat     %04x\n", fat12_info->bpb->SectorsPerFat);
+  kprintf ("SectorsPerTrack   %04x\n", fat12_info->bpb->SectorsPerTrack);
+  kprintf ("HeadsPerCyl       %04x\n", fat12_info->bpb->HeadsPerCyl);
+  kprintf ("HiddenSectors     %08x\n", fat12_info->bpb->HiddenSectors);
+  kprintf ("LongSectors       %08x\n", fat12_info->bpb->LongSectors);
+*/
+
+  // Set global FAT information as read and calculated from the bpb
+  fat12_info->numSectors              = fat12_info->bpb->NumSectors;
+  fat12_info->fatOffset               = fat12_info->bpb->ReservedSectors + fat12_info->bpb->HiddenSectors;
+  fat12_info->fatSizeBytes            = fat12_info->bpb->BytesPerSector * fat12_info->bpb->SectorsPerFat;
+  fat12_info->fatSizeSectors          = fat12_info->bpb->SectorsPerFat;
+  fat12_info->fatEntrySizeBits        = 8;
+  fat12_info->numRootEntries          = fat12_info->bpb->NumDirEntries;
+  fat12_info->numRootEntriesPerSector = fat12_info->bpb->BytesPerSector / 32;
+  fat12_info->rootOffset              = (fat12_info->bpb->NumberOfFats * fat12_info->bpb->SectorsPerFat) + 1;
+  fat12_info->rootSizeSectors         = (fat12_info->bpb->NumDirEntries * 32 ) / fat12_info->bpb->BytesPerSector;
+  fat12_info->dataOffset              = fat12_info->rootOffset + fat12_info->rootSizeSectors - 2;
+
+/*
+  kprintf ("FAT12INFO\n");
+  kprintf ("numSectors        %04X\n", fat12_info->numSectors);
+  kprintf ("fatOffset         %04X\n", fat12_info->fatOffset);
+  kprintf ("fatSizeBytes      %04X\n", fat12_info->fatSizeBytes);
+  kprintf ("fatSizeSectors    %04X\n", fat12_info->fatSizeSectors);
+  kprintf ("fatEntrySizeBits  %04X\n", fat12_info->fatEntrySizeBits);
+  kprintf ("numRootEntries    %04X\n", fat12_info->numRootEntries);
+  kprintf ("numRootEntriesPS  %04X\n", fat12_info->numRootEntriesPerSector);
+  kprintf ("rootOffset        %04X\n", fat12_info->rootOffset);
+  kprintf ("rootSizeSectors   %04X\n", fat12_info->rootSizeSectors);
+  kprintf ("dataOffset        %04X\n", fat12_info->dataOffset);
+  kprintf ("----------------\n");
+*/
+
+  // Read (primary) FAT table
+  int i;
+  fat12_info->fat = (fat12_fat_t *)kmalloc (fat12_info->fatSizeBytes);
+  if (!fat12_info->fat) goto cleanup;
+
+  memset (fat12_info->fat, 0, fat12_info->fatSizeBytes);
+
+  for (i=0; i!=fat12_info->fatSizeSectors; i++) {
+    Uint32 offset = (fat12_info->fatOffset+i) * fat12_info->bpb->BytesPerSector;
+    int rb = mount->dev->read (mount->dev->majorNum, mount->dev->minorNum, offset, fat12_info->bpb->BytesPerSector, (char *)fat12_info->fat+(i*512));
+    if (rb != fat12_info->bpb->BytesPerSector) {
+      kprintf ("Cannot read fat sector %d\n", i);
+      goto cleanup;
+    }
+  }
+/*
+  for (k=0, i=0; i!=10; i++) {
+    kprintf ("  Entry %04d  : ", i*10);
+    for (j=0; j!=10; j++,k++) kprintf ("%04X ", fat12_get_fat_entry (k));
+    kprintf ("\n");
+  }
+  kprintf ("\n");
+*/
+
+/*
+  fat12_dirent_t *direntbuf = (fat12_dirent_t *)kmalloc (_bpb->BytesPerSector);
+  fat12_dirent_t *dirent;
+  for (i=0; i!=fat12_info.rootSizeSectors; i++) {
+    Uint32 offset = (fat12_info.rootOffset+i) * fat12_info.bpb->BytesPerSector;
+//@TODO    node->block->read (node->block->major, node->block->minor, offset, fat12_info.bpb->BytesPerSector, direntbuf);
+
+    for (dirent = direntbuf, j=0; j!=fat12_info.numRootEntriesPerSector; j++,dirent++) {
+      kprintf ("-------------\n");
+      kprintf ("Filename     : %c%c%c%c%c%c%c%c\n", dirent->Filename[0], dirent->Filename[1], dirent->Filename[2], dirent->Filename[3], dirent->Filename[4], dirent->Filename[5], dirent->Filename[6], dirent->Filename[7]);
+      kprintf ("Ext          : %c%c%c\n", dirent->Ext[0], dirent->Ext[1], dirent->Ext[2]);
+      kprintf ("Attrib       : %02X\n", dirent->Attrib);
+      kprintf ("FirstCluster : %04X\n", dirent->FirstCluster);
+      kprintf ("FileSize     : %02X\n", dirent->FileSize);
+    }
+  }
+*/
+
+  kprintf ("Returning FAT12's supernode\n");
+  return &fat12_supernode;
+
+
+  // Jumped to when error during mount
+cleanup:
+  if (fat12_info && fat12_info->fat) kfree ((Uint32)fat12_info->fat);
+  if (fat12_info && fat12_info->bpb) kfree ((Uint32)fat12_info->bpb);
+  if (fat12_info) kfree ((Uint32)fat12_info);
+  return NULL;
 }
 
 /**
  * Called when a mount_point gets unmounted
  */
-Uint32 fat12_umount (struct vfs_node *mount_point) {
-  // Decrease FAT12 mount count
-  fat12_mountcount--;
+void fat12_umount (struct vfs_mount *mount) {
+  kprintf ("Unmounting fat12_info structure");
+  // Free our fs_data
+  fat12_fatinfo_t *fat12_info = (fat12_fatinfo_t *)mount->fs_data;
 
-  if (fat12_mountcount == 0) {
-    kprintf ("All FAT12 mounts are unmounted.\n");
-  } else {
-    kprintf ("There are still %d FAT12 mounts left.\n", fat12_mountcount);
-  }
-  return 1;
+  kfree ((Uint32)fat12_info->fat);
+  kfree ((Uint32)fat12_info->bpb);
+  kfree ((Uint32)fat12_info);
 }
 
-
-
-vfs_info_t fat12_vfs_info = { "fat12", "FAT File System (FAT12)", fat12_mount, fat12_umount };
 
 
 /**
  *
  */
-Uint32 fat12_read (vfs_node_t *node, Uint32 offset, Uint32 size, char *buffer) {
-  return 0;
-//    return node->block->read (node->block->major, node->block->minor, offset, size, buffer);
+Uint32 fat12_read (struct vfs_mount *mount, vfs_node_t *node, Uint32 offset, Uint32 size, char *buffer) {
+  return 0;//    return node->block->read (node->block->major, node->block->minor, offset, size, buffer);
 }
 
 /**
  *
  */
-Uint32 fat12_write (vfs_node_t *node, Uint32 offset, Uint32 size, char *buffer) {
+Uint32 fat12_write (struct vfs_mount *mount, vfs_node_t *node, Uint32 offset, Uint32 size, char *buffer) {
   return 0;
 //  return node->block->write (node->block->major, node->block->minor, offset, size, buffer);
 }
@@ -75,14 +210,14 @@ Uint32 fat12_write (vfs_node_t *node, Uint32 offset, Uint32 size, char *buffer) 
 /**
  *
  */
-void fat12_open (vfs_node_t *node) {
+void fat12_open (struct vfs_mount *mount, vfs_node_t *node) {
 //  node->block->open (node->block->major, node->block->minor);
 }
 
 /**
  *
  */
-void fat12_close (vfs_node_t *node) {
+void fat12_close (struct vfs_mount *mount, vfs_node_t *node) {
 //  node->block->close (node->block->major, node->block->minor);
 }
 
@@ -90,7 +225,7 @@ void fat12_close (vfs_node_t *node) {
 /**
  *
  */
-vfs_dirent_t *fat12_readdir (vfs_node_t *node, Uint32 index) {
+vfs_dirent_t *fat12_readdir (struct vfs_mount *mount, vfs_node_t *node, Uint32 index) {
   int i;
 
   // Check if it's a directory
@@ -107,7 +242,7 @@ vfs_dirent_t *fat12_readdir (vfs_node_t *node, Uint32 index) {
   // Do we need to read the root directory?
   if (node->inode_nr == 0) {
     Uint32 offset = (fat12_info.rootOffset+sectorNeeded) * fat12_info.bpb->BytesPerSector;
-//@TODO    node->block->read (node->block->major, node->block->minor, offset, fat12_info.bpb->BytesPerSector, direntbuf);
+    mount->dev->read (mount->dev->majorNum, mount->dev->minorNum, offset, fat12_info.bpb->BytesPerSector, (char *)direntbuf);
 
   } else {
     // First start cluster (which is the INODE number :P), and seek N'th cluster
@@ -116,7 +251,7 @@ vfs_dirent_t *fat12_readdir (vfs_node_t *node, Uint32 index) {
 
     // Read this cluster
     Uint32 offset = (fat12_info.dataOffset+cluster) * fat12_info.bpb->BytesPerSector;
-//@TODO    node->block->read (node->block->major, node->block->minor, offset, fat12_info.bpb->BytesPerSector, direntbuf);
+    mount->dev->read (mount->dev->majorNum, mount->dev->minorNum, offset, fat12_info.bpb->BytesPerSector, (char *)direntbuf);
   }
 
   // Seek correcy entry
@@ -180,7 +315,7 @@ int fat12_parseDirectorySector (fat12_dirent_t *direntbuf, vfs_node_t *node, con
 /**
  *
  */
-vfs_node_t *fat12_finddir (vfs_node_t *node, char *name) {
+vfs_node_t *fat12_finddir (struct vfs_mount *mount, vfs_node_t *node, const char *name) {
   char dosName[12];
   int i;
 
@@ -351,6 +486,7 @@ void fat12_convert_c_to_dos_filename (const char *longName, char *dosName) {
 /**
  * Searches for a directory name inside the FAT's root-directory entry
  */
+/*
 fat12_dirent_t *obs_fat12_search_root_directory (const char *dirName) {
   char dosName[12];
   int i,j;
@@ -396,7 +532,7 @@ fat12_dirent_t *obs_fat12_search_root_directory (const char *dirName) {
   kfree ((Uint32)direntbuf);
   return NULL;
 }
-
+*/
 
 /**
  * Allocates and initalizes the FAT12's entry root-node
@@ -438,102 +574,6 @@ vfs_node_t *fat12_init_root_node (void) {
 void fat12_init (void) {
   // Register filesystem to the VFS
   vfs_register_filesystem (&fat12_vfs_info);
-}
-
-
-// @TODO: This must be removed and initialized when we are mounting a system (only at that point do we have a device)
-void obsolete_fat12_init (void) {
-  // Allocate root node for this filesystem
-//  vfs_node_t *fat12_root_node = fat12_init_root_node ();
-
-  // Zero out fat table
-  memset (&fat12_info, 0, sizeof (fat12_fatinfo_t));
-
-  // Allocate and read BPB
-  fat12_info.bpb = (fat12_bpb_t *)kmalloc (sizeof (fat12_bpb_t));
-
-  // Read first sector
-  Uint32 offset = 0;
-//@TODO  node->block->read (node->block->major, node->block->minor, offset, fat12_info.bpb->BytesPerSector, (char *)fat12_info.bpb);
-
-
-
-/*
-    kprintf ("OEMName           %c%c%c%c%c%c%c%c\n", bpb->OEMName[0],bpb->OEMName[1],bpb->OEMName[2],bpb->OEMName[3],bpb->OEMName[4],bpb->OEMName[5],bpb->OEMName[6],bpb->OEMName[7]);
-    kprintf ("BytesPerSector    %04x\n", bpb->BytesPerSector);
-    kprintf ("SectorsPerCluster %02x\n", bpb->SectorsPerCluster);
-    kprintf ("ReservedSectors   %04x\n", bpb->ReservedSectors);
-    kprintf ("NumberOfFats      %02x\n", bpb->NumberOfFats);
-    kprintf ("NumDirEntries     %04x\n", bpb->NumDirEntries);
-    kprintf ("NumSectors        %04x\n", bpb->NumSectors);
-    kprintf ("Media             %02x\n", bpb->Media);
-    kprintf ("SectorsPerFat     %04x\n", bpb->SectorsPerFat);
-    kprintf ("SectorsPerTrack   %04x\n", bpb->SectorsPerTrack);
-    kprintf ("HeadsPerCyl       %04x\n", bpb->HeadsPerCyl);
-    kprintf ("HiddenSectors     %08x\n", bpb->HiddenSectors);
-    kprintf ("LongSectors       %08x\n", bpb->LongSectors);
-*/
-
-  // Set global FAT information as read and calculated from the bpb
-  fat12_info.numSectors              = fat12_info.bpb->NumSectors;
-  fat12_info.fatOffset               = fat12_info.bpb->ReservedSectors + fat12_info.bpb->HiddenSectors;
-  fat12_info.fatSizeBytes            = fat12_info.bpb->BytesPerSector * fat12_info.bpb->SectorsPerFat;
-  fat12_info.fatSizeSectors          = fat12_info.bpb->SectorsPerFat;
-  fat12_info.fatEntrySizeBits        = 8;
-  fat12_info.numRootEntries          = fat12_info.bpb->NumDirEntries;
-  fat12_info.numRootEntriesPerSector = fat12_info.bpb->BytesPerSector / 32;
-  fat12_info.rootOffset              = (fat12_info.bpb->NumberOfFats * fat12_info.bpb->SectorsPerFat) + 1;
-  fat12_info.rootSizeSectors         = (fat12_info.bpb->NumDirEntries * 32 ) / fat12_info.bpb->BytesPerSector;
-  fat12_info.dataOffset              = fat12_info.rootOffset + fat12_info.rootSizeSectors - 2;
-
-/*
-  kprintf ("FAT12INFO\n");
-  kprintf ("numSectors        %04X\n", fat12_info.numSectors);
-  kprintf ("fatOffset         %04X\n", fat12_info.fatOffset);
-  kprintf ("fatSizeBytes      %04X\n", fat12_info.fatSizeBytes);
-  kprintf ("fatSizeSectors    %04X\n", fat12_info.fatSizeSectors);
-  kprintf ("fatEntrySizeBits  %04X\n", fat12_info.fatEntrySizeBits);
-  kprintf ("numRootEntries    %04X\n", fat12_info.numRootEntries);
-  kprintf ("numRootEntriesPS  %04X\n", fat12_info.numRootEntriesPerSector);
-  kprintf ("rootOffset        %04X\n", fat12_info.rootOffset);
-  kprintf ("rootSizeSectors   %04X\n", fat12_info.rootSizeSectors);
-  kprintf ("dataOffset        %04X\n", fat12_info.dataOffset);
-  kprintf ("----------------\n");
-*/
-
-  // Read (primary) FAT table
-  int i;
-  fat12_info.fat = (fat12_fat_t *)kmalloc (fat12_info.fatSizeBytes);
-  for (i=0; i!=fat12_info.fatSizeSectors; i++) {
-    Uint32 offset = (fat12_info.fatOffset+i) * fat12_info.bpb->BytesPerSector;
-//@TODO    node->block->read (node->block->major, node->block->minor, offset, fat12_info.bpb->BytesPerSector, (char *)fat12_info.fat+(i*512));
-  }
-/*
-  for (k=0, i=0; i!=10; i++) {
-    kprintf ("  Entry %04d  : ", i*10);
-    for (j=0; j!=10; j++,k++) kprintf ("%04X ", fat12_get_fat_entry (k));
-    kprintf ("\n");
-  }
-  kprintf ("\n");
-*/
-
-/*
-  fat12_dirent_t *direntbuf = (fat12_dirent_t *)kmalloc (_bpb->BytesPerSector);
-  fat12_dirent_t *dirent;
-  for (i=0; i!=fat12_info.rootSizeSectors; i++) {
-    Uint32 offset = (fat12_info.rootOffset+i) * fat12_info.bpb->BytesPerSector;
-//@TODO    node->block->read (node->block->major, node->block->minor, offset, fat12_info.bpb->BytesPerSector, direntbuf);
-
-    for (dirent = direntbuf, j=0; j!=fat12_info.numRootEntriesPerSector; j++,dirent++) {
-      kprintf ("-------------\n");
-      kprintf ("Filename     : %c%c%c%c%c%c%c%c\n", dirent->Filename[0], dirent->Filename[1], dirent->Filename[2], dirent->Filename[3], dirent->Filename[4], dirent->Filename[5], dirent->Filename[6], dirent->Filename[7]);
-      kprintf ("Ext          : %c%c%c\n", dirent->Ext[0], dirent->Ext[1], dirent->Ext[2]);
-      kprintf ("Attrib       : %02X\n", dirent->Attrib);
-      kprintf ("FirstCluster : %04X\n", dirent->FirstCluster);
-      kprintf ("FileSize     : %02X\n", dirent->FileSize);
-    }
-  }
-*/
 }
 
 

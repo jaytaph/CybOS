@@ -86,5 +86,14 @@ typedef struct {
 
 
   void fat12_init (void);
+  Uint32 fat12_read (struct vfs_mount *mount, vfs_node_t *node, Uint32 offset, Uint32 size, char *buffer);
+  Uint32 fat12_write (struct vfs_mount *mount, vfs_node_t *node, Uint32 offset, Uint32 size, char *buffer);
+  void fat12_open (struct vfs_mount *mount, vfs_node_t *node);
+  void fat12_close (struct vfs_mount *mount, vfs_node_t *node);
+  vfs_dirent_t *fat12_readdir (struct vfs_mount *mount, vfs_node_t *node, Uint32 index);
+  vfs_node_t *fat12_finddir (struct vfs_mount *mount, vfs_node_t *node, const char *name);
+
+  vfs_node_t *fat12_mount (struct vfs_mount *mount, device_t *dev, const char *path);
+  void fat12_umount (struct vfs_mount *mount);
 
 #endif // __VFS_FAT12_H__

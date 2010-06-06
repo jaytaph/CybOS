@@ -13,55 +13,93 @@
 #include "vfs/cybfs.h"
 
 
-vfs_info_t cybfs_vfs_info = { .tag = "cybfs",
-                              .name = "CybOS File System",
-                              .mount = cybfs_mount,
-                              .umount = cybfs_umount };
+// File operations
+static struct vfs_fileops cybfs_fileops = {
+    .read = cybfs_read, .write = cybfs_write,
+    .open = cybfs_open, .close = cybfs_close,
+    .readdir = cybfs_readdir, .finddir = cybfs_finddir
+};
 
+// Mount operations
+static struct vfs_mountops cybfs_mountops = {
+    .mount = cybfs_mount, .umount = cybfs_umount
+};
+
+// Global structure
+static vfs_info_t cybfs_vfs_info = { .tag = "cybfs",
+                              .name = "CybOS File System",
+                              .mountops = &cybfs_mountops
+                            };
+
+// Root supernode
+static vfs_node_t cybfs_supernode = {
+  .inode_nr = 0,
+  .name = "/",
+  .owner = 0,
+  .length = 0,
+  .flags = FS_DIRECTORY,
+  .majorNum = 0,
+  .minorNum = 0,
+  .fileops = &cybfs_fileops,
+};
 
 char helloworlddata[] = "Hello world!\nThis file is the first readable file from CybOS!\n\nHave fun!\n\0";
 
 
 // @TODO: Remove most of these items.. only /DEVICES should be present so we can mount our root system
 const cybfs_file_t default_layout[] = {
+                                        // Dummy root
                                         { 0,  0,  "cybfs-root",      0,                    0, 0,  0, NULL },
+                                        // Mandatory FS Structure
                                         { 1,  0,  "SYSTEM",          CYBFS_TYPE_DIRECTORY, 0, 0,  0, NULL },
-                                        { 2,  1,  "kernel.bin",      CYBFS_TYPE_FILE,      0, 0,  0, NULL },
-                                        { 3,  1,  "bootlvl1.bin",    CYBFS_TYPE_FILE,      0, 0,  0, NULL },
-                                        { 4,  1,  "bootlvl2.bin",    CYBFS_TYPE_FILE,      0, 0,  0, NULL },
-                                        { 5,  1,  "fat12.drv",       CYBFS_TYPE_FILE,      0, 0,  0, NULL },
-                                        { 6,  1,  "cybfs.drv",       CYBFS_TYPE_FILE,      0, 0,  0, NULL },
-                                        { 7,  0,  "PROGRAMS",        CYBFS_TYPE_DIRECTORY, 0, 0,  0, NULL },
-                                        { 8,  0,  "DEVICE",          CYBFS_TYPE_DIRECTORY, 0, 0,  0, NULL },
-                                        { 9,  0,  "INFO",            CYBFS_TYPE_DIRECTORY, 0, 0,  0, NULL },
-                                        {10,  0,  "USER",            CYBFS_TYPE_DIRECTORY, 0, 0,  0, NULL },
-                                        {11, 10,  "Joshua Thijssen", CYBFS_TYPE_DIRECTORY, 0, 0,  0, NULL },
-                                        {12,  9,  "cpu",             CYBFS_TYPE_FILE,      0, 0,  0, NULL },
-                                        {13,  9,  "memory",          CYBFS_TYPE_FILE,      0, 0,  0, NULL },
-                                        {14,  9,  "fdc",             CYBFS_TYPE_FILE,      0, 0,  0, NULL },
-                                        {15,  9,  "hdc",             CYBFS_TYPE_FILE,      0, 0,  0, NULL },
-                                        {16, 10,  "Bill Gates",      CYBFS_TYPE_DIRECTORY, 0, 0,  0, NULL },
-                                        {17, 10,  "Linus Torvalds",  CYBFS_TYPE_DIRECTORY, 0, 0,  0, NULL },
-                                        {18, 10,  "Steve Jobs",      CYBFS_TYPE_DIRECTORY, 0, 0,  0, NULL },
-                                        {19, 11,  "helloworld.txt",  CYBFS_TYPE_FILE,      0, 0, 78, (char *)&helloworlddata },
-                                        {20,  8,  "FLOPPY0",         CYBFS_TYPE_BLOCK_DEV, 1, 0,  0, NULL },
-                                        {21,  8,  "FLOPPY1",         CYBFS_TYPE_BLOCK_DEV, 1, 1,  0, NULL },
-                                        {22,  8,  "FLOPPY2",         CYBFS_TYPE_BLOCK_DEV, 1, 2,  0, NULL },
-                                        {23,  8,  "FLOPPY3",         CYBFS_TYPE_BLOCK_DEV, 1, 3,  0, NULL }
+                                        { 2,  1,  ".",               CYBFS_TYPE_DIRECTORY, 0, 0,  0, NULL },
+                                        { 3,  1,  "..",              CYBFS_TYPE_DIRECTORY, 0, 0,  0, NULL },
+                                        { 4,  0,  "PROGRAM",         CYBFS_TYPE_DIRECTORY, 0, 0,  0, NULL },
+                                        { 5,  4,  ".",               CYBFS_TYPE_DIRECTORY, 0, 0,  0, NULL },
+                                        { 6,  4,  "..",              CYBFS_TYPE_DIRECTORY, 0, 0,  0, NULL },
+                                        { 7,  0,  "DEVICE",          CYBFS_TYPE_DIRECTORY, 0, 0,  0, NULL },
+                                        { 8,  7,  ".",               CYBFS_TYPE_DIRECTORY, 0, 0,  0, NULL },
+                                        { 9,  7,  "..",              CYBFS_TYPE_DIRECTORY, 0, 0,  0, NULL },
+                                        {10,  0,  "INFO",            CYBFS_TYPE_DIRECTORY, 0, 0,  0, NULL },
+                                        {11, 10,  ".",               CYBFS_TYPE_DIRECTORY, 0, 0,  0, NULL },
+                                        {12, 10,  "..",              CYBFS_TYPE_DIRECTORY, 0, 0,  0, NULL },
+                                        {13,  0,  "USER",            CYBFS_TYPE_DIRECTORY, 0, 0,  0, NULL },
+                                        {14, 13,  ".",               CYBFS_TYPE_DIRECTORY, 0, 0,  0, NULL },
+                                        {15, 13,  "..",              CYBFS_TYPE_DIRECTORY, 0, 0,  0, NULL },
+                                        // Files in /SYSTEM
+                                        {16,  1,  "kernel.bin",      CYBFS_TYPE_FILE,      0, 0,  0, NULL },
+                                        {17,  1,  "bootlvl1.bin",    CYBFS_TYPE_FILE,      0, 0,  0, NULL },
+                                        {18,  1,  "bootlvl2.bin",    CYBFS_TYPE_FILE,      0, 0,  0, NULL },
+                                        {19,  1,  "fat12.drv",       CYBFS_TYPE_FILE,      0, 0,  0, NULL },
+                                        {20,  1,  "cybfs.drv",       CYBFS_TYPE_FILE,      0, 0,  0, NULL },
+                                        // Files in /USER
+                                        {21, 13,  "Joshua Thijssen", CYBFS_TYPE_DIRECTORY, 0, 0,  0, NULL },
+                                        {22, 21,  ".",               CYBFS_TYPE_DIRECTORY, 0, 0,  0, NULL },
+                                        {23, 21,  "..",              CYBFS_TYPE_DIRECTORY, 0, 0,  0, NULL },
+                                        {24, 21,  "helloworld.txt",  CYBFS_TYPE_FILE,      0, 0, 78, (char *)&helloworlddata },
+                                        {25, 13,  "Bill Gates",      CYBFS_TYPE_DIRECTORY, 0, 0,  0, NULL },
+                                        {26, 25,  ".",               CYBFS_TYPE_DIRECTORY, 0, 0,  0, NULL },
+                                        {27, 25,  "..",              CYBFS_TYPE_DIRECTORY, 0, 0,  0, NULL },
+                                        {28, 13,  "Linus Torvalds",  CYBFS_TYPE_DIRECTORY, 0, 0,  0, NULL },
+                                        {29, 28,  ".",               CYBFS_TYPE_DIRECTORY, 0, 0,  0, NULL },
+                                        {30, 28,  "..",              CYBFS_TYPE_DIRECTORY, 0, 0,  0, NULL },
+                                        {31, 13,  "Steve Jobs",      CYBFS_TYPE_DIRECTORY, 0, 0,  0, NULL },
+                                        {32, 32,  ".",               CYBFS_TYPE_DIRECTORY, 0, 0,  0, NULL },
+                                        {33, 32,  "..",              CYBFS_TYPE_DIRECTORY, 0, 0,  0, NULL },
+                                        // Files in /INFO
+                                        {34, 10,  "cpu",             CYBFS_TYPE_FILE,      0, 0,  0, NULL },
+                                        {35, 10,  "memory",          CYBFS_TYPE_FILE,      0, 0,  0, NULL },
+                                        {36, 10,  "fdc",             CYBFS_TYPE_FILE,      0, 0,  0, NULL },
+                                        {37, 10,  "hdc",             CYBFS_TYPE_FILE,      0, 0,  0, NULL },
+                                        // Files in /DEVICE
+                                        {38,  7,  "FLOPPY0",         CYBFS_TYPE_BLOCK_DEV, 1, 0,  0, NULL },
+                                        {39,  7,  "FLOPPY1",         CYBFS_TYPE_BLOCK_DEV, 1, 1,  0, NULL },
+                                        {40,  7,  "FLOPPY2",         CYBFS_TYPE_BLOCK_DEV, 1, 2,  0, NULL },
+                                        {41,  7,  "FLOPPY3",         CYBFS_TYPE_BLOCK_DEV, 1, 3,  0, NULL }
                                        };
 
 vfs_dirent_t cybfs_rd_dirent;
 vfs_node_t cybfs_fd_node;
-
-vfs_fileops_t cybfs_fileops = {
-    NULL,
-    cybfs_read,
-    cybfs_write,
-    cybfs_open,
-    cybfs_close,
-    cybfs_readdir,
-    cybfs_finddir
-  };
 
 
 /**
@@ -87,9 +125,7 @@ void cybfs_init () {
 /**
  * Read file data
  */
-Uint32 cybfs_read (vfs_node_t *node, Uint32 offset, Uint32 size, char *buffer) {
-  kprintf ("cybfs_read(%d, %d, %d, %08X)\n", node->inode_nr, offset, size, buffer);
-
+Uint32 cybfs_read (struct vfs_mount *mount, vfs_node_t *node, Uint32 offset, Uint32 size, char *buffer) {
   // Offset is outside file
   if (offset > cybfs_nodes[node->inode_nr].length) return 0;
 
@@ -106,7 +142,7 @@ Uint32 cybfs_read (vfs_node_t *node, Uint32 offset, Uint32 size, char *buffer) {
 /**
  * Writes data to file
  */
-Uint32 cybfs_write (vfs_node_t *node, Uint32 offset, Uint32 size, char *buffer) {
+Uint32 cybfs_write (struct vfs_mount *mount, vfs_node_t *node, Uint32 offset, Uint32 size, char *buffer) {
   kprintf ("cybfs_write()\n");
   // Cannot write at the moment
   return 0;
@@ -115,7 +151,7 @@ Uint32 cybfs_write (vfs_node_t *node, Uint32 offset, Uint32 size, char *buffer) 
 /**
  * Opens a file
  */
-void cybfs_open (vfs_node_t *node) {
+void cybfs_open (struct vfs_mount *mount, vfs_node_t *node) {
   kprintf ("cybfs_open()\n");
   // Cannot open files
 }
@@ -123,7 +159,7 @@ void cybfs_open (vfs_node_t *node) {
 /**
  * Closes a file
  */
-void cybfs_close (vfs_node_t *node) {
+void cybfs_close (struct vfs_mount *mount, vfs_node_t *node) {
   kprintf ("cybfs_close()\n");
   // Cannot close files
 }
@@ -131,8 +167,10 @@ void cybfs_close (vfs_node_t *node) {
 /**
  * Read directory entry X (numerical dir seek)
  */
-vfs_dirent_t *cybfs_readdir (vfs_node_t *dirnode, Uint32 index) {
+vfs_dirent_t *cybfs_readdir (struct vfs_mount *mount, vfs_node_t *dirnode, Uint32 index) {
   int i, found;
+
+//  kprintf ("cybfs_readdir(%s, %d)\n", dirnode->name, index);
 
   // We can check which 'subdirectory' we are in, by checking the parent_inode_nr of the
   // file inside the cybfs system. The inode_nr of the file is the same as the index in
@@ -170,7 +208,7 @@ vfs_dirent_t *cybfs_readdir (vfs_node_t *dirnode, Uint32 index) {
 /**
  * Return directory entry 'name' (basically associative dir seek)
  */
-vfs_node_t *cybfs_finddir (vfs_node_t *dirnode, const char *name) {
+vfs_node_t *cybfs_finddir (struct vfs_mount *mount, vfs_node_t *dirnode, const char *name) {
   Uint32 index, i;
 
 //  kprintf ("cybfs_finddir (%s, %s);\n", dirnode->name, name);
@@ -217,20 +255,37 @@ vfs_node_t *cybfs_finddir (vfs_node_t *dirnode, const char *name) {
                             cybfs_fd_node.flags = FS_CHARDEVICE;
                             break;
   }
-  cybfs_fd_node.fileops = &cybfs_fileops;    // This file is handled by cybfs IO operations
+
+  // Copy the mount information from the parent
+  cybfs_fd_node.fileops = &cybfs_fileops;   // Everything here is handled by CybFS of course
 
   // Return structure
   return &cybfs_fd_node;
 }
 
-Uint32 cybfs_mount (struct vfs_node *node, device_t *dev) {
-  kprintf ("Mounting CYBFS_mount on %s", node->name);
-  return 0;
+/**
+ *
+ */
+vfs_node_t *cybfs_mount (struct vfs_mount *mount, device_t *dev, const char *path) {
+  kprintf ("\n*** Mounting CYBFS_mount on %s (chroot from '%s') \n", mount->mount, path);
+
+  // Return root node for this system
+  if (strcmp (path, "/") == 0) {
+    kprintf ("CybFS: Returning root node.\n");
+    return &cybfs_supernode;
+  }
+
+  // Return directory node
+  // @TODO: Return another node when we are not mounted to the root
+  kprintf ("CybFS: Returning directory node.\n");
+  return &cybfs_supernode;
 }
 
-Uint32 cybfs_umount (struct vfs_node *node) {
-  kprintf ("Unmounting CYBFS_mount from %s", node->name);
-  return 0;
+/**
+ *
+ */
+void cybfs_umount (struct vfs_mount *mount) {
+  kprintf ("\n*** Unmounting CYBFS_mount from %s\n", mount->mount);
 }
 
 

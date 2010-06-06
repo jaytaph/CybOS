@@ -25,20 +25,17 @@ typedef struct {
     char   *data;             // Pointer to data
 } cybfs_file_t;
 
-  cybfs_file_t cybfs_nodes[CYBFS_MAX_FILES-1];   // Max 256 files (inc subdirs)
-
-
-  extern vfs_fileops_t cybfs_fileops;
+  cybfs_file_t cybfs_nodes[CYBFS_MAX_FILES-1];   // Max 256 files can be added to a CybFS system (inc subdirs)
 
   void cybfs_init ();
-  Uint32 cybfs_read (vfs_node_t *node, Uint32 offset, Uint32 size, char *buffer);
-  Uint32 cybfs_write (vfs_node_t *node, Uint32 offset, Uint32 size, char *buffer);
-  void cybfs_open (vfs_node_t *node);
-  void cybfs_close (vfs_node_t *node);
-  vfs_dirent_t *cybfs_readdir (vfs_node_t *node, Uint32 index);
-  vfs_node_t *cybfs_finddir (vfs_node_t *node, const char *name);
+  Uint32 cybfs_read (struct vfs_mount *mount, vfs_node_t *node, Uint32 offset, Uint32 size, char *buffer);
+  Uint32 cybfs_write (struct vfs_mount *mount, vfs_node_t *node, Uint32 offset, Uint32 size, char *buffer);
+  void cybfs_open (struct vfs_mount *mount, vfs_node_t *node);
+  void cybfs_close (struct vfs_mount *mount, vfs_node_t *node);
+  vfs_dirent_t *cybfs_readdir (struct vfs_mount *mount, vfs_node_t *node, Uint32 index);
+  vfs_node_t *cybfs_finddir (struct vfs_mount *mount, vfs_node_t *node, const char *name);
 
-  Uint32 cybfs_mount (struct vfs_node *node, device_t *dev);
-  Uint32 cybfs_umount (struct vfs_node *node);
+  vfs_node_t *cybfs_mount (struct vfs_mount *mount, device_t *dev, const char *path);
+  void cybfs_umount (struct vfs_mount *mount);
 
 #endif // __VFS_CYBFS_H__

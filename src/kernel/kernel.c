@@ -45,10 +45,11 @@
 
 
 
+
 /**
  *
  */
-void readdir (vfs_node_t *root, int depth) {
+void readdir (struct vfs_mount *mount, vfs_node_t *root, int depth) {
   vfs_dirent_t *unsafe_dirent;
   vfs_node_t *unsafe_node;
   vfs_dirent_t local_dirent;
@@ -56,14 +57,18 @@ void readdir (vfs_node_t *root, int depth) {
   int index = 0;
   int j;
 
-  while (unsafe_dirent = vfs_readdir (root, index), unsafe_dirent != NULL) {
+  // Never trust the vfs_node_t pointers!
+  vfs_node_t local_root_node;
+  memcpy (&local_root_node, root, sizeof (vfs_node_t));
+
+  while (unsafe_dirent = vfs_readdir (mount, &local_root_node, index), unsafe_dirent != NULL) {
     index++;
 
     // Copy to local scope
     memcpy (&local_dirent, unsafe_dirent, sizeof (vfs_dirent_t));
 
     // File cannot be found (huh?)
-    unsafe_node = vfs_finddir (root, local_dirent.name);
+    unsafe_node = vfs_finddir (mount, &local_root_node, local_dirent.name);
     if (! unsafe_node) continue;
 
     // Copy to local scope
@@ -71,31 +76,29 @@ void readdir (vfs_node_t *root, int depth) {
 
     for (j=0; j!=depth; j++) kprintf ("  ");
     if ((local_node.flags & FS_DIRECTORY) == FS_DIRECTORY)  {
+      // This is a directory
       kprintf ("<%s>\n", local_node.name);
-      if (local_node.name[0] != '.') {
-        readdir (&local_node, depth+1);
+
+      // Read directory when it's not '.' or '..'
+      if (strcmp (local_node.name, ".") != 0 && strcmp (local_node.name, "..") != 0) {
+        readdir (mount, &local_node, depth+1);
       }
     } else {
-      kprintf ("%s\n", local_node.name);
-
-      if (local_node.length != 0) {
-        char buf[512];
-        Uint32 size = vfs_read (&local_node, 0, 512, (char *)&buf);
-        kprintf ("--- File contents (%d bytes) -----------------\n", size);
-        kprintf ("%s", buf);
-        kprintf ("--- End File contents -------------\n");
+      if ( (local_node.flags & FS_BLOCKDEVICE) == FS_BLOCKDEVICE ||
+           (local_node.flags & FS_CHARDEVICE) == FS_CHARDEVICE) {
+        // This is a device
+        kprintf ("%s  (Device %d:%d)\n", local_node.name, local_node.majorNum, local_node.minorNum);
+      } else {
+        // This is a file
+        kprintf ("%s  (%d bytes)\n", local_node.name, local_node.length);
       }
     }
-  }
+  } // while readdir (root, length)
+
+//  kprintf ("readdir() done\n");
 }
 
-/****************************************************************************
- * Startup of the kernel.
- */
-void kernel_entry (int stack_start, int total_sys_memory, char *boot_params) {
-  // No interruptions until we decide to start again
-  cli ();
-
+void kernel_setup (int stack_start, int total_sys_memory, const char *boot_params) {
   // Number of times the timer-interrupts is called.
   _kernel_ticks = 0;
 
@@ -131,7 +134,7 @@ void kernel_entry (int stack_start, int total_sys_memory, char *boot_params) {
   pit_set_frequency (100);      // Set PIT frequency to 1000 ints per second (1ms apart)
 
   // Initialise timer
-  kprintf ("TIM ");
+  kprintf ("TMR ");
   timer_init ();
 
   // Create interrupt and exception handlers
@@ -150,32 +153,79 @@ void kernel_entry (int stack_start, int total_sys_memory, char *boot_params) {
   kprintf ("MEM ");
   heap_init();
 
-  // @TODO: Must this be here, or later on when we are right before switching?
-  _current_pagedirectory = clone_pagedirectory (_kernel_pagedirectory);
-  set_pagedirectory (_current_pagedirectory);
-
   kprintf ("STK ");
   stack_init (stack_start);
 
   kprintf ("DMA ");
   dma_init ();
 
+  // Init device handler
+  kprintf ("DEV ");
+  device_init ();
+
+  // Init virtual file system and global file systems present in the kernel
   kprintf ("VFS ");
   vfs_init ();
-  cybfs_init ();      // Creates CybFS root system
+  cybfs_init ();
+  fat12_init ();
+  // ext3_init ();  // @TODO
 
-  kprintf ("DEV ");
-  device_init ();     // Creates /DEVICES
+  kprintf ("\n***************\n");
+  kprintf ("Mounting primary FS");
+  int ret = sys_mount (NULL, "cybfs", "ROOT", "/", 0);
+  if (! ret) kpanic ("Error while mounting CybFS filesystem. Cannot continue!\n");
 
   // Start interrupts, needed because we now do IRQ's for floppy access
   sti ();
 
   // Init floppy disk controllers and drives
   kprintf ("FDC ");
-  fdc_init ();
+  fdc_init ();      // Creates /DEVICES/FLOPPY* devices
 
-  kprintf ("FAT ");
-  fat12_init ();
+  // Init harddisk controllers and drives (and partitions)
+//  kprintf ("HDC "); // @TODO
+//  hdc_init ();      // Creates /DEVICES/HDC?D?P? devices
+
+
+
+  kprintf ("\n***************\n");
+  kprintf ("Mounting second FS");
+  ret = sys_mount (NULL, "cybfs", "PROGRAM", "/", 0);
+  if (! ret) kpanic ("Error while mounting second CybFS filesystem. Cannot continue!\n");
+
+  kprintf ("\n***************\n");
+  kprintf ("Mounting third FS");
+  ret = sys_mount ("ROOT:/DEVICE/FLOPPY0", "fat12", "FLOPPY", "/", 0);
+  if (! ret) kpanic ("Error while mounting first FAT12 filesystem. Cannot continue!\n");
+
+
+  kprintf ("\n\n\n");
+
+  vfs_node_t *node;
+  vfs_mount_t *mount;
+
+/*
+  mount = vfs_get_mount_from_path ("ROOT:/");
+  node = vfs_get_node_from_path ("ROOT:/");
+  readdir (mount, node, 0);
+  kprintf ("-----------------------------------------\n");
+
+  mount = vfs_get_mount_from_path ("ROOT:/");
+  node = vfs_get_node_from_path ("ROOT:/USER");
+  readdir (mount, node, 0);
+  kprintf ("-----------------------------------------\n");
+
+  mount = vfs_get_mount_from_path ("ROOT:/");
+  node = vfs_get_node_from_path ("ROOT:/SYSTEM/kernel.bin");
+  readdir (mount, node, 0);
+  kprintf ("-----------------------------------------\n");
+*/
+
+  mount = vfs_get_mount_from_path ("FLOPPY:/");
+  node = vfs_get_node_from_path ("FLOPPY:/");
+  readdir (mount, node, 0);
+  kprintf ("-----------------------------------------\n");
+  for (;;);
 
   // Initialize multitasking environment
   kprintf ("TSK ");
@@ -184,97 +234,74 @@ void kernel_entry (int stack_start, int total_sys_memory, char *boot_params) {
   kprintf ("]\n");
   kprintf ("Kernel initialization done. Unable to free %d bytes.\n", _unfreeable_kmem);
 
-
-  kprintf ("\n");
-  kprintf ("File system drivers loaded: \n");
-  int i;
-  for (i=0; i!=VFS_MAX_FILESYSTEMS; i++) {
-    if (! vfs_systems[i].tag[0]) continue;
-    kprintf ("'%10s' => %s\n", vfs_systems[i].tag, vfs_systems[i].name);
-  }
-  kprintf ("\n");
+  kprintf ("\n\n\n");
+}
 
 
-  for (;;) ;
-
-
-  // Display root directory hierarchy
-  readdir (vfs_root, 0);
-
-  for (;;) ;
-
-
-  /*
-   * All done with kernel initialization. Mount the root filesystem to the correct one. This is
-   * passed by the boot loader.
-   */
-  kprintf ("Mounting root filesystem\n");
-
+/**
+ *
+ */
+void mount_root_system (const char *boot_params) {
   // Find root device or panic when not found
-  char root_device[255];
-  if (! get_boot_parameter (boot_params, "root=", (char *)&root_device)) {
+  char root_device_path[255];
+  if (! get_boot_parameter (boot_params, "root=", (char *)&root_device_path)) {
     kpanic ("No root= parameter given. Cannot continue!\n");
   }
 
-  // Find the root system type and mount the system to root
+  // Find the root system type (no auto detect yet)
   char root_type[10] = "";    // Autodetect when empty
   get_boot_parameter (boot_params, "root_type=", (char *)&root_type);
 
-  int ret = sys_mount (root_device, "/PROGRAMS", root_type);
+  // Mount "ROOT" as our system
+  int ret = sys_mount (root_device_path, root_type, "ROOT", "/", 0);
   if (! ret) kpanic ("Error while mounting root filesystem. Cannot continue!\n");
-
-  // Display root directory hierarchy
-  readdir (vfs_root, 0);
+}
 
 
-  /*
-   * We are mounted, next, jump to usermode, fork into a new task (INIT) which
-   * executes /SYSTEM/INIT.
-   */
 
-  char init_prog[50] = "/SYSTEM/INIT";
+
+/**
+ *
+ */
+void start_init (const char *boot_params) {
+  // Default init program
+  char init_prog[50] = "ROOT:/SYSTEM/INIT.BIN";
+
+  // Get init from the command line (if given)
   get_boot_parameter (boot_params, "init=", (char *)&init_prog);
-  kprintf ("Transfering control to user mode and starting %s.\n\n\n", init_prog);
 
-  // Switch to ring3 and start interrupts automatically
-  switch_to_usermode ();
+  kprintf ("Transfering control to user mode and starting %s.\n\n\n", init_prog);
+  //sys_exec (init_prog);   // @TODO
+
+// Remove this testcode below
+
+  // @TODO: sys_exec (init_prog);
+  strncpy (_current_task->name, "init", 30);
 
   int pid = fork ();
-
   if (pid == 0) {
-    // @TODO: sys_exec (init_prog);
-    strncpy (_current_task->name, "init", 30);
+    strncpy (_current_task->name, "app01", 30);
+    for (;;) {
+      sleep (2500);
 
-    pid = fork ();
-    if (pid == 0) {
-        strncpy (_current_task->name, "app01", 30);
-        for (;;) {
-            sleep (2500);
-
-            tprintf ("\n\n");
-            tprintf ("PID  PPID TASK                STAT  PRIO  KTIME     UTIME\n");
-            task_t *t;
-            for (t=_task_list; t!=NULL; t=t->next) {
-                tprintf ("%04d %04d %-17s      %c  %4d  %08X  %08X\n", t->pid, t->ppid, t->name, t->state, t->priority, LO32(t->ktime), LO32(t->utime));
-            }
-            tprintf ("\n");
-        }
-    } else {
-        tprintf ("Doing child (%d)\n", getpid());
-        for (;;) {
-            int i;
-            for (i=0; i!=500; i++) tprintf ("Q");
-            tprintf ("ZZZZ");
-            sleep (1000);
-            tprintf ("Wakeup");
-        }
+      tprintf ("\n\n");
+      tprintf ("PID  PPID TASK                STAT  PRIO  KTIME     UTIME\n");
+      task_t *t;
+      for (t=_task_list; t!=NULL; t=t->next) {
+        tprintf ("%04d %04d %-17s      %c  %4d  %08X  %08X\n", t->pid, t->ppid, t->name, t->state, t->priority, LO32(t->ktime), LO32(t->utime));
+      }
+      tprintf ("\n");
+    }
+  } else {
+    tprintf ("Doing child (%d)\n", getpid());
+    for (;;) {
+      int i;
+      for (i=0; i!=500; i++) tprintf ("Q");
+      tprintf ("ZZZZ");
+      sleep (1000);
+      tprintf ("Wakeup");
     }
   }
-
-  tprintf ("Doing parent (%d)\n", getpid());
-
-  // This is the idle task (PID 0)
-  for (;;) idle ();
 }
 
 
@@ -419,3 +446,31 @@ void tprintf (const char *fmt, ...) {
   // Flush output
   __asm__ __volatile__ ("int	$" SYSCALL_INT_STR " \n\t" : : "a" (SYS_CONFLUSH));
 }
+
+
+
+
+
+/****************************************************************************
+ * Startup of the kernel.
+ */
+void kernel_entry (int stack_start, int total_sys_memory, const char *boot_params) {
+  cli ();   // Disable interrupts
+
+  kernel_setup (stack_start, total_sys_memory, boot_params);
+
+  kprintf ("Mounting root filesystem\n");
+  mount_root_system (boot_params);
+
+  kprintf ("Switching to usermode\n");
+  switch_to_usermode();
+
+  if (! fork()) {
+    start_init (boot_params);
+    kpanic ("The init program was terminated!");
+  }
+
+  // This is the idle task (PID 0)
+  for (;;) idle ();
+}
+

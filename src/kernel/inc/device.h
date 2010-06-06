@@ -14,7 +14,7 @@
     #define DEV_MAJOR_MISC          0   // Misc devices (null, zero, rand etc)
     #define DEV_MAJOR_FDC           1   // Floppy disks
     #define DEV_MAJOR_HDD           2   // Hard disks
-    #define DEV_MAJOR_CONSOLES      3   // Consoles (3,0 = kconsole)
+    #define DEV_MAJOR_CONSOLES      3   // Consoles (3,0 = kconsole)    (@TODO: not used)
 
     typedef struct {
       Uint8  majorNum;            // Major device node
@@ -34,6 +34,6 @@
   int device_register (device_t *dev, const char *filename);
   int device_unregister (device_t *dev);
   void device_init (void);
-  int device_get_device (int majorNum, int minorNum, device_t *device);
+  device_t *device_get_device (int majorNum, int minorNum);
 
 #endif // __DEVICE_H__

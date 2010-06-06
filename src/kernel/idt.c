@@ -288,7 +288,7 @@ void do_handle_exception (regs_t  *r) {
   print_cpu_info (r);
 
   switch (r->int_no) {
-    case 0 : break;
+    case 0 : kpanic ("Divide by zero!"); break;
     case 1 : break;
     case 2 : break;
     case 3 : break;

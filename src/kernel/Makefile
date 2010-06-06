@@ -71,9 +71,9 @@ all: kernel
 # Cleans up the kernel objects
 clean:
 	echo [RM]
-	$(RM) *.o
-	$(RM) $(TARGET)
-	$(RM) *.map
+	$(RM) *.o || true
+	$(RM) $(TARGET) || true
+	$(RM) *.map || true
 
 
 kernel: $(OBJS)

@@ -363,7 +363,7 @@ void fdc_read_floppy_sector (fdc_drive_t *drive, Uint32 lba_sector, char *buffer
   fdc_read_floppy_sector_CHS (c, h, s);
 
   // Copy the data from DMA buffer into the actual buffer
-  memcpy (buffer, fdc->dma.buffer, fdc->dma.size);
+  memcpy (buffer, drive->fdc->dma.buffer, drive->fdc->dma.size);
 
   // Shut down motor
   fdc_control_motor (0);
@@ -372,9 +372,55 @@ void fdc_read_floppy_sector (fdc_drive_t *drive, Uint32 lba_sector, char *buffer
 
 
 Uint32 fdc_block_read (Uint8 major, Uint8 minor, Uint32 offset, Uint32 size, char *buffer) {
-  kprintf ("fdc_block_read(%d, %d, %d, %d, %08X)\n", major, minor, offset, size, buffer);
-  return 0;
+  char *buf_ptr = buffer;
+  char tmpbuf[512];
+  Uint32 count = size;
+
+  // Unknown minor device (ie: drive to read from)
+//  kprintf ("Minor node check\n");
+  if (minor < 0 || minor > 3) return 0;
+
+  // Switch to wanted drive
+//  kprintf ("Switch active drive\n");
+  fdc_switch_active_drive (&fdc->drives[minor], 0);
+
+  // Find out starting sector (plus rest)
+  Uint32 lba_sector = offset / 512;
+  Uint32 rest_data = offset % 512;
+
+//  kprintf ("LBA_Sector: %d\n", lba_sector);
+//  kprintf ("LBA_rest  : %d\n", rest_data);
+
+  // Offset not on boundary, read half data
+  if (rest_data != 0) {
+//    kprintf ("Reading rest data: %d bytes", rest_data);
+    fdc_read_floppy_sector (&fdc->drives[minor], lba_sector, (char *)&tmpbuf);
+    lba_sector++;
+    memcpy (buffer, &tmpbuf[512-rest_data], rest_data);
+    count -= rest_data;
+    buf_ptr += rest_data;
+  }
+
+  // Read whole blocks
+  while (count >= 512) {
+//    kprintf ("Reading whole block");
+    fdc_read_floppy_sector (&fdc->drives[minor], lba_sector, buf_ptr);
+    lba_sector++;
+    buf_ptr += 512;
+    count -= 512;
+  }
+
+  // Read part of last block
+  if (count > 0) {
+//    kprintf ("Reading last block (%d bytes)", count);
+    fdc_read_floppy_sector (&fdc->drives[minor], lba_sector, (char *)&tmpbuf);
+    memcpy (buffer, &tmpbuf, count);
+  }
+
+//  kprintf ("all done");
+  return size;
 }
+
 Uint32 fdc_block_write (Uint8 major, Uint8 minor, Uint32 offset, Uint32 size, char *buffer) {
   kprintf ("fdc_block_write(%d, %d, %d, %d, %08X)\n", major, minor, offset, size, buffer);
   kprintf ("write to floppy not supported yet\n");

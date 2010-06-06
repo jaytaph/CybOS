@@ -78,16 +78,14 @@ int device_unregister (device_t *dev) {
 /**
  *
  */
-int device_get_device (int majorNum, int minorNum, device_t *device) {
-  device_t *tmp = devices;
+device_t *device_get_device (int majorNum, int minorNum) {
+  device_t *dev = devices;
 
-  while (tmp) {
+  while (dev) {
     // Found?
-    if (tmp->majorNum == majorNum && tmp->minorNum == minorNum) {
-      device = tmp;
-      return 1;
-    }
+    if (dev->majorNum == majorNum && dev->minorNum == minorNum) return dev;
+    dev = (device_t *)dev->next;
   }
-  return 0;
+  return NULL;
 }
 
