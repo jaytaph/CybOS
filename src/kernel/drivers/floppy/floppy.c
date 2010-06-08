@@ -393,7 +393,7 @@ Uint32 fdc_block_read (Uint8 major, Uint8 minor, Uint32 offset, Uint32 size, cha
 
   // Offset not on boundary, read half data
   if (rest_data != 0) {
-//    kprintf ("Reading rest data: %d bytes", rest_data);
+//    kprintf ("Reading rest data: %d %d bytes", lba_sector, rest_data);
     fdc_read_floppy_sector (&fdc->drives[minor], lba_sector, (char *)&tmpbuf);
     lba_sector++;
     memcpy (buffer, &tmpbuf[512-rest_data], rest_data);
@@ -403,7 +403,7 @@ Uint32 fdc_block_read (Uint8 major, Uint8 minor, Uint32 offset, Uint32 size, cha
 
   // Read whole blocks
   while (count >= 512) {
-//    kprintf ("Reading whole block");
+//    kprintf ("Reading whole block %d", lba_sector);
     fdc_read_floppy_sector (&fdc->drives[minor], lba_sector, buf_ptr);
     lba_sector++;
     buf_ptr += 512;
@@ -412,7 +412,7 @@ Uint32 fdc_block_read (Uint8 major, Uint8 minor, Uint32 offset, Uint32 size, cha
 
   // Read part of last block
   if (count > 0) {
-//    kprintf ("Reading last block (%d bytes)", count);
+//    kprintf ("Reading last block (%d %d bytes)", lba_sector, count);
     fdc_read_floppy_sector (&fdc->drives[minor], lba_sector, (char *)&tmpbuf);
     memcpy (buffer, &tmpbuf, count);
   }
@@ -476,11 +476,11 @@ void fdc_init_drive (fdc_t *fdc, Uint8 driveNum, Uint8 driveType) {
   device->seek = fdc_block_seek;
 
   // Create device name
-  // @TODO: use sprintf(filename, "FLOPPY%d", device->minorNum);
-  char filename[11];
-  strcpy ((char *)&filename, "FLOPPY");
-  filename[6] = '0' + device->minorNum;
+  char filename[12];
+  memset (filename, 0, sizeof (filename));
+  sprintf (filename, "FLOPPY%d", device->minorNum);
 
+  // Register device
   device_register (device, filename);
 
 /*

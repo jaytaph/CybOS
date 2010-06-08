@@ -7,6 +7,7 @@
 
 #include "kernel.h"
 #include "kmem.h"
+#include "klib.h"
 #include "vfs.h"
 #include "vfs/cybfs.h"
 
@@ -128,6 +129,21 @@ vfs_node_t *vfs_finddir(struct vfs_mount *mount, vfs_node_t *node, const char *n
   return node->fileops->finddir (mount, node, name);
 }
 
+/**
+ *
+ */
+void vfs_mknod (struct vfs_mount *mount, struct vfs_node *node, const char *name, char device_type, Uint8 major_node, Uint8 minor_node) {
+  kprintf ("vfs_mknod\n");
+  // Check if it's a directory
+  if ((node->flags & 0x7) != FS_DIRECTORY) return;
+
+  kprintf ("vfs_mknod: 1\n");
+
+  if (! node->fileops || ! node->fileops->mknod) return;
+
+  kprintf ("vfs_mknod: 2\n");
+  return node->fileops->mknod (mount, node, name, device_type, major_node, minor_node);
+}
 
 
 /**

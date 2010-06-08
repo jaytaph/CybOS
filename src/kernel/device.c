@@ -7,6 +7,7 @@
 
 #include "kernel.h"
 #include "device.h"
+#include "vfs.h"
 
 // This entry holds ALL major devices
 device_t *devices;
@@ -25,6 +26,8 @@ void device_init (void) {
  */
 int device_register (device_t *dev, const char *filename) {
   device_t *tmp = devices;
+
+  kprintf ("device_register (device_t *dev, const char *%s) {\n", filename);
 
   // There are no devices yet, this is the first device. Special case
   if (devices == NULL) {
@@ -47,7 +50,11 @@ int device_register (device_t *dev, const char *filename) {
   tmp->next = (struct device_t *)dev;
   dev->next = NULL;
 
-  // @TODO: add filename to /DEVICES/filename directory ??
+
+  // Create device node
+  vfs_mount_t *mount = vfs_get_mount_from_path ("DEVICE:/");
+  vfs_node_t *node = vfs_get_node_from_path ("DEVICE:/");
+  vfs_mknod (mount, node, filename, FS_BLOCKDEVICE, dev->majorNum, dev->minorNum);
 
   return 1;
 }

@@ -30,6 +30,7 @@
 
 
   int do_printf (const char *fmt, va_list args, fnptr fn, void *ptr);
+  int sprintf (char *buffer, const char *fmt, ...);
 
   char *strcpy (char *dst, const char *src);
   char *strncpy (char *dst, const char *src, int count);

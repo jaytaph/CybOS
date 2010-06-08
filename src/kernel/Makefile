@@ -61,7 +61,8 @@ OBJS =  main.o \
         drivers/floppy/floppy.o \
         vfs.o \
 	vfs/fat12.o \
-	vfs/cybfs.o
+	vfs/cybfs.o \
+	vfs/devfs.o
 	
 
 

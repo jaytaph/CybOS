@@ -161,6 +161,8 @@ char *strstr (const char *str1, const char *str2) {
   #define PR_BUFLEN  16
 
 
+
+// ======================================================================
 int do_printf (const char *fmt, va_list args, fnptr fn, void *ptr) {
 	unsigned flags, actual_wd, count, given_wd;
 	unsigned char *where, buf[PR_BUFLEN];
@@ -379,4 +381,34 @@ EMIT2:				if((flags & PR_LJ) == 0)
 		}
 	}
 	return count;
+}
+
+
+// ======================================================================
+int vsprintf_help (char c, void **ptr)
+{
+  char *dst;
+
+  dst=*ptr;
+  *dst++=c;
+  *ptr=dst;
+  return 0;
+}
+
+// ======================================================================
+int vsprintf (char *buffer, const char *fmt, va_list args)
+{
+  return do_printf (fmt, args, vsprintf_help, (void *)buffer);
+}
+
+// ======================================================================
+int sprintf (char *buffer, const char *fmt, ...)
+{
+  va_list args;
+  int ret_val;
+
+  va_start (args, fmt);
+  ret_val = vsprintf (buffer, fmt, args);
+  va_end (args);
+  return ret_val;
 }

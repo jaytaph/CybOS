@@ -47,7 +47,7 @@ char helloworlddata[] = "Hello world!\nThis file is the first readable file from
 
 
 // @TODO: Remove most of these items.. only /DEVICES should be present so we can mount our root system
-const cybfs_file_t default_layout[] = {
+const cybfs_file_t cybfs_default_layout[] = {
                                         // Dummy root
                                         { 0,  0,  "cybfs-root",      0,                    0, 0,  0, NULL },
                                         // Mandatory FS Structure
@@ -115,7 +115,7 @@ void cybfs_init () {
   }
 
   // Copy default file hierachy
-  memcpy (&cybfs_nodes, &default_layout, sizeof (default_layout));
+  memcpy (&cybfs_nodes, &cybfs_default_layout, sizeof (cybfs_default_layout));
 
   // Register filesystem to the VFS
   vfs_register_filesystem (&cybfs_vfs_info);

@@ -28,6 +28,7 @@
 #include "vfs.h"
 #include "vfs/fat12.h"
 #include "vfs/cybfs.h"
+#include "vfs/devfs.h"
 
   // 64bit tick counter
   Uint64 _kernel_ticks;
@@ -167,65 +168,25 @@ void kernel_setup (int stack_start, int total_sys_memory, const char *boot_param
   kprintf ("VFS ");
   vfs_init ();
   cybfs_init ();
+  devfs_init ();
   fat12_init ();
   // ext3_init ();  // @TODO
 
   kprintf ("\n***************\n");
   kprintf ("Mounting primary FS");
-  int ret = sys_mount (NULL, "cybfs", "ROOT", "/", 0);
-  if (! ret) kpanic ("Error while mounting CybFS filesystem. Cannot continue!\n");
+  int ret = sys_mount (NULL, "devfs", "DEVICE", "/", 0);
+  if (! ret) kpanic ("Error while mounting DevFS filesystem. Cannot continue!\n");
 
   // Start interrupts, needed because we now do IRQ's for floppy access
   sti ();
 
   // Init floppy disk controllers and drives
   kprintf ("FDC ");
-  fdc_init ();      // Creates /DEVICES/FLOPPY* devices
+  fdc_init ();      // Creates DEVICES:/FLOPPY* devices
 
   // Init harddisk controllers and drives (and partitions)
 //  kprintf ("HDC "); // @TODO
-//  hdc_init ();      // Creates /DEVICES/HDC?D?P? devices
-
-
-
-  kprintf ("\n***************\n");
-  kprintf ("Mounting second FS");
-  ret = sys_mount (NULL, "cybfs", "PROGRAM", "/", 0);
-  if (! ret) kpanic ("Error while mounting second CybFS filesystem. Cannot continue!\n");
-
-  kprintf ("\n***************\n");
-  kprintf ("Mounting third FS");
-  ret = sys_mount ("ROOT:/DEVICE/FLOPPY0", "fat12", "FLOPPY", "/", 0);
-  if (! ret) kpanic ("Error while mounting first FAT12 filesystem. Cannot continue!\n");
-
-
-  kprintf ("\n\n\n");
-
-  vfs_node_t *node;
-  vfs_mount_t *mount;
-
-/*
-  mount = vfs_get_mount_from_path ("ROOT:/");
-  node = vfs_get_node_from_path ("ROOT:/");
-  readdir (mount, node, 0);
-  kprintf ("-----------------------------------------\n");
-
-  mount = vfs_get_mount_from_path ("ROOT:/");
-  node = vfs_get_node_from_path ("ROOT:/USER");
-  readdir (mount, node, 0);
-  kprintf ("-----------------------------------------\n");
-
-  mount = vfs_get_mount_from_path ("ROOT:/");
-  node = vfs_get_node_from_path ("ROOT:/SYSTEM/kernel.bin");
-  readdir (mount, node, 0);
-  kprintf ("-----------------------------------------\n");
-*/
-
-  mount = vfs_get_mount_from_path ("FLOPPY:/");
-  node = vfs_get_node_from_path ("FLOPPY:/");
-  readdir (mount, node, 0);
-  kprintf ("-----------------------------------------\n");
-  for (;;);
+//  hdc_init ();      // Creates DEVICES:/HDC?D?P? devices
 
   // Initialize multitasking environment
   kprintf ("TSK ");
@@ -242,6 +203,14 @@ void kernel_setup (int stack_start, int total_sys_memory, const char *boot_param
  *
  */
 void mount_root_system (const char *boot_params) {
+
+  kprintf ("- MOUNT ROOT SYSTEM ---------------------\n");
+  vfs_mount_t *mount = vfs_get_mount_from_path ("DEVICE:/");
+  vfs_node_t *node = vfs_get_node_from_path ("DEVICE:/");
+  readdir (mount, node, 0);
+  kprintf ("-----------------------------------------\n");
+
+
   // Find root device or panic when not found
   char root_device_path[255];
   if (! get_boot_parameter (boot_params, "root=", (char *)&root_device_path)) {
