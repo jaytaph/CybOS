@@ -196,7 +196,7 @@ vfs_dirent_t *cybfs_readdir (struct vfs_mount *mount, vfs_node_t *dirnode, Uint3
   // No file found
   if (! found) return NULL;
 
-//  kprintf ("Found index: %d\n", found);
+  kprintf ("Found index: %d\n", found);
 
   cybfs_rd_dirent.inode_nr = index;
   strcpy (cybfs_rd_dirent.name, cybfs_nodes[found].name);

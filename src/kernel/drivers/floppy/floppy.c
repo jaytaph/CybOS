@@ -481,6 +481,7 @@ void fdc_init_drive (fdc_t *fdc, Uint8 driveNum, Uint8 driveType) {
   sprintf (filename, "FLOPPY%d", device->minorNum);
 
   // Register device
+//  kprintf ("\n*** Registering device DEVICE:/%s\n", filename);
   device_register (device, filename);
 
 /*

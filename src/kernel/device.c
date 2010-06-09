@@ -27,28 +27,27 @@ void device_init (void) {
 int device_register (device_t *dev, const char *filename) {
   device_t *tmp = devices;
 
-  kprintf ("device_register (device_t *dev, const char *%s) {\n", filename);
+//  kprintf ("device_register (device_t *dev, const char *%s) {\n", filename);
 
   // There are no devices yet, this is the first device. Special case
   if (devices == NULL) {
     devices = dev;
     dev->next = NULL;
-    return 1;
+  } else {
+    // See if device already exists
+    while (tmp) {
+      if (tmp->majorNum == dev->majorNum && tmp->minorNum == dev->minorNum) return 0;
+      tmp = (device_t *)tmp->next;
+    }
+
+    // Send end of device list
+    tmp = devices;
+    while (tmp->next) tmp = (device_t *)tmp->next;
+
+    // Add device to end
+    tmp->next = (struct device_t *)dev;
+    dev->next = NULL;
   }
-
-  // See if device already exists
-  while (tmp) {
-    if (tmp->majorNum == dev->majorNum && tmp->minorNum == dev->minorNum) return 0;
-    tmp = (device_t *)tmp->next;
-  }
-
-  // Send end of device list
-  tmp = devices;
-  while (tmp->next) tmp = (device_t *)tmp->next;
-
-  // Add device to end
-  tmp->next = (struct device_t *)dev;
-  dev->next = NULL;
 
 
   // Create device node

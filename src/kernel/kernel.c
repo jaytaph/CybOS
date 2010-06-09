@@ -51,6 +51,7 @@
  *
  */
 void readdir (struct vfs_mount *mount, vfs_node_t *root, int depth) {
+//  kprintf ("readdir ()\n");
   vfs_dirent_t *unsafe_dirent;
   vfs_node_t *unsafe_node;
   vfs_dirent_t local_dirent;
@@ -61,9 +62,11 @@ void readdir (struct vfs_mount *mount, vfs_node_t *root, int depth) {
   // Never trust the vfs_node_t pointers!
   vfs_node_t local_root_node;
   memcpy (&local_root_node, root, sizeof (vfs_node_t));
+//kprintf ("readdir(): node copy\n");
 
   while (unsafe_dirent = vfs_readdir (mount, &local_root_node, index), unsafe_dirent != NULL) {
     index++;
+//    kprintf ("readdir(): Reading index %d\n", index);
 
     // Copy to local scope
     memcpy (&local_dirent, unsafe_dirent, sizeof (vfs_dirent_t));
@@ -172,8 +175,6 @@ void kernel_setup (int stack_start, int total_sys_memory, const char *boot_param
   fat12_init ();
   // ext3_init ();  // @TODO
 
-  kprintf ("\n***************\n");
-  kprintf ("Mounting primary FS");
   int ret = sys_mount (NULL, "devfs", "DEVICE", "/", 0);
   if (! ret) kpanic ("Error while mounting DevFS filesystem. Cannot continue!\n");
 
@@ -196,6 +197,9 @@ void kernel_setup (int stack_start, int total_sys_memory, const char *boot_param
   kprintf ("Kernel initialization done. Unable to free %d bytes.\n", _unfreeable_kmem);
 
   kprintf ("\n\n\n");
+
+  // Start interrupts here
+  sti ();
 }
 
 
@@ -203,14 +207,6 @@ void kernel_setup (int stack_start, int total_sys_memory, const char *boot_param
  *
  */
 void mount_root_system (const char *boot_params) {
-
-  kprintf ("- MOUNT ROOT SYSTEM ---------------------\n");
-  vfs_mount_t *mount = vfs_get_mount_from_path ("DEVICE:/");
-  vfs_node_t *node = vfs_get_node_from_path ("DEVICE:/");
-  readdir (mount, node, 0);
-  kprintf ("-----------------------------------------\n");
-
-
   // Find root device or panic when not found
   char root_device_path[255];
   if (! get_boot_parameter (boot_params, "root=", (char *)&root_device_path)) {
@@ -222,8 +218,15 @@ void mount_root_system (const char *boot_params) {
   get_boot_parameter (boot_params, "root_type=", (char *)&root_type);
 
   // Mount "ROOT" as our system
-  int ret = sys_mount (root_device_path, root_type, "ROOT", "/", 0);
-  if (! ret) kpanic ("Error while mounting root filesystem. Cannot continue!\n");
+  int ret = sys_mount (root_device_path, root_type, "ROOT", "/", MOUNTOPTION_REMOUNT);
+  if (! ret) kpanic ("Error while mounting root filesystem from '%s'. Cannot continue!\n", root_device_path);
+
+
+  kprintf ("- MOUNT ROOT SYSTEM ---------------------\n");
+  vfs_mount_t *mount = vfs_get_mount_from_path ("ROOT:/");
+  vfs_node_t *node = vfs_get_node_from_path ("ROOT:/");
+  readdir (mount, node, 0);
+  kprintf ("-----------------------------------------\n");
 }
 
 
@@ -239,14 +242,15 @@ void start_init (const char *boot_params) {
   // Get init from the command line (if given)
   get_boot_parameter (boot_params, "init=", (char *)&init_prog);
 
-  kprintf ("Transfering control to user mode and starting %s.\n\n\n", init_prog);
-  //sys_exec (init_prog);   // @TODO
+  tprintf ("Transfering control to user mode and starting %s.\n\n\n", init_prog);
+  //exec (init_prog);   // @TODO
 
 // Remove this testcode below
 
   // @TODO: sys_exec (init_prog);
   strncpy (_current_task->name, "init", 30);
 
+/*
   int pid = fork ();
   if (pid == 0) {
     strncpy (_current_task->name, "app01", 30);
@@ -270,6 +274,15 @@ void start_init (const char *boot_params) {
       sleep (1000);
       tprintf ("Wakeup");
     }
+  }
+*/
+
+  for (;;) {
+    int i;
+    for (i=0; i!=100; i++) tprintf ("Q");
+    tprintf ("ZZZZ");
+    sleep (1000);
+    tprintf ("Wakeup");
   }
 }
 
@@ -434,12 +447,17 @@ void kernel_entry (int stack_start, int total_sys_memory, const char *boot_param
   kprintf ("Switching to usermode\n");
   switch_to_usermode();
 
+  tprintf ("Starting INIT\n");
+
   if (! fork()) {
+    tprintf ("FORK1\n");
     start_init (boot_params);
-    kpanic ("The init program was terminated!");
+    tprintf ("The init program was terminated!");
+    kdeadlock ();
   }
 
   // This is the idle task (PID 0)
+  tprintf ("IDLE\n");
   for (;;) idle ();
 }
 

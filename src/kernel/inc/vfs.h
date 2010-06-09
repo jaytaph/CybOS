@@ -12,6 +12,12 @@
     #include "ktype.h"
     #include "device.h"
 
+
+    // (sys_)mount() options
+    #define MOUNTOPTION_REMOUNT         1         // Overwrite an existing mount
+
+
+
     #define VFS_MAX_FILESYSTEMS     100     // Maximum 100 different filesystem
     #define VFS_MAX_MOUNTS          255     // Maximum 255 mounts can be made
 
@@ -55,7 +61,7 @@
     // Info block that is needed to register the filesystem by vfs_register_filesystem()
     typedef struct {
       char                 tag[15];           // VFS tag (FAT12, EXT3, REISERFS, JFS etc)
-      char                 name[100];         // More detailed name
+      char                 name[255];         // More detailed name
       struct vfs_mountops  *mountops;         // Mount operations
     } vfs_info_t;
 
@@ -79,17 +85,17 @@
 
     // Abstract representation for a directory entry
     typedef struct dirent {
-        struct dirent *parent;      // Points to the parent directory (..) if any
-        struct dirent *next;        // Points to next entry in this directory
+//        struct dirent *parent;      // Points to the parent directory (..) if any
+//        struct dirent *next;        // Points to next entry in this directory
 
-        char    *name;              // Name of current object
+        char    name[255];          // Name of current object
         inode_t inode_nr;           // Inode nr of the current object
     } vfs_dirent_t;
 
     // Abstract representation for a file entry
     typedef struct vfs_node {
         inode_t              inode_nr;        // Inode number
-        char                 name[128];       // Filename
+        char                 name[255];       // Filename
         Uint32               owner;           // Owner ID
         Uint32               length;          // File length
         Uint32               flags;           // Node type

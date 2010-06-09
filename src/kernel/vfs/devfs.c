@@ -60,6 +60,9 @@ vfs_node_t devfs_fd_node;
 void devfs_init () {
   int i;
 
+  // Clear everything
+  memset (devfs_nodes, 0, sizeof (devfs_nodes));
+
   // Clear out all files
   for (i=0; i!=DEVFS_MAX_FILES; i++) {
     devfs_nodes[i].inode_nr = i;
@@ -92,11 +95,13 @@ vfs_dirent_t *devfs_readdir (struct vfs_mount *mount, vfs_node_t *dirnode, Uint3
     // This entry is empty
     if (devfs_nodes[i].type == 0) continue;
 
+//    kprintf ("Comparing inode slot %d: %d => %d\n", i, devfs_nodes[i].parent_inode_nr, dirnode->inode_nr);
+
     // This this entry in the correct directory?
     if (devfs_nodes[i].parent_inode_nr == dirnode->inode_nr) {
       // An entry is found. Decrease index counter
       index--;
-//      kprintf ("Found file in dir dec index to %d\n", index);
+//      kprintf ("Found file (%s) in dir dec index to %d\n", devfs_nodes[i].name, index);
       if (index == 0) {
         found = i;
         break;
@@ -107,11 +112,10 @@ vfs_dirent_t *devfs_readdir (struct vfs_mount *mount, vfs_node_t *dirnode, Uint3
   // No file found
   if (! found) return NULL;
 
-//  kprintf ("Found index: %d\n", found);
-
-  devfs_rd_dirent.inode_nr = index;
+//kprintf ("Populating dirent\n");
+  devfs_rd_dirent.inode_nr = found;
   strcpy (devfs_rd_dirent.name, devfs_nodes[found].name);
-
+//kprintf ("Done Populating dirent\n");
   return &devfs_rd_dirent;
 }
 
@@ -174,17 +178,17 @@ vfs_node_t *devfs_finddir (struct vfs_mount *mount, vfs_node_t *dirnode, const c
  *
  */
 vfs_node_t *devfs_mount (struct vfs_mount *mount, device_t *dev, const char *path) {
-  kprintf ("\n*** Mounting DEVFS_mount on %s (chroot from '%s') \n", mount->mount, path);
+//  kprintf ("\n*** Mounting DEVFS_mount on %s (chroot from '%s') \n", mount->mount, path);
 
   // Return root node for this system
   if (strcmp (path, "/") == 0) {
-    kprintf ("CybFS: Returning root node.\n");
+//    kprintf ("DevFS: Returning root node.\n");
     return &devfs_supernode;
   }
 
   // Return directory node
   // @TODO: Return another node when we are not mounted to the root
-  kprintf ("CybFS: Returning directory node.\n");
+//  kprintf ("DevFS: Returning directory node.\n");
   return &devfs_supernode;
 }
 
@@ -201,7 +205,7 @@ void devfs_umount (struct vfs_mount *mount) {
 void devfs_mknod (struct vfs_mount *mount, vfs_node_t *node, const char *name, char device_type, Uint8 major_node, Uint8 minor_node) {
   int i;
 
-  kprintf ("\n\ndevfs_mknod(%s, %d %d, %d)\n", name, device_type, major_node, minor_node);
+//  kprintf ("\n\ndevfs_mknod(%s, %d %d, %d)\n", name, device_type, major_node, minor_node);
 
   // Must be a directory
   if ( (node->flags & DEVFS_TYPE_DIRECTORY) != DEVFS_TYPE_DIRECTORY) return;
@@ -211,25 +215,14 @@ void devfs_mknod (struct vfs_mount *mount, vfs_node_t *node, const char *name, c
     // Already taken
     if (devfs_nodes[i].type != 0) continue;
 
-    kprintf ("Made on inode %d\n", i);
-
     devfs_nodes[i].inode_nr = i;    // Inode nr is the slot nr
     devfs_nodes[i].parent_inode_nr = node->inode_nr;    // Inode nr is the dir's nr
-    strcpy ((char *)&devfs_nodes[i].name,name);
+    strcpy (devfs_nodes[i].name, name);
     devfs_nodes[i].major_num = major_node;
     devfs_nodes[i].minor_num = minor_node;
 
-    switch (device_type) {
-      case FS_BLOCKDEVICE :
-                              devfs_nodes[i].type = DEVFS_TYPE_BLOCK_DEV;
-                              break;
-      case FS_CHARDEVICE :
-                              devfs_nodes[i].type = DEVFS_TYPE_CHAR_DEV;
-                              break;
-      default :
-                              // Unknown typ
-                              return;
-    }
+    if (device_type == FS_BLOCKDEVICE) devfs_nodes[i].type = DEVFS_TYPE_BLOCK_DEV;
+    if (device_type == FS_CHARDEVICE) devfs_nodes[i].type = DEVFS_TYPE_CHAR_DEV;
     return;
   }
 }

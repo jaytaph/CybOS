@@ -11,6 +11,7 @@
 #include "vfs.h"
 #include "vfs/cybfs.h"
 
+
 vfs_mount_t vfs_mount_table[VFS_MAX_MOUNTS];    // Mount table with all mount points (@TODO: dynamically allocated or linkedlist)
 vfs_system_t vfs_systems[VFS_MAX_FILESYSTEMS];  // There will be a maximum of 100 different filesystems that can be loaded (@TODO: linkedlist or dynamically allocation)
 
@@ -133,15 +134,15 @@ vfs_node_t *vfs_finddir(struct vfs_mount *mount, vfs_node_t *node, const char *n
  *
  */
 void vfs_mknod (struct vfs_mount *mount, struct vfs_node *node, const char *name, char device_type, Uint8 major_node, Uint8 minor_node) {
-  kprintf ("vfs_mknod\n");
+//  kprintf ("vfs_mknod\n");
   // Check if it's a directory
   if ((node->flags & 0x7) != FS_DIRECTORY) return;
 
-  kprintf ("vfs_mknod: 1\n");
+//  kprintf ("vfs_mknod: 1\n");
 
   if (! node->fileops || ! node->fileops->mknod) return;
 
-  kprintf ("vfs_mknod: 2\n");
+//  kprintf ("vfs_mknod: 2\n");
   return node->fileops->mknod (mount, node, name, device_type, major_node, minor_node);
 }
 
@@ -257,15 +258,15 @@ vfs_node_t *vfs_get_node_from_path (const char *path) {
   char component[255];
   int cs;
 
-  kprintf ("vfs_get_node_from_path('%s')\n", path);
+//  kprintf ("vfs_get_node_from_path('%s')\n", path);
 
   // Lookup correct node or return NULL when not found
   char *path_suffix;
   vfs_mount_t *mount = vsf_get_mount (path, &path_suffix);
   if (mount == NULL) return NULL;
 
-  kprintf ("VFS_GNFP Mount: '%s'\n", mount->mount);
-  kprintf ("PATH: '%s'\n", path_suffix);
+//  kprintf ("VFS_GNFP Mount: '%s'\n", mount->mount);
+//  kprintf ("PATH: '%s'\n", path_suffix);
 
   // Start with the supernode (the only in-memory node needed)
   vfs_node_t *cur_node = mount->supernode;
@@ -299,7 +300,7 @@ vfs_node_t *vfs_get_node_from_path (const char *path) {
     // Increase to next entry (starting at the directory separator)
     c+=cs;
 
-    kprintf ("Next component: '%s' (from inode %d)\n", component, cur_node->inode_nr);
+//    kprintf ("Next component: '%s' (from inode %d)\n", component, cur_node->inode_nr);
 
     // Dot directory, skip since we stay on the same node
     if (strcmp (component, ".") == 0) continue;   // We could vfs_finddir deal with it, or do it ourself, we are faster
@@ -319,7 +320,7 @@ vfs_node_t *vfs_get_node_from_path (const char *path) {
     }
   }
 
-  kprintf ("All done.. returning vfs inode: %d\n\n", cur_node->inode_nr);
+//  kprintf ("All done.. returning vfs inode: %d\n\n", cur_node->inode_nr);
   return cur_node;
 }
 
@@ -346,22 +347,19 @@ int sys_mount (const char *device_path, const char *fs_type, const char *mount, 
   device_t *dev_ptr;
   int i;
 
-  // @TODO: options are not used
-
   // Find the filesystem itself (is it registered)
   vfs_system_t *fs_system = vfs_get_vfs_system (fs_type);
   if (! fs_system) return 0; // Cannot find registered file system
 
-
-
   // Check if mount is already mounted
-  for (i=0; i!=VFS_MAX_MOUNTS; i++) {
-    if (! vfs_mount_table[i].enabled) continue;
-    if (strcmp(vfs_mount_table[i].mount, mount) == 0) return 0; // Mount already mounted
+  if (! (mount_options & MOUNTOPTION_REMOUNT)) {
+    for (i=0; i!=VFS_MAX_MOUNTS; i++) {
+      if (! vfs_mount_table[i].enabled) continue;
+      if (strcmp(vfs_mount_table[i].mount, mount) == 0) return 0; // Mount already mounted
+    }
   }
 
-
-  // Some entries do not have a device (cybfs?)
+  // Some filesystems do not have a device (cybfs, devfs etc)
   if (device_path != NULL) {
     // Check device
     vfs_node_t *dev_node = vfs_get_node_from_path (device_path);
@@ -374,12 +372,16 @@ int sys_mount (const char *device_path, const char *fs_type, const char *mount, 
     if (! dev_ptr) return 0;    // Cannot find the device registered to this file
   }
 
-
   // Browse mount table, find first free slot
   for (i=0; i!=VFS_MAX_MOUNTS; i++) {
-    // Find free slot
-    if (vfs_mount_table[i].enabled) continue;
 
+    if (! (mount_options & MOUNTOPTION_REMOUNT)) {
+      // Continue when this slot already taken
+      if (vfs_mount_table[i].enabled) continue;
+    } else {
+      // Continue when this slot not free and it's not the correct mount
+      if (vfs_mount_table[i].enabled && strcmp (vfs_mount_table[i].mount, mount) != 0) continue;
+    }
 
     // Populate mount_table info
     vfs_mount_table[i].dev = dev_ptr;
@@ -400,6 +402,7 @@ int sys_mount (const char *device_path, const char *fs_type, const char *mount, 
     // @TODO: mutex this..
     vfs_mount_table[i].enabled = 1;
 
+/*
     kprintf ("This system is currently mounted %d times\n", vfs_mount_table[i].system->mount_count);
 
     kprintf ("Mount table:\n");
@@ -407,6 +410,7 @@ int sys_mount (const char *device_path, const char *fs_type, const char *mount, 
       if (! vfs_mount_table[i].enabled) continue;
       kprintf ("%d  %-20s  %08s  %d\n", i, vfs_mount_table[i].mount, vfs_mount_table[i].system->info.tag, vfs_mount_table[i].system->mount_count);
     }
+*/
 
     // Return ok status
     return 1;

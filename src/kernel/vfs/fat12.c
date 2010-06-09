@@ -162,7 +162,7 @@ vfs_node_t *fat12_mount (struct vfs_mount *mount, device_t *dev, const char *pat
   }
 */
 
-  kprintf ("Returning FAT12's supernode\n");
+//  kprintf ("Returning FAT12's supernode\n");
   return &fat12_supernode;
 
 
