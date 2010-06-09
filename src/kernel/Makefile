@@ -59,6 +59,7 @@ OBJS =  main.o \
 	dma.o \
 	device.o \
         drivers/floppy/floppy.o \
+	drivers/ata/ata.o \
         vfs.o \
 	vfs/fat12.o \
 	vfs/cybfs.o \

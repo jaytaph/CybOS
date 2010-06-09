@@ -25,6 +25,7 @@
 #include "io.h"
 #include "dma.h"
 #include "drivers/floppy.h"
+#include "drivers/ata.h"
 #include "vfs.h"
 #include "vfs/fat12.h"
 #include "vfs/cybfs.h"
@@ -186,8 +187,8 @@ void kernel_setup (int stack_start, int total_sys_memory, const char *boot_param
   fdc_init ();      // Creates DEVICES:/FLOPPY* devices
 
   // Init harddisk controllers and drives (and partitions)
-//  kprintf ("HDC "); // @TODO
-//  hdc_init ();      // Creates DEVICES:/HDC?D?P? devices
+  kprintf ("ATA ");
+  ata_init ();      // Creates DEVICES:/HDC?D?P? devices
 
   // Initialize multitasking environment
   kprintf ("TSK ");
@@ -228,8 +229,6 @@ void mount_root_system (const char *boot_params) {
   readdir (mount, node, 0);
   kprintf ("-----------------------------------------\n");
 }
-
-
 
 
 /**
@@ -428,9 +427,6 @@ void tprintf (const char *fmt, ...) {
   // Flush output
   __asm__ __volatile__ ("int	$" SYSCALL_INT_STR " \n\t" : : "a" (SYS_CONFLUSH));
 }
-
-
-
 
 
 /****************************************************************************
