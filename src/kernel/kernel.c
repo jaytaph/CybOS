@@ -24,6 +24,7 @@
 #include "pic.h"
 #include "io.h"
 #include "dma.h"
+#include "pci.h"
 #include "drivers/floppy.h"
 #include "drivers/ata.h"
 #include "vfs.h"
@@ -163,6 +164,9 @@ void kernel_setup (int stack_start, int total_sys_memory, const char *boot_param
 
   kprintf ("DMA ");
   dma_init ();
+
+  kprintf ("PCI ");
+  pci_init ();
 
   // Init device handler
   kprintf ("DEV ");
