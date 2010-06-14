@@ -99,8 +99,8 @@
         Uint32               owner;           // Owner ID
         Uint32               length;          // File length
         Uint32               flags;           // Node type
-        Uint8                majorNum;        // Major number (only for devices)
-        Uint8                minorNum;        // Minor number (only for devices)
+        Uint8                major_num;       // Major number (only for devices)
+        Uint8                minor_num;       // Minor number (only for devices)
 
         struct vfs_fileops   *fileops;        // File operations
         struct vfs_mount     *mount;          // Mount point

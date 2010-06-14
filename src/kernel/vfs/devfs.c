@@ -38,8 +38,8 @@ static vfs_node_t devfs_supernode = {
   .owner = 0,
   .length = 0,
   .flags = FS_DIRECTORY,
-  .majorNum = 0,
-  .minorNum = 0,
+  .major_num = 0,
+  .minor_num = 0,
   .fileops = &devfs_fileops,
 };
 
@@ -153,8 +153,8 @@ vfs_node_t *devfs_finddir (struct vfs_mount *mount, vfs_node_t *dirnode, const c
   strcpy (devfs_fd_node.name, devfs_nodes[index].name);
   devfs_fd_node.owner = 0;
   devfs_fd_node.length = 0;
-  devfs_fd_node.majorNum = devfs_nodes[index].major_num;
-  devfs_fd_node.minorNum = devfs_nodes[index].minor_num;
+  devfs_fd_node.major_num = devfs_nodes[index].major_num;
+  devfs_fd_node.minor_num = devfs_nodes[index].minor_num;
   switch (devfs_nodes[index].type) {
     case DEVFS_TYPE_DIRECTORY :
                             devfs_fd_node.flags = FS_DIRECTORY;

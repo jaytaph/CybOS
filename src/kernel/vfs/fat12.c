@@ -38,8 +38,8 @@ static vfs_node_t fat12_supernode = {
   .owner = 0,
   .length = 0,
   .flags = FS_DIRECTORY,
-  .majorNum = 0,
-  .minorNum = 0,
+  .major_num = 0,
+  .minor_num = 0,
   .fileops = &fat12_fileops,
 };
 
@@ -71,7 +71,7 @@ vfs_node_t *fat12_mount (struct vfs_mount *mount, device_t *dev, const char *pat
   memset (fat12_info->bpb, 0, sizeof (fat12_bpb_t));
 
   // Read boot sector from disk
-  int rb = mount->dev->read (mount->dev->majorNum, mount->dev->minorNum, 0, 512, (char *)fat12_info->bpb);
+  int rb = mount->dev->read (mount->dev->major_num, mount->dev->minor_num, 0, 512, (char *)fat12_info->bpb);
   if (rb != 512) {
     kprintf ("Cannot read enough bytes from boot sector (%d read, %d needed)\n", rb, fat12_info->bpb->BytesPerSector);
     goto cleanup;
@@ -129,7 +129,7 @@ vfs_node_t *fat12_mount (struct vfs_mount *mount, device_t *dev, const char *pat
 
   for (i=0; i!=fat12_info->fatSizeSectors; i++) {
     Uint32 offset = (fat12_info->fatOffset+i) * fat12_info->bpb->BytesPerSector;
-    int rb = mount->dev->read (mount->dev->majorNum, mount->dev->minorNum, offset, fat12_info->bpb->BytesPerSector, (char *)fat12_info->fat+(i*512));
+    int rb = mount->dev->read (mount->dev->major_num, mount->dev->minor_num, offset, fat12_info->bpb->BytesPerSector, (char *)fat12_info->fat+(i*512));
     if (rb != fat12_info->bpb->BytesPerSector) {
       kprintf ("Cannot read fat sector %d\n", i);
       goto cleanup;
@@ -246,7 +246,7 @@ vfs_dirent_t *fat12_readdir (struct vfs_mount *mount, vfs_node_t *node, Uint32 i
 //    kprintf ("Root read\n");
     Uint32 offset = (fat12_info->rootOffset+sectorNeeded) * fat12_info->bpb->BytesPerSector;
 //    kprintf ("Offset: %08X\n", offset);
-    mount->dev->read (mount->dev->majorNum, mount->dev->minorNum, offset, fat12_info->bpb->BytesPerSector, (char *)direntbuf);
+    mount->dev->read (mount->dev->major_num, mount->dev->minor_num, offset, fat12_info->bpb->BytesPerSector, (char *)direntbuf);
   } else {
 //    kprintf ("Cluster read read\n");
     // First start cluster (which is the INODE number :P), and seek N'th cluster
@@ -258,7 +258,7 @@ vfs_dirent_t *fat12_readdir (struct vfs_mount *mount, vfs_node_t *node, Uint32 i
     // Read this cluster
     Uint32 offset = (fat12_info->dataOffset+cluster) * fat12_info->bpb->BytesPerSector;
 //    kprintf ("Offset: %08X\n", offset);
-    mount->dev->read (mount->dev->majorNum, mount->dev->minorNum, offset, fat12_info->bpb->BytesPerSector, (char *)direntbuf);
+    mount->dev->read (mount->dev->major_num, mount->dev->minor_num, offset, fat12_info->bpb->BytesPerSector, (char *)direntbuf);
   }
 
   // Seek correcy entry
@@ -352,7 +352,7 @@ vfs_node_t *fat12_finddir (struct vfs_mount *mount, vfs_node_t *node, const char
     for (i=0; i!=fat12_info->rootSizeSectors; i++) {
       // Read directory sector
       Uint32 offset = (fat12_info->rootOffset+i) * fat12_info->bpb->BytesPerSector;
-      mount->dev->read (mount->dev->majorNum, mount->dev->minorNum, offset, fat12_info->bpb->BytesPerSector, (char *)direntbuf);
+      mount->dev->read (mount->dev->major_num, mount->dev->minor_num, offset, fat12_info->bpb->BytesPerSector, (char *)direntbuf);
 
       int ret = fat12_parse_directory_sector (mount, direntbuf, node, dosName);
       switch (ret) {
@@ -380,7 +380,7 @@ vfs_node_t *fat12_finddir (struct vfs_mount *mount, vfs_node_t *node, const char
     do {
       // read 1 sector at a time
       Uint32 offset = (fat12_info->dataOffset+cluster) * fat12_info->bpb->BytesPerSector;
-      mount->dev->read (mount->dev->majorNum, mount->dev->minorNum, offset, fat12_info->bpb->BytesPerSector, (char *)direntbuf);
+      mount->dev->read (mount->dev->major_num, mount->dev->minor_num, offset, fat12_info->bpb->BytesPerSector, (char *)direntbuf);
 
       int ret = fat12_parse_directory_sector (mount, direntbuf, node, dosName);
       switch (ret) {
@@ -551,7 +551,7 @@ void obs_fat12_read_file_data (struct vfs_mount *mount, fat12_file_t *file, char
   do {
     // Read current cluster  @TODO: error when cluster size != sector size!
     Uint32 offset = file->currentCluster * fat12_info->bpb->BytesPerSector;
-    mount->dev->read (mount->dev->majorNum, mount->dev->minorNum, offset, fat12_info->bpb->BytesPerSector, cluster);
+    mount->dev->read (mount->dev->major_num, mount->dev->minor_num, offset, fat12_info->bpb->BytesPerSector, cluster);
 
     // Do we have some bytes left in this cluster? Read them all by default
     int count = 512-file->currentClusterOffset;

@@ -93,7 +93,7 @@ void readdir (struct vfs_mount *mount, vfs_node_t *root, int depth) {
       if ( (local_node.flags & FS_BLOCKDEVICE) == FS_BLOCKDEVICE ||
            (local_node.flags & FS_CHARDEVICE) == FS_CHARDEVICE) {
         // This is a device
-        kprintf ("%s  (Device %d:%d)\n", local_node.name, local_node.majorNum, local_node.minorNum);
+        kprintf ("%s  (Device %d:%d)\n", local_node.name, local_node.major_num, local_node.minor_num);
       } else {
         // This is a file
         kprintf ("%s  (%d bytes)\n", local_node.name, local_node.length);

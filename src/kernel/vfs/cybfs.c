@@ -38,8 +38,8 @@ static vfs_node_t cybfs_supernode = {
   .owner = 0,
   .length = 0,
   .flags = FS_DIRECTORY,
-  .majorNum = 0,
-  .minorNum = 0,
+  .major_num = 0,
+  .minor_num = 0,
   .fileops = &cybfs_fileops,
 };
 
@@ -238,9 +238,9 @@ vfs_node_t *cybfs_finddir (struct vfs_mount *mount, vfs_node_t *dirnode, const c
   strcpy (cybfs_fd_node.name, cybfs_nodes[index].name);
   cybfs_fd_node.owner = 0;
   cybfs_fd_node.length = cybfs_nodes[index].length;
-  cybfs_fd_node.majorNum = cybfs_fd_node.minorNum = 0;
-  cybfs_fd_node.majorNum = cybfs_nodes[index].device_major_num;
-  cybfs_fd_node.minorNum = cybfs_nodes[index].device_minor_num;
+  cybfs_fd_node.major_num = cybfs_fd_node.minor_num = 0;
+  cybfs_fd_node.major_num = cybfs_nodes[index].device_major_num;
+  cybfs_fd_node.minor_num = cybfs_nodes[index].device_minor_num;
   switch (cybfs_nodes[index].type) {
     case CYBFS_TYPE_FILE :
                             cybfs_fd_node.flags = FS_FILE;

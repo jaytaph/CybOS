@@ -26,8 +26,8 @@ void vfs_printnode (vfs_node_t *node) {
   kprintf ("node->owner       : %d\n", node->owner);
   kprintf ("node->length      : %d\n", node->length);
   kprintf ("node->flags       : %4x\n", node->flags);
-  kprintf ("node->majorNum    : %d\n", node->majorNum);
-  kprintf ("node->minorNum    : %d\n", node->minorNum);
+  kprintf ("node->major_num   : %d\n", node->major_num);
+  kprintf ("node->minor_num   : %d\n", node->minor_num);
   kprintf ("\n");
 }
 
@@ -368,7 +368,7 @@ int sys_mount (const char *device_path, const char *fs_type, const char *mount, 
     // Cannot mount device if it's not a block device
     if ((dev_node->flags & 0x7) != FS_BLOCKDEVICE) return 0;
 
-    dev_ptr = device_get_device (dev_node->majorNum, dev_node->minorNum);
+    dev_ptr = device_get_device (dev_node->major_num, dev_node->minor_num);
     if (! dev_ptr) return 0;    // Cannot find the device registered to this file
   }
 

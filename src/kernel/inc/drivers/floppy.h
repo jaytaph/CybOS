@@ -102,25 +102,25 @@ enum FloppyCommands {
 
     // global structure
     typedef struct {
-        Uint8 driveNum;                // Which drive number is this drive (0 or 1)
-        Uint8 driveType;               // Drive type (as read from CMOS)
-        struct fdc *fdc;               // Backreference to the drive's controller
-        Uint8 currentCylinder;         // Current CHS of drive
-        Uint8 currentHead;
-        Uint8 currentSector;
+        Uint8           drive_num;     // Which drive number is this drive (0 or 1)
+        Uint8           drive_type;    // Drive type (as read from CMOS)
+        struct fdc      *fdc;          // Backreference to the drive's controller
+        Uint8           cur_cylinder;  // Current CHS of drive
+        Uint8           cur_head;
+        Uint8           cur_sector;
         fdc_driveinfo_t driveinfo;     // driveinfo for this drive
 
         fdc_result_t result;           // Result of last action
     } fdc_drive_t;
 
     typedef struct fdc {
-        Uint8        controllerNum;    // Which controller is this (0 or 1)
-        Uint16       baseAddress;      // Controller's base address (0x3F0 or 0x370)
+        Uint8        controller_num;   // Which controller is this (0 or 1)
+        Uint16       base_address;     // Controller's base address (0x3F0 or 0x370)
         Uint8        version;          // Controller version
         fdc_dma_t    dma;
         fdc_drive_t  drives[2];        // Drive info (max 2 drives per controller)
 
-        Uint8        currentDrive;     // Controller is initialized to which drive?
+        Uint8        cur_drive;        // Controller is initialized to which drive?
     } fdc_t;
 
     // Base address for floppy controller 0 and 1

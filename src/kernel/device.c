@@ -36,7 +36,7 @@ int device_register (device_t *dev, const char *filename) {
   } else {
     // See if device already exists
     while (tmp) {
-      if (tmp->majorNum == dev->majorNum && tmp->minorNum == dev->minorNum) return 0;
+      if (tmp->major_num == dev->major_num && tmp->minor_num == dev->minor_num) return 0;
       tmp = (device_t *)tmp->next;
     }
 
@@ -53,7 +53,7 @@ int device_register (device_t *dev, const char *filename) {
   // Create device node
   vfs_mount_t *mount = vfs_get_mount_from_path ("DEVICE:/");
   vfs_node_t *node = vfs_get_node_from_path ("DEVICE:/");
-  vfs_mknod (mount, node, filename, FS_BLOCKDEVICE, dev->majorNum, dev->minorNum);
+  vfs_mknod (mount, node, filename, FS_BLOCKDEVICE, dev->major_num, dev->minor_num);
 
   return 1;
 }
@@ -68,7 +68,7 @@ int device_unregister (device_t *dev) {
 
   while (tmp) {
     // Found?
-    if (tmp->majorNum == dev->majorNum && tmp->minorNum == dev->minorNum) {
+    if (tmp->major_num == dev->major_num && tmp->minor_num == dev->minor_num) {
       // If it's not the first one, the previous item points to the next.
       if (prev != NULL) prev->next = tmp->next;
       return 1;
@@ -84,12 +84,12 @@ int device_unregister (device_t *dev) {
 /**
  *
  */
-device_t *device_get_device (int majorNum, int minorNum) {
+device_t *device_get_device (int major_num, int minor_num) {
   device_t *dev = devices;
 
   while (dev) {
     // Found?
-    if (dev->majorNum == majorNum && dev->minorNum == minorNum) return dev;
+    if (dev->major_num == major_num && dev->minor_num == minor_num) return dev;
     dev = (device_t *)dev->next;
   }
   return NULL;

@@ -17,8 +17,8 @@
     #define DEV_MAJOR_CONSOLES      3   // Consoles (3,0 = kconsole)    (@TODO: not used)
 
     typedef struct {
-      Uint8  majorNum;            // Major device node
-      Uint8  minorNum;            // Minor device node
+      Uint8  major_num;            // Major device node
+      Uint8  minor_num;            // Minor device node
 
       // Block device functions
       Uint32(*read)(Uint8 major, Uint8 minor, Uint32 offset, Uint32 size, char *buffer);
@@ -34,6 +34,6 @@
   int device_register (device_t *dev, const char *filename);
   int device_unregister (device_t *dev);
   void device_init (void);
-  device_t *device_get_device (int majorNum, int minorNum);
+  device_t *device_get_device (int major_num, int minor_num);
 
 #endif // __DEVICE_H__

@@ -63,7 +63,7 @@ int fdc_wait_status_ready (void) {
 
   // Wait until FDC is ready. Retry multiple times since it might take a while
   for (i=0; i!=500; i++) {
-    status = inb (_currentDrive->fdc->baseAddress + FR_MAIN_STATUS_REGISTER);
+    status = inb (_currentDrive->fdc->base_address + FR_MAIN_STATUS_REGISTER);
     if (status & MSR_MASK_DATAREG) return 1;
   }
   return 0;
@@ -93,8 +93,8 @@ void fdc_wait_for_irq (void) {
 void fdc_send_command (Uint8 command) {
   if (! fdc_wait_status_ready()) kpanic ("Floppy send error\n");
 
-//  kprintf ("out(%03X : %02X)\n", _currentDrive->fdc->baseAddress + FR_DATA_FIFO, command);
-  return outb (_currentDrive->fdc->baseAddress + FR_DATA_FIFO, command);
+//  kprintf ("out(%03X : %02X)\n", _currentDrive->fdc->base_address + FR_DATA_FIFO, command);
+  return outb (_currentDrive->fdc->base_address + FR_DATA_FIFO, command);
 }
 
 
@@ -104,8 +104,8 @@ void fdc_send_command (Uint8 command) {
 Uint32 fdc_recv_data (void) {
   if (! fdc_wait_status_ready()) kpanic ("Floppy recv error\n");
 
-  Uint8 data = inb (_currentDrive->fdc->baseAddress + FR_DATA_FIFO);
-//  kprintf ("in(%03X : %02X)\n", _currentDrive->fdc->baseAddress + FR_DATA_FIFO, data);
+  Uint8 data = inb (_currentDrive->fdc->base_address + FR_DATA_FIFO);
+//  kprintf ("in(%03X : %02X)\n", _currentDrive->fdc->base_address + FR_DATA_FIFO, data);
   return data;
 }
 
@@ -124,8 +124,8 @@ void floppy_interrupt (regs_t *r) {
 int fdc_switch_active_drive (fdc_drive_t *drive, int force_select) {
   // If this drive is currently selected, do not do anything...
   if (! force_select &&
-      _currentDrive->fdc->controllerNum == drive->fdc->controllerNum &&
-      _currentDrive->driveNum == drive->driveNum) {
+      _currentDrive->fdc->controller_num == drive->fdc->controller_num &&
+      _currentDrive->drive_num == drive->drive_num) {
     return 0;
   }
 
@@ -156,14 +156,14 @@ int fdc_switch_active_drive (fdc_drive_t *drive, int force_select) {
 void fdc_control_motor (Uint8 motorOn) {
   if (motorOn) {
     // All drive bits are sequential so we can shift right from drive 0
-    Uint8 motor = (DOR_MASK_DRIVE0_MOTOR << _currentDrive->driveNum);   // Find which motor to control
-    outb (_currentDrive->fdc->baseAddress + FR_DIGITAL_OUTPUT_REGISTER, _currentDrive->driveNum | motor | DOR_MASK_RESET | DOR_MASK_DMA);
+    Uint8 motor = (DOR_MASK_DRIVE0_MOTOR << _currentDrive->drive_num);   // Find which motor to control
+    outb (_currentDrive->fdc->base_address + FR_DIGITAL_OUTPUT_REGISTER, _currentDrive->drive_num | motor | DOR_MASK_RESET | DOR_MASK_DMA);
 
     // sleep a bit to spin up the motor
     int i; for (i=0; i!=200000; i++) ;
   } else {
     // Motor Off
-    outb (_currentDrive->fdc->baseAddress + FR_DIGITAL_OUTPUT_REGISTER, _currentDrive->driveNum | DOR_MASK_RESET | DOR_MASK_DMA);
+    outb (_currentDrive->fdc->base_address + FR_DIGITAL_OUTPUT_REGISTER, _currentDrive->drive_num | DOR_MASK_RESET | DOR_MASK_DMA);
   }
 }
 
@@ -191,7 +191,7 @@ int fdc_calibrate_drive () {
   // Do a few times
   for (i=0; i<10; i++) {
     fdc_send_command (FC_CALIBRATE);
-    fdc_send_command (_currentDrive->driveNum);
+    fdc_send_command (_currentDrive->drive_num);
     fdc_wait_for_irq ();
     fdc_check_interrupt_status (&st0, &cyl);
 
@@ -217,10 +217,10 @@ void fdc_reset_controller (fdc_t *fdc) {
   int i;
 
   // Disable controller
-  outb (fdc->baseAddress + FR_DIGITAL_OUTPUT_REGISTER, 0x00);
+  outb (fdc->base_address + FR_DIGITAL_OUTPUT_REGISTER, 0x00);
 
   // Enable controller
-  outb (fdc->baseAddress + FR_DIGITAL_OUTPUT_REGISTER, DOR_MASK_DRIVE0 | DOR_MASK_RESET | DOR_MASK_DMA);
+  outb (fdc->base_address + FR_DIGITAL_OUTPUT_REGISTER, DOR_MASK_DRIVE0 | DOR_MASK_RESET | DOR_MASK_DMA);
 
   // Wait for IRQ to happen
   fdc_wait_for_irq ();
@@ -229,7 +229,7 @@ void fdc_reset_controller (fdc_t *fdc) {
   for (i=0; i!=4; i++) fdc_check_interrupt_status (&st, &cyl);
 
   // Set controller to 500Kpbs
-  outb (fdc->baseAddress + FR_CONFIGURATION_CONTROL_REGISTER, 0x00); // Set to 500 Kbps
+  outb (fdc->base_address + FR_CONFIGURATION_CONTROL_REGISTER, 0x00); // Set to 500 Kbps
 
   // Reset individual drives
   for (i=0; i!=2; i++) {
@@ -288,7 +288,7 @@ void fdc_read_floppy_sector_CHS (Uint32 cylinder, Uint32 head, Uint32 sector) {
 
   // Read in a sector
   fdc_send_command (FC_READ_SECT | FDC_MULTITRACK | FDC_DENSITY);
-  fdc_send_command (head << 2 | _currentDrive->driveNum);
+  fdc_send_command (head << 2 | _currentDrive->drive_num);
   fdc_send_command (cylinder);
   fdc_send_command (head);    // Strange, we already send this info, but FDC needs it twice..
   fdc_send_command (sector);
@@ -325,7 +325,7 @@ int fdc_seek_floppy_cylinder (Uint32 cylinder, Uint8 head) {
   for (i=0; i!=10; i++) {
     // Send seek command
     fdc_send_command (FC_SEEK);
-    fdc_send_command ((head) << 2 | _currentDrive->driveNum);
+    fdc_send_command ((head) << 2 | _currentDrive->drive_num);
     fdc_send_command (cylinder);
 
     // Wait for controller and check if we are present on the correct cylinder
@@ -443,31 +443,31 @@ void fdc_block_seek(Uint8 major, Uint8 minor, Uint32 offset, Uint8 direction) {
 /**
  *
  */
-void fdc_init_drive (fdc_t *fdc, Uint8 driveNum, Uint8 driveType) {
-//  kprintf ("fdc_switch_active_drive (%d/%d)\n", fdc->controllerNum, driveNum);
+void fdc_init_drive (fdc_t *fdc, Uint8 drive_num, Uint8 drive_type) {
+//  kprintf ("fdc_switch_active_drive (%d/%d)\n", fdc->controller_num, drive_num);
   // Can only do drive 0 or drive 1
-  if (driveNum > 1) return;
+  if (drive_num > 1) return;
 
   // Drive type must be 0..7
-  if (driveType > 8) return;
+  if (drive_type > 8) return;
 
   // Copy driveinfo data for this drive
-  memcpy ((char *)&fdc->drives[driveNum].driveinfo, (char *)&driveinfo[driveType], sizeof (fdc_drive_t));
+  memcpy ((char *)&fdc->drives[drive_num].driveinfo, (char *)&driveinfo[drive_type], sizeof (fdc_drive_t));
 
-  fdc->drives[driveNum].driveType = driveType;    // Drive number on the FDC (0 or 1)
-  fdc->drives[driveNum].driveNum = driveNum;
-  fdc->drives[driveNum].fdc = fdc;                // Backwards link, needed to find FDC from a fdc_drive_t structure
+  fdc->drives[drive_num].drive_type = drive_type;    // Drive number on the FDC (0 or 1)
+  fdc->drives[drive_num].drive_num = drive_num;
+  fdc->drives[drive_num].fdc = fdc;                  // Backwards link, needed to find FDC from a fdc_drive_t structure
 
   // Set default CHS values
-  fdc->drives[driveNum].currentCylinder = 0;
-  fdc->drives[driveNum].currentHead = 0;
-  fdc->drives[driveNum].currentSector = 0;
+  fdc->drives[drive_num].cur_cylinder = 0;
+  fdc->drives[drive_num].cur_head = 0;
+  fdc->drives[drive_num].cur_sector = 0;
 
 
   // Register device so we can access it
   device_t *device = (device_t *)kmalloc (sizeof (device_t));
-  device->majorNum = DEV_MAJOR_FDC;
-  device->minorNum = (fdc->controllerNum * 2) + driveNum;
+  device->major_num = DEV_MAJOR_FDC;
+  device->minor_num = (fdc->controller_num * 2) + drive_num;
 
   device->read = fdc_block_read;
   device->write = fdc_block_write;
@@ -478,7 +478,7 @@ void fdc_init_drive (fdc_t *fdc, Uint8 driveNum, Uint8 driveType) {
   // Create device name
   char filename[12];
   memset (filename, 0, sizeof (filename));
-  sprintf (filename, "FLOPPY%d", device->minorNum);
+  sprintf (filename, "FLOPPY%d", device->minor_num);
 
   // Register device
 //  kprintf ("\n*** Registering device DEVICE:/%s\n", filename);
@@ -486,19 +486,19 @@ void fdc_init_drive (fdc_t *fdc, Uint8 driveNum, Uint8 driveType) {
 
 /*
   kprintf ("driveinfo\n");
-  kprintf ("DI->maxCylinder %d\n", fdc->drives[driveNum].driveinfo.maxCylinder);
-  kprintf ("DI->maxHead     %d\n", fdc->drives[driveNum].driveinfo.maxHead);
-  kprintf ("DI->spt         %d\n", fdc->drives[driveNum].driveinfo.sectorsPerTrack);
-  kprintf ("DI->gap3        %d\n", fdc->drives[driveNum].driveinfo.gap3);
-  kprintf ("DI->sectorDTL   %d\n", fdc->drives[driveNum].driveinfo.sectorDTL);
-  kprintf ("DI->stepRate    %d\n", fdc->drives[driveNum].driveinfo.stepRate);
-  kprintf ("DI->loadTime    %d\n", fdc->drives[driveNum].driveinfo.loadTime);
-  kprintf ("DI->unloadTime  %d\n", fdc->drives[driveNum].driveinfo.unloadTime);
-  kprintf ("DI->usePIO      %d\n", fdc->drives[driveNum].driveinfo.usePIO);
+  kprintf ("DI->maxCylinder %d\n", fdc->drives[drive_num].driveinfo.maxCylinder);
+  kprintf ("DI->maxHead     %d\n", fdc->drives[drive_num].driveinfo.maxHead);
+  kprintf ("DI->spt         %d\n", fdc->drives[drive_num].driveinfo.sectorsPerTrack);
+  kprintf ("DI->gap3        %d\n", fdc->drives[drive_num].driveinfo.gap3);
+  kprintf ("DI->sectorDTL   %d\n", fdc->drives[drive_num].driveinfo.sectorDTL);
+  kprintf ("DI->stepRate    %d\n", fdc->drives[drive_num].driveinfo.stepRate);
+  kprintf ("DI->loadTime    %d\n", fdc->drives[drive_num].driveinfo.loadTime);
+  kprintf ("DI->unloadTime  %d\n", fdc->drives[drive_num].driveinfo.unloadTime);
+  kprintf ("DI->usePIO      %d\n", fdc->drives[drive_num].driveinfo.usePIO);
 */
 
   // Calibrate drive
-  fdc_switch_active_drive (&fdc->drives[driveNum], 1);
+  fdc_switch_active_drive (&fdc->drives[drive_num], 1);
   fdc_calibrate_drive ();
 }
 
@@ -506,8 +506,8 @@ void fdc_init_drive (fdc_t *fdc, Uint8 driveNum, Uint8 driveType) {
 /**
  *
  */
-void fdc_init_controller (fdc_t *fdc, Uint8 controllerNum, Uint32 baseAddress, char *floppyDMABuffer, Uint16 floppyDMABufferSize) {
-  Uint8 driveType, i;
+void fdc_init_controller (fdc_t *fdc, Uint8 controller_num, Uint32 base_address, char *floppyDMABuffer, Uint16 floppyDMABufferSize) {
+  Uint8 drive_type, i;
 
   // Set DMA info
   // @TODO: How do we decide how much DMA memory we need? or should we just allocate 64KB always?
@@ -515,14 +515,14 @@ void fdc_init_controller (fdc_t *fdc, Uint8 controllerNum, Uint32 baseAddress, c
   fdc->dma.size = floppyDMABufferSize;
 
   // Set controller number (first or second controller)
-  fdc->controllerNum = controllerNum;
+  fdc->controller_num = controller_num;
 
   // Set base address
-  fdc->baseAddress = baseAddress;
+  fdc->base_address = base_address;
 
   // Set default drives to "no drive available"
-  fdc->drives[0].driveType = 0x00;
-  fdc->drives[1].driveType = 0x00;
+  fdc->drives[0].drive_type = 0x00;
+  fdc->drives[1].drive_type = 0x00;
 
   // Make sure both drives points to the correct FDC. Otherwise
   fdc->drives[0].fdc = fdc;
@@ -542,15 +542,15 @@ void fdc_init_controller (fdc_t *fdc, Uint8 controllerNum, Uint32 baseAddress, c
   // Read CMOS for number of floppy disks (@TODO: how to read status for second floppy controller?)
   outb (0x70, 0x10);
   for (i=0; i!=100; i++) ;     // Delay a bit
-  driveType = inb (0x71);
+  drive_type = inb (0x71);
 
 //  kprintf ("\n");
-//  kprintf ("Controller %d: master drive: %s\n", controllerNum, floppyTypes[((driveType >> 4) & 0x7)]);
-//  kprintf ("Controller %d: slave drive: %s\n", controllerNum, floppyTypes[(driveType & 0x7)]);
+//  kprintf ("Controller %d: master drive: %s\n", controller_num, floppyTypes[((drive_type >> 4) & 0x7)]);
+//  kprintf ("Controller %d: slave drive: %s\n", controller_num, floppyTypes[(drive_type & 0x7)]);
 
   // Init drive 0 and 1, or 2 and 3 when we are the second controller
-  fdc_init_drive (fdc, (controllerNum * 2) + 0, (driveType >> 4) & 0x7);
-  fdc_init_drive (fdc, (controllerNum * 2) + 1, driveType & 0x7);
+  fdc_init_drive (fdc, (controller_num * 2) + 0, (drive_type >> 4) & 0x7);
+  fdc_init_drive (fdc, (controller_num * 2) + 1, drive_type & 0x7);
 
   // Do a complete reset controller (and the drives)
   fdc_reset_controller (fdc);
