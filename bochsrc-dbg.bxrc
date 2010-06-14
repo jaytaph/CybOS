@@ -11,8 +11,16 @@ floppya: type=1_44, 1_44="h:\cybos\fat12.img", status=inserted
 # no floppyb
 ata0: enabled=1, ioaddr1=0x1f0, ioaddr2=0x3f0, irq=14
 ata1: enabled=1, ioaddr1=0x170, ioaddr2=0x370, irq=15
-ata2: enabled=0
-ata3: enabled=0
+ata2: enabled=1, ioaddr1=0x1e8, ioaddr2=0x3e0, irq=10
+ata3: enabled=1, ioaddr1=0x168, ioaddr2=0x360, irq=7
+ata0-master: type=disk, path="h:\cybos\hdd.img", mode=flat, cylinders=507, heads=16, spt=63
+ata0-slave: type=cdrom, path=cdimg01.iso, status=inserted
+ata1-master: type=disk, path="h:\cybos\hdd-1.img", mode=flat, cylinders=20, heads=16, spt=63
+ata1-slave:  type=disk, path="h:\cybos\hdd-2.img", mode=flat, cylinders=249, heads=16, spt=63
+#ata2-master: 
+#ata2-slave: 
+ata3-master: type=cdrom, path=cdimg02.iso, status=inserted
+#ata3-slave: 
 parport1: enabled=1, file=""
 parport2: enabled=0
 com1: enabled=1, mode=null, dev=""
