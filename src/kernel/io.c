@@ -89,3 +89,9 @@ void io_wait (void) {
   outb (0x80, 0);     // Unused port (only during POST)
 }
 
+/*******************************************************
+ *
+ */
+void insl (Uint32 addr, Uint32 buffer, Uint32 count) {
+  __asm__ __volatile__ ("cld; rep; insl" :: "D" (buffer), "d" (addr), "c" (count));
+}

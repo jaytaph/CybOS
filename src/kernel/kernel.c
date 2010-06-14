@@ -26,7 +26,7 @@
 #include "dma.h"
 #include "pci.h"
 #include "drivers/floppy.h"
-#include "drivers/ata.h"
+#include "drivers/ide.h"
 #include "vfs.h"
 #include "vfs/fat12.h"
 #include "vfs/cybfs.h"
@@ -191,8 +191,8 @@ void kernel_setup (int stack_start, int total_sys_memory, const char *boot_param
   fdc_init ();      // Creates DEVICES:/FLOPPY* devices
 
   // Init harddisk controllers and drives (and partitions)
-  kprintf ("ATA ");
-  ata_init ();      // Creates DEVICES:/HDC?D?P? devices
+  kprintf ("IDE ");
+  ide_init ();      // Creates DEVICES:/IDEC?D? devices and /IDEC?D?P? for partitions
 
   // Initialize multitasking environment
   kprintf ("TSK ");
