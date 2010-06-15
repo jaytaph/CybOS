@@ -13,8 +13,9 @@
      * knows which driver is responsible for handling */
     #define DEV_MAJOR_MISC          0   // Misc devices (null, zero, rand etc)
     #define DEV_MAJOR_FDC           1   // Floppy disks
-    #define DEV_MAJOR_HDC           2   // Hard disks
-    #define DEV_MAJOR_CONSOLES      3   // Consoles (3,0 = kconsole)    (@TODO: not used)
+    #define DEV_MAJOR_IDE           2   // Ide controllers
+    #define DEV_MAJOR_HDC           3   // Hard disks
+    #define DEV_MAJOR_CONSOLES     10   // Consoles (3,0 = kconsole)    (@TODO: not used)
 
     typedef struct {
       Uint8  major_num;            // Major device node

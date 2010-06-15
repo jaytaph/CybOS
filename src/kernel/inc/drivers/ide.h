@@ -16,6 +16,10 @@
     #define IDE_DRIVE_TYPE_ATA        0     // ATA interface needed for this drive
     #define IDE_DRIVE_TYPE_ATAPI      1     // ATAPI interface needed for this drive
 
+    #define IDE_DIRECTION_READ      0x00
+    #define IDE_DIRECTION_WRITE     0x01
+
+
     // Maximum number of channels per controller
     #define IDE_CONTROLLER_MAX_CHANNELS   4
     #define IDE_CONTROLLER_MAX_DRIVES     2
@@ -102,6 +106,8 @@
 */
 
 
+  #define   IDE_MAX_PARITIONS   16      // Maximum 16 partitions per drive (because of node numbers)
+
   // Slave or master drive (either atapi or ata)
   typedef struct ide_drive {
     char                enabled;             // Enabled or not (in case no extra drive on the IDE cable)
@@ -141,11 +147,26 @@
   } ide_controller_t;
 
 
+  extern char ide_irq_invoked;
 
   // We support a maximum of 10 IDE controllers. Can change as soon as we use linked lists
   #define MAX_IDE_CONTROLLERS  10
   ide_controller_t ide_controllers[MAX_IDE_CONTROLLERS];  // @TODO : Must be linked list!
 
   void ide_init (void);
+
+  int ide_polling (ide_channel_t *channel, char advanced_check);
+  Uint8 ide_port_read (ide_channel_t *channel, Uint8 reg);
+  void ide_port_write (ide_channel_t *channel, Uint8 reg, Uint8 data);
+
+  Uint32 ide_block_read (Uint8 major, Uint8 minor, Uint32 offset, Uint32 size, char *buffer);
+  Uint32 ide_block_write (Uint8 major, Uint8 minor, Uint32 offset, Uint32 size, char *buffer);
+  void ide_block_open(Uint8 major, Uint8 minor);
+  void ide_block_close(Uint8 major, Uint8 minor);
+  void ide_block_seek(Uint8 major, Uint8 minor, Uint32 offset, Uint8 direction);
+
+  Uint8 ide_sector_read (ide_drive_t *drive, Uint32 lba_sector, Uint32 count, char *buffer);
+
+
 
 #endif //__DRIVERS_IDE_H__

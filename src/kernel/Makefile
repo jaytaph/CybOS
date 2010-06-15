@@ -61,6 +61,9 @@ OBJS =  main.o \
         device.o \
         drivers/floppy/floppy.o \
         drivers/ide/ide.o \
+        drivers/ide/ata.o \
+        drivers/ide/atapi.o \
+        drivers/ide/partitions.o \
         vfs.o \
         vfs/fat12.o \
         vfs/cybfs.o \
