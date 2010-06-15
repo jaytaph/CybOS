@@ -415,7 +415,7 @@ LoadFile:
         jnc  .NoOffsetOverFlow
 .OffsetOverflow:                                  ; Offset overflow, increase segment.
         mov  ax, es
-        add  ax, 16                               ; 0400:0F00 (4FF00 becomes 0400:0100)
+        add  ax, 0x1000
         mov  es, ax
 
 .NoOffsetOverFlow:
