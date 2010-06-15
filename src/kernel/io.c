@@ -95,3 +95,19 @@ void io_wait (void) {
 void insl (Uint32 addr, Uint32 buffer, Uint32 count) {
   __asm__ __volatile__ ("cld; rep; insl" :: "D" (buffer), "d" (addr), "c" (count));
 }
+void insw (Uint32 addr, Uint32 buffer, Uint32 count) {
+  __asm__ __volatile__ ("cld; rep; insw" :: "D" (buffer), "d" (addr), "c" (count));
+}
+void insb (Uint32 addr, Uint32 buffer, Uint32 count) {
+  __asm__ __volatile__ ("cld; rep; insb" :: "D" (buffer), "d" (addr), "c" (count));
+}
+
+void outsl (Uint32 addr, Uint32 buffer, Uint32 count) {
+  __asm__ __volatile__ ("cld; rep; outsl" :: "D" (buffer), "d" (addr), "c" (count));
+}
+void outsw (Uint32 addr, Uint32 buffer, Uint32 count) {
+  __asm__ __volatile__ ("cld; rep; outsw" :: "D" (buffer), "d" (addr), "c" (count));
+}
+void outsb (Uint32 addr, Uint32 buffer, Uint32 count) {
+  __asm__ __volatile__ ("cld; rep; outsb" :: "D" (buffer), "d" (addr), "c" (count));
+}

@@ -18,6 +18,12 @@
   Uint32 inl (Uint32 addr);
 
   void insl (Uint32 addr, Uint32 buffer, Uint32 count);
+  void insw (Uint32 addr, Uint32 buffer, Uint32 count);
+  void insb (Uint32 addr, Uint32 buffer, Uint32 count);
+
+  void outsl (Uint32 addr, Uint32 buffer, Uint32 count);
+  void outsw (Uint32 addr, Uint32 buffer, Uint32 count);
+  void outsb (Uint32 addr, Uint32 buffer, Uint32 count);
 
   void io_wait (void);
 
