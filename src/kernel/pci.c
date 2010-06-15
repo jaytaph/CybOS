@@ -159,7 +159,7 @@ void pci_init (void) {
         pci_list[idx].slot = slot;
         pci_list[idx].func = func;
 
-        kprintf ("Added slot %d with %04X:%04X [%02X:%02X]\n", idx, pci_list[idx].vendor_id, pci_list[idx].device_id, pci_list[idx].class, pci_list[idx].subclass);
+//        kprintf ("Added slot %d with %04X:%04X [%02X:%02X]\n", idx, pci_list[idx].vendor_id, pci_list[idx].device_id, pci_list[idx].class, pci_list[idx].subclass);
 
         // Enable this slot
         pci_list[idx].enabled = 1;
