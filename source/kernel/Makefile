@@ -25,8 +25,8 @@ CC_FLAGS = -nostdlib -nostdinc -fno-builtin -fno-exceptions -fomit-frame-pointer
 
 USR_FLAGS = -D__KERNEL__ -D__DEBUG__
 
-#INCLUDES = -I. -I.. -I../stdinc -Iinc
-INCLUDES = -I. -I.. -Iinc
+#INCLUDES = -I. -I.. -I../stdinc -Iinclude
+INCLUDES = -I. -I.. -Iinclude
 
 CFLAGS = $(CC_FLAGS) $(INCLUDES) $(USR_FLAGS)
 
