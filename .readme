@@ -1,6 +1,0 @@
-bochscmds.dat			Autorun commands when executing bochs
-bochsout.txt			Output from bochs
-bochsrc.bxrc			Bochs config file
-bochsrc-dbg.bxrc		Bochs config file (debug)
-cybos.doxy			Doxygen config for documentation
-fat12.img			FAT12 image run by bochs
