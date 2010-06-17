@@ -1,0 +1,7 @@
+*.img
+*.iso
+*.o
+*.a
+*.map
+*.bin
+bochsout.txt

@@ -17,7 +17,9 @@ Things todo:
  (*) FAT12
  (*) CybFS
  ( ) FAT16
- (=) ATA controller
+ ( ) FAT32
+ ( ) VFAT
+ (*) ATA controller
  ( ) Network driver
  ( ) IPv4 Stack
  (-) Kernel.bin gzip
