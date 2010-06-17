@@ -26,9 +26,9 @@ typedef struct {
   devfs_file_t devfs_nodes[DEVFS_MAX_FILES-1];   // Max 256 files can be added to a CybFS system (inc subdirs)
 
   void devfs_init ();
-  vfs_dirent_t *devfs_readdir (struct vfs_mount *mount, vfs_node_t *node, Uint32 index);
-  vfs_node_t *devfs_finddir (struct vfs_mount *mount, vfs_node_t *node, const char *name);
-  void devfs_mknod (struct vfs_mount *mount, vfs_node_t *node, const char *name, char device_type, Uint8 major_node, Uint8 minor_node);
+  vfs_dirent_t *devfs_readdir (vfs_node_t *node, Uint32 index);
+  vfs_node_t *devfs_finddir (vfs_node_t *node, const char *name);
+  void devfs_mknod (vfs_node_t *node, const char *name, char device_type, Uint8 major_node, Uint8 minor_node);
 
   vfs_node_t *devfs_mount (struct vfs_mount *mount, device_t *dev, const char *path);
   void devfs_umount (struct vfs_mount *mount);

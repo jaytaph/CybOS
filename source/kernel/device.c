@@ -51,9 +51,8 @@ int device_register (device_t *dev, const char *filename) {
 
 
   // Create device node
-  vfs_mount_t *mount = vfs_get_mount_from_path ("DEVICE:/");
   vfs_node_t *node = vfs_get_node_from_path ("DEVICE:/");
-  vfs_mknod (mount, node, filename, FS_BLOCKDEVICE, dev->major_num, dev->minor_num);
+  vfs_mknod (node, filename, FS_BLOCKDEVICE, dev->major_num, dev->minor_num);
 
   return 1;
 }

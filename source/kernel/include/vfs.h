@@ -40,13 +40,13 @@
 
     // Holds all possible file operations on files inside a FS
     struct vfs_fileops {
-      Uint32(*read)(struct vfs_mount *, struct vfs_node *, Uint32, Uint32, char *);
-      Uint32(*write)(struct vfs_mount *, struct vfs_node *, Uint32, Uint32, char *);
-      void (*open)(struct vfs_mount *, struct vfs_node *);
-      void (*close)(struct vfs_mount *, struct vfs_node *);
-      struct dirent * (*readdir)(struct vfs_mount *, struct vfs_node *, Uint32);
-      struct vfs_node * (*finddir)(struct vfs_mount *, struct vfs_node *, const char *);
-      void (*mknod)(struct vfs_mount *, struct vfs_node *, const char *, char, Uint8, Uint8);
+      Uint32(*read)(struct vfs_node *, Uint32, Uint32, char *);
+      Uint32(*write)(struct vfs_node *, Uint32, Uint32, char *);
+      void (*open)(struct vfs_node *);
+      void (*close)(struct vfs_node *);
+      struct dirent * (*readdir)(struct vfs_node *, Uint32);
+      struct vfs_node * (*finddir)(struct vfs_node *, const char *);
+      void (*mknod)(struct vfs_node *, const char *, char, Uint8, Uint8);
     };
 
 
@@ -114,14 +114,14 @@
     extern vfs_node_t *vfs_root;
 
     // Exported file system functions
-    Uint32 vfs_read (struct vfs_mount *mount, vfs_node_t *node, Uint32 offset, Uint32 size, char *buffer);
-    Uint32 vfs_write (struct vfs_mount *mount, vfs_node_t *node, Uint32 offset, Uint32 size, char *buffer);
-    void vfs_create (struct vfs_mount *mount, vfs_node_t *node, const char *name);
-    void vfs_open (struct vfs_mount *mount, vfs_node_t *node);
-    void vfs_close (struct vfs_mount *mount, vfs_node_t *node);
-    vfs_dirent_t *vfs_readdir (struct vfs_mount *mount, vfs_node_t *node, Uint32 index);
-    vfs_node_t *vfs_finddir (struct vfs_mount *mount, vfs_node_t *node, const char *name);
-    void vfs_mknod (struct vfs_mount *mount, struct vfs_node *node, const char *name, char device_type, Uint8 major_node, Uint8 minor_node);
+    Uint32 vfs_read (vfs_node_t *node, Uint32 offset, Uint32 size, char *buffer);
+    Uint32 vfs_write (vfs_node_t *node, Uint32 offset, Uint32 size, char *buffer);
+    void vfs_create (vfs_node_t *node, const char *name);
+    void vfs_open (vfs_node_t *node);
+    void vfs_close (vfs_node_t *node);
+    vfs_dirent_t *vfs_readdir (vfs_node_t *node, Uint32 index);
+    vfs_node_t *vfs_finddir (vfs_node_t *node, const char *name);
+    void vfs_mknod (struct vfs_node *node, const char *name, char device_type, Uint8 major_node, Uint8 minor_node);
 
     // Filesystem registration functionality
     int vfs_register_filesystem (vfs_info_t *info);

@@ -52,7 +52,7 @@
 /**
  *
  */
-void readdir (struct vfs_mount *mount, vfs_node_t *root, int depth) {
+void readdir (vfs_node_t *root, int depth) {
 //  kprintf ("readdir ()\n");
   vfs_dirent_t *unsafe_dirent;
   vfs_node_t *unsafe_node;
@@ -66,7 +66,7 @@ void readdir (struct vfs_mount *mount, vfs_node_t *root, int depth) {
   memcpy (&local_root_node, root, sizeof (vfs_node_t));
 //kprintf ("readdir(): node copy\n");
 
-  while (unsafe_dirent = vfs_readdir (mount, &local_root_node, index), unsafe_dirent != NULL) {
+  while (unsafe_dirent = vfs_readdir (&local_root_node, index), unsafe_dirent != NULL) {
     index++;
 //    kprintf ("readdir(): Reading index %d\n", index);
 
@@ -74,7 +74,7 @@ void readdir (struct vfs_mount *mount, vfs_node_t *root, int depth) {
     memcpy (&local_dirent, unsafe_dirent, sizeof (vfs_dirent_t));
 
     // File cannot be found (huh?)
-    unsafe_node = vfs_finddir (mount, &local_root_node, local_dirent.name);
+    unsafe_node = vfs_finddir (&local_root_node, local_dirent.name);
     if (! unsafe_node) continue;
 
     // Copy to local scope
@@ -87,7 +87,7 @@ void readdir (struct vfs_mount *mount, vfs_node_t *root, int depth) {
 
       // Read directory when it's not '.' or '..'
       if (strcmp (local_node.name, ".") != 0 && strcmp (local_node.name, "..") != 0) {
-        readdir (mount, &local_node, depth+1);
+        readdir (&local_node, depth+1);
       }
     } else {
       if ( (local_node.flags & FS_BLOCKDEVICE) == FS_BLOCKDEVICE ||
@@ -228,9 +228,8 @@ void mount_root_system (const char *boot_params) {
 
 
   kprintf ("- MOUNT ROOT SYSTEM ---------------------\n");
-  vfs_mount_t *mount = vfs_get_mount_from_path ("ROOT:/");
   vfs_node_t *node = vfs_get_node_from_path ("ROOT:/");
-  readdir (mount, node, 0);
+  readdir (node, 0);
   kprintf ("-----------------------------------------\n");
 }
 

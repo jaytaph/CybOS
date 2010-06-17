@@ -81,7 +81,7 @@ void devfs_init () {
 /**
  * Read directory entry X (numerical dir seek)
  */
-vfs_dirent_t *devfs_readdir (struct vfs_mount *mount, vfs_node_t *dirnode, Uint32 index) {
+vfs_dirent_t *devfs_readdir (vfs_node_t *dirnode, Uint32 index) {
   int i, found;
 
 //  kprintf ("devfs_readdir(%s, %d)\n", dirnode->name, index);
@@ -123,7 +123,7 @@ vfs_dirent_t *devfs_readdir (struct vfs_mount *mount, vfs_node_t *dirnode, Uint3
 /**
  * Return directory entry 'name' (basically associative dir seek)
  */
-vfs_node_t *devfs_finddir (struct vfs_mount *mount, vfs_node_t *dirnode, const char *name) {
+vfs_node_t *devfs_finddir (vfs_node_t *dirnode, const char *name) {
   Uint32 index, i;
 
 //  kprintf ("devfs_finddir (%s, %s);\n", dirnode->name, name);
@@ -202,7 +202,7 @@ void devfs_umount (struct vfs_mount *mount) {
 /**
  *
  */
-void devfs_mknod (struct vfs_mount *mount, vfs_node_t *node, const char *name, char device_type, Uint8 major_node, Uint8 minor_node) {
+void devfs_mknod (vfs_node_t *node, const char *name, char device_type, Uint8 major_node, Uint8 minor_node) {
   int i;
 
 //  kprintf ("\n\ndevfs_mknod(%s, %d %d, %d)\n", name, device_type, major_node, minor_node);

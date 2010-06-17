@@ -68,42 +68,42 @@ vfs_mount_t *vsf_get_mount (const char *full_path, char **path) {
 /**
  *
  */
-Uint32 vfs_read (struct vfs_mount *mount, vfs_node_t *node, Uint32 offset, Uint32 size, char *buffer) {
+Uint32 vfs_read (vfs_node_t *node, Uint32 offset, Uint32 size, char *buffer) {
   // Check if it's a directory
   if ((node->flags & 0x7) != FS_FILE) return 0;
 
   if (! node->fileops || ! node->fileops->read) return NULL;
-  return node->fileops->read (mount, node, offset, size, buffer);
+  return node->fileops->read (node, offset, size, buffer);
 }
 
 /**
  *
  */
-Uint32 vfs_write (struct vfs_mount *mount, vfs_node_t *node, Uint32 offset, Uint32 size, char *buffer) {
+Uint32 vfs_write (vfs_node_t *node, Uint32 offset, Uint32 size, char *buffer) {
   if (! node->fileops || ! node->fileops->write) return 0;
-  return node->fileops->write (mount, node, offset, size, buffer);
+  return node->fileops->write (node, offset, size, buffer);
 }
 
 /**
  *
  */
-void vfs_open(struct vfs_mount *mount, vfs_node_t *node) {
+void vfs_open(vfs_node_t *node) {
   if (! node->fileops || ! node->fileops->open) return;
-  node->fileops->open (mount, node);
+  node->fileops->open (node);
 }
 
 /**
  *
  */
-void vfs_close(struct vfs_mount *mount, vfs_node_t *node) {
+void vfs_close(vfs_node_t *node) {
   if (! node->fileops || ! node->fileops->close) return;
-  node->fileops->close (mount, node);
+  node->fileops->close (node);
 }
 
 /**
  *
  */
-struct dirent *vfs_readdir(struct vfs_mount *mount, vfs_node_t *node, Uint32 index) {
+struct dirent *vfs_readdir(vfs_node_t *node, Uint32 index) {
 //  kprintf ("vfs_readdir (%s, %d) : ", node->name, index);
 
   // Check if it's a directory
@@ -116,24 +116,24 @@ struct dirent *vfs_readdir(struct vfs_mount *mount, vfs_node_t *node, Uint32 ind
 //    kprintf ("Not fileops or fileops->readdir\n");
     return NULL;
   }
-  return node->fileops->readdir (mount, node, index);
+  return node->fileops->readdir (node, index);
 }
 
 /**
  *
  */
-vfs_node_t *vfs_finddir(struct vfs_mount *mount, vfs_node_t *node, const char *name) {
+vfs_node_t *vfs_finddir(vfs_node_t *node, const char *name) {
   // Check if it's a directory
   if ((node->flags & 0x7) != FS_DIRECTORY) return NULL;
 
   if (! node->fileops || ! node->fileops->finddir) return NULL;
-  return node->fileops->finddir (mount, node, name);
+  return node->fileops->finddir (node, name);
 }
 
 /**
  *
  */
-void vfs_mknod (struct vfs_mount *mount, struct vfs_node *node, const char *name, char device_type, Uint8 major_node, Uint8 minor_node) {
+void vfs_mknod (struct vfs_node *node, const char *name, char device_type, Uint8 major_node, Uint8 minor_node) {
 //  kprintf ("vfs_mknod\n");
   // Check if it's a directory
   if ((node->flags & 0x7) != FS_DIRECTORY) return;
@@ -143,7 +143,7 @@ void vfs_mknod (struct vfs_mount *mount, struct vfs_node *node, const char *name
   if (! node->fileops || ! node->fileops->mknod) return;
 
 //  kprintf ("vfs_mknod: 2\n");
-  return node->fileops->mknod (mount, node, name, device_type, major_node, minor_node);
+  return node->fileops->mknod (node, name, device_type, major_node, minor_node);
 }
 
 
@@ -313,7 +313,7 @@ vfs_node_t *vfs_get_node_from_path (const char *path) {
     }
 
     // Find the entry if it exists
-    cur_node = vfs_finddir (mount, cur_node, component);
+    cur_node = vfs_finddir (cur_node, component);
     if (! cur_node) {
       kprintf ("component not found\n\n");
       return NULL;   // Cannot find node... error :(
@@ -321,6 +321,7 @@ vfs_node_t *vfs_get_node_from_path (const char *path) {
   }
 
 //  kprintf ("All done.. returning vfs inode: %d\n\n", cur_node->inode_nr);
+  cur_node->mount = mount;
   return cur_node;
 }
 

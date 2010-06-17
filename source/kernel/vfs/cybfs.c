@@ -125,7 +125,7 @@ void cybfs_init () {
 /**
  * Read file data
  */
-Uint32 cybfs_read (struct vfs_mount *mount, vfs_node_t *node, Uint32 offset, Uint32 size, char *buffer) {
+Uint32 cybfs_read (vfs_node_t *node, Uint32 offset, Uint32 size, char *buffer) {
   // Offset is outside file
   if (offset > cybfs_nodes[node->inode_nr].length) return 0;
 
@@ -142,7 +142,7 @@ Uint32 cybfs_read (struct vfs_mount *mount, vfs_node_t *node, Uint32 offset, Uin
 /**
  * Writes data to file
  */
-Uint32 cybfs_write (struct vfs_mount *mount, vfs_node_t *node, Uint32 offset, Uint32 size, char *buffer) {
+Uint32 cybfs_write (vfs_node_t *node, Uint32 offset, Uint32 size, char *buffer) {
   kprintf ("cybfs_write()\n");
   // Cannot write at the moment
   return 0;
@@ -151,7 +151,7 @@ Uint32 cybfs_write (struct vfs_mount *mount, vfs_node_t *node, Uint32 offset, Ui
 /**
  * Opens a file
  */
-void cybfs_open (struct vfs_mount *mount, vfs_node_t *node) {
+void cybfs_open (vfs_node_t *node) {
   kprintf ("cybfs_open()\n");
   // Cannot open files
 }
@@ -159,7 +159,7 @@ void cybfs_open (struct vfs_mount *mount, vfs_node_t *node) {
 /**
  * Closes a file
  */
-void cybfs_close (struct vfs_mount *mount, vfs_node_t *node) {
+void cybfs_close (vfs_node_t *node) {
   kprintf ("cybfs_close()\n");
   // Cannot close files
 }
@@ -167,7 +167,7 @@ void cybfs_close (struct vfs_mount *mount, vfs_node_t *node) {
 /**
  * Read directory entry X (numerical dir seek)
  */
-vfs_dirent_t *cybfs_readdir (struct vfs_mount *mount, vfs_node_t *dirnode, Uint32 index) {
+vfs_dirent_t *cybfs_readdir (vfs_node_t *dirnode, Uint32 index) {
   int i, found;
 
 //  kprintf ("cybfs_readdir(%s, %d)\n", dirnode->name, index);
@@ -208,7 +208,7 @@ vfs_dirent_t *cybfs_readdir (struct vfs_mount *mount, vfs_node_t *dirnode, Uint3
 /**
  * Return directory entry 'name' (basically associative dir seek)
  */
-vfs_node_t *cybfs_finddir (struct vfs_mount *mount, vfs_node_t *dirnode, const char *name) {
+vfs_node_t *cybfs_finddir (vfs_node_t *dirnode, const char *name) {
   Uint32 index, i;
 
 //  kprintf ("cybfs_finddir (%s, %s);\n", dirnode->name, name);

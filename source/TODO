@@ -29,7 +29,7 @@ Things todo:
  (*) Timer init
  ( ) Create VFS node caches (root:inodenr linked list)
  ( ) mount() func has obsolete *dev parameter (already present in *mount)
- ( ) move the vfs_mount_t structure to to vfs_node_t
+ (*) move the vfs_mount_t structure to to vfs_node_t
  (*) Refactor vfs_node_t .minorNum -> minor_num
  ( ) More camelcase to underscore convertions
  ( ) Create dprintf (debug print). Use instead of kprintf (only for mandatory printf's)
