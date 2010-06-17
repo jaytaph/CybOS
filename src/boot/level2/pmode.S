@@ -37,7 +37,7 @@
         extendedmem_above16   dw 0
 
         ; Boot parameters that are passed on to the kernel
-        boot_parameters db "root=DEVICE:/FLOPPY0 root_type=fat12",0
+        boot_parameters db "root=DEVICE:/FLOPPY0 root_type=fat12 boot_info=1",0
 
 
 ; --------------------------------

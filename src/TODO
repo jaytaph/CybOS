@@ -31,6 +31,6 @@ Things todo:
  (*) Refactor vfs_node_t .minorNum -> minor_num
  ( ) More camelcase to underscore convertions
  ( ) Create dprintf (debug print). Use instead of kprintf (only for mandatory printf's)
- ( ) info_printf ()  prints info depending on level
- ( ) bootparam  BOOTINFO=0-5 (boot debug info)
+ ( ) bootinfo_printf ()  prints info depending on level
+ ( ) bootparam  boot_info=0-5 (boot debug info)
  ( ) VGA (800x600) boot screen
