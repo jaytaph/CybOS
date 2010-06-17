@@ -31,6 +31,6 @@
     Uint16 signature;
   };
 
-  void ide_read_partition_table (ide_drive_t *drive, Uint32 lba_sector, int base_partition);
+  void ide_read_partition_table (ide_drive_t *drive, Uint32 lba_sector);
 
 #endif //__DRIVERS_IDE_PARTITIONS_H__

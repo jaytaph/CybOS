@@ -104,7 +104,7 @@ void ide_port_read_buffer (ide_channel_t *channel, Uint8 reg, Uint32 buffer, Uin
 Uint8 ide_sector_read (ide_drive_t *drive, Uint32 lba_sector, Uint32 count, char *buffer) {
   int ret;
 
-//  kprintf ("ide_sector_read (drive, %d, %d, %08X)\n", lba_sector, count, buffer);
+//  kprintf ("\nide_sector_read (drive, %d, %d, %08X)\n", lba_sector, count, buffer);
 
   // Not enabled drive
   if (! drive->enabled) return 0;
@@ -262,8 +262,8 @@ void ide_init_drive (ide_drive_t *drive) {
   device_register (device, filename);
 
   // Initialise partitions from the MBR
-  ide_read_partition_table (drive, 0, 0);
-//  ide_init_partitions (drive);
+  // @TODO: Read partitions from ATAPI drives
+  if (drive->type == IDE_DRIVE_TYPE_ATA) ide_read_partition_table (drive, 0);
 
 //  kprintf ("    ide_init_drive() done \n");
 }
@@ -355,29 +355,25 @@ void ide_init (void) {
 //  kprintf ("ide_init() done\n");
 
 
-
+/*
   int i,j,k;
   for (i=0; i!=MAX_IDE_CONTROLLERS; i++) {
     if (! ide_controllers[i].enabled) continue;
 
-//    kprintf ("IDE controller %d\n", i);
+    kprintf ("IDE controller %d\n", i);
     for (j=0; j!=IDE_CONTROLLER_MAX_CHANNELS; j++) {
       for (k=0; k!=IDE_CONTROLLER_MAX_DRIVES; k++) {
         if (! ide_controllers[i].channel[j].drive[k].enabled) continue;
-
-/*
         kprintf ("%02d/%02d: [%s] (%4dMB) '%s'\n",
                  j, k,
                  (ide_controllers[i].channel[j].drive[k].type==0?"ATA  ":"ATAPI"),
                  ide_controllers[i].channel[j].drive[k].size / 1024 / 2,
                  ide_controllers[i].channel[j].drive[k].model
                 );
-*/
       }
     }
   }
-
-  for (;;);
+*/
 }
 
 
