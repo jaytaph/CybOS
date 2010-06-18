@@ -1,18 +1,13 @@
 .SILENT :
 
-.PHONY: stdlib kernel boot
+.PHONY: kernel boot
 
-all: stdlib kernel boot install
+all: kernel boot install
 
 clean:
 	echo [Clean]
 	make -C boot clean
-	make -C stdlib clean
 	make -C kernel clean
-
-stdlib:
-	echo [StdLib]
-	make -C stdlib
 
 boot:
 	echo [Boot]
