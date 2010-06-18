@@ -24,6 +24,9 @@ OBJS =	stdio/stdio.o \
         stdio/_printf.o \
         stdio/printf.o \
         stdio/vsprintf.o \
+	stdio/fputc.o \
+	stdio/fflush.o \
+	os/write.o \
         string/strlen.o \
         string/strncpy.o \
         string/strncmp.o \
