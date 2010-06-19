@@ -39,8 +39,11 @@
       Uint32 *ustack;                         // Points to user stack
 
       regs_t *context;
+      Uint32 esp0;                            // Points to the stack-top of the kernel-stack
 
-      pagedirectory_t *page_directory;         // Points to the page directory of this task
+      Uint32 esp, ebp, eip;
+
+      pagedirectory_t *page_directory;        // Points to the page directory of this task
 
       int  alarm;                             // Remaining alarm ticks
       int  signal;                            // Current raised signals (bitfields)
@@ -88,7 +91,7 @@
   void global_task_administration (void);
   void thread_create_kernel_thread (Uint32 start_address, char *taskname, int console);
 
-  int sys_fork (void);
+  int sys_fork (regs_t *r);
   int fork(void);
 
   int getpid (void);

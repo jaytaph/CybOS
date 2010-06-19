@@ -24,24 +24,24 @@ create_syscall_entry1(sleep,   SYS_SLEEP,  ms)
 
 
 // Could be handled by a lowlevel lookup-table, but this is probably a bit more readable
-  int service_interrupt (int sysnr, int p1, int p2, int p3, int p4, int p5) {
+  int service_interrupt (regs_t *r) {
     int retval;
 
-    switch (sysnr) {
+    switch ( (r->eax & 0x0000FFFF) ) {
       case  SYS_NULL :
                       retval = sys_null ();
                       break;
       case  SYS_CONSOLE :
-                      retval = sys_console (p1, (console_t *)p2, (char *)p3);
+                      retval = sys_console (r->ebx, (console_t *)r->ecx, (char *)r->edx);
                       break;
       case  SYS_CONWRITE :
-                      retval = sys_conwrite ((char)p1, p2);
+                      retval = sys_conwrite ((char)r->ebx, r->ecx);
                       break;
       case  SYS_CONFLUSH :
                       retval = sys_conflush ();
                       break;
       case  SYS_FORK :
-                      retval = sys_fork ();
+                      retval = sys_fork (r);
                       break;
       case  SYS_GETPID :
                       retval = sys_getpid ();
@@ -50,7 +50,7 @@ create_syscall_entry1(sleep,   SYS_SLEEP,  ms)
                       retval = sys_getppid ();
                       break;
       case  SYS_SLEEP :
-                      retval = sys_sleep (p1);
+                      retval = sys_sleep (r->ebx);
                       break;
       case  SYS_IDLE :
                       retval = sys_idle ();

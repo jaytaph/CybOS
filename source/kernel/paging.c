@@ -12,18 +12,18 @@
 #include "gdt.h"
 #include "paging.h"
 
-bitmap_t *framebitmap;
+bitmap_t *framebitmap;      // Bitmap with all pages (4KB page per bit)
 
-
-// Kernel stack
+// Kernel stack @TODO: obsolete?
 unsigned int *_kernel_stack;
 
 
-unsigned int clone_debug = 0;
+unsigned int clone_debug = 0;   // When set, extra info is shown in clone_pagedirectory
 
-
+// Forward and external declarations
 pagedirectory_t *clone_pagedirectory (pagedirectory_t *src);
 void copy_physical_pageframe_data (Uint32 src, Uint32 dst);
+
 
 /************************************************************
  * Let processor use the new page directory
@@ -32,7 +32,9 @@ void set_pagedirectory (pagedirectory_t *pagedir) {
   __asm__ __volatile__ ("movl %%eax, %%cr3  \n\t" : : "a" (pagedir->physical_address));
 }
 
-// Flushes the cache. This will allow the CPU to see the updates in the pagedir
+/************************************************************
+ * Flushes the cache. This will allow the CPU to see the updates in the pagedir
+ */
 void flush_pagedirectory (void) {
   Uint32 tmp;
   __asm__ __volatile__ ("movl %%cr3, %0 \n\t" \
@@ -148,29 +150,10 @@ void obsolete_free_frame (page_t *page) {
 
 
 
-/*
-  PAGING
 
-    pre-paging
-      0x0 is mapped to 0xC0000000 for X megabyte (enough for kernel + heap)
-      create frame bitmap
-      mark all area's: bios stuff, vga, kernel (code + heap)
-
-      howto create the pagedir ?
-      howto heap to 0xD0000000
-      howto stack to 0xE0000000
-      howto normal <16MB mem to 0xF0000000 (for DMA, 0xB800 etc)
-
-    post-paging
-      stack on 0xE00000
-      heap on 0xD00000
-      kernel prints on 0xF00B8000
-*/
-
-
-
-
-// ====================================================================================
+/**
+ * Creates a new page directory and resets all pages to 0
+ */
 pagedirectory_t *create_pagedirectory (void) {
   Uint32 tmp;
 
@@ -189,28 +172,52 @@ pagedirectory_t *create_pagedirectory (void) {
 
 
 
-// ====================================================================================
+/**
+ * Clones the pagedirectory *src and returns the cloned page directory.
+ * All pages that are "kernel"-pages (as based on the separate page_directory _kernel_pagedirectory),
+ * are linked. The rest is probably userspace pages and are copied.
+ *
+ *
+ * SRC                Kernel             DST
+ * +-----------+      +-----------+      +-----------+
+ * | xxxxxxxxx |      | xxxxxxxxx |      |   LINKED  |
+ * | xxxxxxxxx |      | xxxxxxxxx |      |   LINKED  |
+ * |           |      |           |      |           |
+ * | xxxxxxxxx |      |           |  =   |   COPIED  |
+ * | xxxxxxxxx |      | xxxxxxxxx |      |   LINKED  |
+ * | xxxxxxxxx |      |           |      |   COPIED  |
+ * | xxxxxxxxx |      |           |      |   COPIED  |
+ * +-----------+      +-----------+      +-----------+
+ *
+ * @TODO: we only check for copied directory tables, not directory table pages. Why is that?
+ *
+ */
 pagedirectory_t *clone_pagedirectory (pagedirectory_t *src) {
   pagedirectory_t *dst;
   int i,j;
   Uint32 phys_addr;
 
+  int copied = 0;
+  int linked = 0;
+  int zero   = 0;
+
   // Allocate the kernel page directory and clear the whole structure
   dst = (pagedirectory_t *) kmalloc_pageboundary_physical (sizeof (pagedirectory_t), &phys_addr);
   memset (dst, 0, sizeof (pagedirectory_t));     // Zero it out
-  dst->physical_address = phys_addr;            // We need to know the physical address of the pagedir so we can load it into CR3 register
+  dst->physical_address = phys_addr;             // We need to know the physical address of the pagedir so we can load it into CR3 register
 
-// kprintf ("\n** Cloning page directory to %08X\n", phys_addr);
+//  kprintf ("\n** Cloning page directory from P %08X to P %08X\n", src->physical_address, phys_addr);
 
   if (clone_debug) {
-    kprintf ("But first... some information about the SRC table...\n");
-    kprintf ("physical_address: %08X\n", src->physical_address);
+//    kprintf ("But first... some information about the SRC table...\n");
+//    kprintf ("physical_address: %08X\n", src->physical_address);
     for (i=0; i!=1024; i++) {
       if (src->phystables[i] != 0) {
         char c;
         c = ((src->phystables[i] & 0xFFFFF000) != (_kernel_pagedirectory->phystables[i] & 0xFFFFF000)) ? 'C' : 'L';
 
-        kprintf ("TABLE[%4d] [%c]  phys addr : %08X\n", i, c, src->phystables[i]);
+        if (c != 'C') continue;
+        kprintf ("TABLE[%4d] [%c]  P %08X\n", i, c, src->phystables[i]);
         int k =  (i == 832) ? 25 : 5;
         for (j=0; j!=k; j++) {
           if (src->tables[i]->pages[j] != 0) {
@@ -224,27 +231,33 @@ pagedirectory_t *clone_pagedirectory (pagedirectory_t *src) {
 
 
   for (i=0; i!=1024; i++) {
-    if (src->tables[i] == 0) continue;    // Don't copy zero table
-
-//    kprintf (" clone_pd(): phystables[%d] = %08X\n", i, src->phystables[i]);
+    if (src->tables[i] == 0) {
+      zero++;
+      continue;    // Don't copy a zero table
+    }
 
     if ((src->phystables[i] & 0xFFFFF000) != (_kernel_pagedirectory->phystables[i] & 0xFFFFF000)) {
-//      kprintf (" [C] %08X\n", (src->phystables[i] & 0xFFFFF000));
       // COPY the table since it's not in the kernel directory
+
+      copied++;
+
+//      kprintf (" [C] I: %d (%03X)  V %08X  P %08X\n", i, (i*4), src->tables[i], (src->phystables[i] & 0xFFFFF000));
 
       // Create table at new memory address
       dst->tables[i] = (pagetable_t *)kmalloc_pageboundary_physical (sizeof (pagetable_t), &phys_addr);
-      dst->phystables[i] = phys_addr | 0x7;
+      dst->phystables[i] = phys_addr | 0x7;  // @TODO: Present + readwrite + writethrough?
 
       // Make sure the new table is clear
       memset (dst->tables[i], 0, sizeof (pagetable_t));
       for (j=0; j!=1024; j++) {
         if (src->tables[i]->pages[j] == 0) continue;    // Empty frame, don't copy
 
-//          kprintf ("Copying page %d (%08X)\n", j, src->tables[i]->pages[j]);
+//        kprintf ("Copying page %d (P %08X) ", j, src->tables[i]->pages[j] & ~0xFFF);
 
         // Create new page
         allocate_pageframe (&dst->tables[i]->pages[j], 0, 0);
+
+//        kprintf ("to P %08X\n", dst->tables[i]->pages[j] & ~0xFFF);
 
         // Copy pageflag bits from source to destination
         if (src->tables[i]->pages[j] & PAGEFLAG_PRESENT)   dst->tables[i]->pages[j] |= PAGEFLAG_PRESENT;
@@ -263,7 +276,9 @@ pagedirectory_t *clone_pagedirectory (pagedirectory_t *src) {
       }
     } else {
       // LINK the table since it's also in the kernel directory
-//      kprintf (" [L] %08X\n", (src->phystables[i] & 0xFFFFF000));
+
+      linked++;
+//      kprintf (" [L] I: %d (%03X)  V %08X  P %08X\n", i, (i*4), src->tables[i], (src->phystables[i] & 0xFFFFF000));
 
       // Since we just link to the same address, we do not need to copy the table itself.
       dst->phystables[i] = src->phystables[i];
@@ -271,7 +286,7 @@ pagedirectory_t *clone_pagedirectory (pagedirectory_t *src) {
     }
   }
 
-//kprintf ("done...\n");
+//kprintf ("--- Stats [Z: %d]  [L: %d]  [C: %d] ----------------\n\n", zero, linked, copied);
 
   return dst;
 }
@@ -311,8 +326,7 @@ void create_pageframe (pagedirectory_t *directory, Uint32 dst_address, int pagel
 //  kprintf ("Frame index found: 0x%05X 000\n", frame_index);
 }
 
-// ====================================================================================
-/*
+/**
  * Return the PAGE structure for a certain address. This depends on the directory used.
  * When no page structure is available (ie the table is not yet created), the create_flag
  * decide if the table should be made in the directory or not.
@@ -360,7 +374,7 @@ void map_virtual_memory (pagedirectory_t *directory, Uint32 src_address, Uint32 
 
 
 // ====================================================================================
-void pbm (int size) {
+void obs_pbm (int size) {
   int i,j;
   kprintf ("Bitmap:\n");
 
@@ -402,8 +416,9 @@ int stack_init (Uint32 src_stack_top) {
   Uint32 stacklength, kernel_stack_top;
   int i;
 
-  /* Clone the current page directory. We use our cloned PD from now on, not the original
-   * kernel directory. @TODO: figure out exactly why and how this works */
+  /* Clone the currently setup page directory. When copying (forking, creating thread etc) a process,
+   * everything that is allocated AFTER here will be copied (ie: userbased). Everything else will
+   * be linked (ie: kernel code/data). */
   _current_pagedirectory = clone_pagedirectory (_kernel_pagedirectory);
   set_pagedirectory (_current_pagedirectory);
 
@@ -455,6 +470,9 @@ int stack_init (Uint32 src_stack_top) {
   // Set the new ESP and EBP. Note that EBP might not be valid at the moment but we can't be sure.
   __asm__ __volatile__ ("mov %0, %%esp" : : "r" (new_esp));
   __asm__ __volatile__ ("mov %0, %%ebp" : : "r" (new_ebp));
+
+
+  kprintf ("Moved old stack %08X to %08X\n", old_esp, new_esp);
 
   flush_pagedirectory ();
 

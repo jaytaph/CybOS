@@ -13,6 +13,8 @@
  * onto it)
  */
 void tss_set_kernel_stack (Uint32 stack_address) {
+  kprintf ("TSS Set Kernel Stack %08X\n", stack_address);
+
   // Get descriptor that holds main TSS
   Uint64 tss_descriptor = gdt_get_descriptor (TSS_TASK_DESCR);
 

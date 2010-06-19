@@ -28,7 +28,7 @@ Things todo:
  ( ) Fix all TODO's and @TODO's
  (*) Timer init
  ( ) Create VFS node caches (root:inodenr linked list)
- ( ) mount() func has obsolete *dev parameter (already present in *mount)
+ (?) mount() func has obsolete *dev parameter (already present in *mount)
  (*) move the vfs_mount_t structure to to vfs_node_t
  (*) Refactor vfs_node_t .minorNum -> minor_num
  ( ) More camelcase to underscore convertions
@@ -36,3 +36,4 @@ Things todo:
  ( ) bootinfo_printf ()  prints info depending on level
  ( ) bootparam  boot_info=0-5 (boot debug info)
  ( ) VGA (800x600) boot screen
+ ( ) Exec()

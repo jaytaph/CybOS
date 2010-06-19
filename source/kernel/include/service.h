@@ -55,7 +55,7 @@
                              }
 
 
-  int service_interrupt (int sysnr, int p1, int p2, int p3, int p4, int p5);
+  int service_interrupt (regs_t *r);
 
 
   int sys_null (void);

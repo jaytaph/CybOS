@@ -104,6 +104,10 @@ void readdir (vfs_node_t *root, int depth) {
 //  kprintf ("readdir() done\n");
 }
 
+
+/**
+ *
+ */
 void kernel_setup (int stack_start, int total_sys_memory, const char *boot_params) {
   // Number of times the timer-interrupts is called.
   _kernel_ticks = 0;
@@ -201,7 +205,7 @@ void kernel_setup (int stack_start, int total_sys_memory, const char *boot_param
   kprintf ("]\n");
   kprintf ("Kernel initialization done. Unable to free %d bytes.\n", _unfreeable_kmem);
 
-  kprintf ("\n\n\n");
+  kprintf ("\n");
 
   // Start interrupts here
   sti ();
@@ -227,10 +231,12 @@ void mount_root_system (const char *boot_params) {
   if (! ret) kpanic ("Error while mounting root filesystem from '%s'. Cannot continue!\n", root_device_path);
 
 
+/*
   kprintf ("- MOUNT ROOT SYSTEM ---------------------\n");
   vfs_node_t *node = vfs_get_node_from_path ("ROOT:/");
   readdir (node, 0);
   kprintf ("-----------------------------------------\n");
+*/
 }
 
 
@@ -432,6 +438,12 @@ void tprintf (const char *fmt, ...) {
 }
 
 
+void do_tprintf (int dummy) {
+  dummy += 1;
+  tprintf ("2");
+}
+
+
 /****************************************************************************
  * Startup of the kernel.
  */
@@ -440,23 +452,92 @@ void kernel_entry (int stack_start, int total_sys_memory, const char *boot_param
 
   kernel_setup (stack_start, total_sys_memory, boot_params);
 
-  kprintf ("Mounting root filesystem\n");
+  kprintf ("* Mounting root filesystem\n");
   mount_root_system (boot_params);
 
-  kprintf ("Switching to usermode\n");
-  switch_to_usermode();
+  kprintf ("* Switching to usermode\n");
+  switch_to_usermode ();
 
-  tprintf ("Starting INIT\n");
+  tprintf ("* Starting init program\n");
 
+/*
   if (! fork()) {
-    tprintf ("FORK1\n");
+    tprintf ("FORK0 (%d)\n", _current_task->pid);
     start_init (boot_params);
     tprintf ("The init program was terminated!");
     kdeadlock ();
   }
+*/
+
+  /* The first fork() does not work the way you'd expect. Since it's a fork of PID 0, it
+   * only returns when there is no other process currently available for running. */
+
+  // Initial fork() between idle[0] and init[1]
+  int pid = fork ();
+  tprintf ("Initial fork: %08x\n", pid);
+  if (pid == 0) {
+    tprintf ("Child process triggered!");
+    for (;;);
+
+    // Child task (PID 1)
+    strcpy (_current_task->name, "Init task");
+
+    int pid;
+    pid = fork ();
+    tprintf ("RETURNED BY FORK1: [%d]\n", pid);
+    if (pid == 0) {
+      strcpy (_current_task->name, "Init - process 1");
+      tprintf ("child %d will hang..\n", _current_task->pid);
+      for (;;);
+    }
+/*
+    pid = fork ();
+    tprintf ("RETURNED BY FORK2: [%d]\n", pid);
+    if (pid == 0) {
+      strcpy (_current_task->name, "Init - process 2");
+      tprintf ("child %d will hang..\n", _current_task->pid);
+      for (;;);
+    }
+*/
+    tprintf ("This is the mainloop for init-task [%d]", _current_task->pid);
+    for (;;) ;
+  }
+
+  tprintf ("I would idle now on PID [%d]...\n", _current_task->pid);
+  for (;;) ;
 
   // This is the idle task (PID 0)
-  tprintf ("IDLE\n");
+  tprintf ("IDLE (%d)\n", _current_task->pid);
   for (;;) idle ();
+
+/*
+  if (! fork()) {
+    tprintf ("FORK1 (%d)\n", _current_task->pid);
+    for (;;) tprintf ("1");
+  }
+
+  if (! fork()) {
+    tprintf ("FORK2 (%d)\n", _current_task->pid);
+    for (;;) do_tprintf (0xCAFEBABE);
+  }
+  if (! fork()) {
+    tprintf ("FORK3 (%d)\n", _current_task->pid);
+    for (;;) {
+      int i;
+      for (i=0; i!=250; i++) tprintf ("3");
+      tprintf ("Z");
+      sleep (500);
+      tprintf ("W");
+    }
+  }
+  if (! fork()) {
+    tprintf ("FORK4 (%d)\n", _current_task->pid);
+    for (;;) tprintf ("4");
+  }
+
+  // This is the idle task (PID 0)
+  tprintf ("IDLE (%d)\n", _current_task->pid);
+  for (;;) idle ();
+*/
 }
 

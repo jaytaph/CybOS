@@ -272,7 +272,7 @@ void do_handle_irq (regs_t *r) {
 // the call automatically places the ret addres onto the stack and that messes up the
 // rest of the parameters. Therefor, we just send a pointer.
 int do_handle_syscall (regs_t *r) {
-  return service_interrupt (r->eax & 0x0000FFFF, r->ebx, r->ecx, r->edx, r->esi, r->edi);
+  return service_interrupt (r);
 }
 
 // =================================================================================
