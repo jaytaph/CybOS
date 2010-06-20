@@ -477,7 +477,6 @@ void kernel_entry (int stack_start, int total_sys_memory, const char *boot_param
   tprintf ("Initial fork: %08x\n", pid);
   if (pid == 0) {
     tprintf ("Child process triggered!");
-    for (;;);
 
     // Child task (PID 1)
     strcpy (_current_task->name, "Init task");
@@ -488,23 +487,25 @@ void kernel_entry (int stack_start, int total_sys_memory, const char *boot_param
     if (pid == 0) {
       strcpy (_current_task->name, "Init - process 1");
       tprintf ("child %d will hang..\n", _current_task->pid);
-      for (;;);
+      for (;;) {
+        int i;
+        for (i=0; i!=500; i++) tprintf ("1");
+        tprintf ("Z");
+        sleep (1000);
+        tprintf ("W");
+      }
     }
-/*
     pid = fork ();
     tprintf ("RETURNED BY FORK2: [%d]\n", pid);
     if (pid == 0) {
       strcpy (_current_task->name, "Init - process 2");
       tprintf ("child %d will hang..\n", _current_task->pid);
-      for (;;);
+      for (;;) tprintf ("3");
     }
-*/
-    tprintf ("This is the mainloop for init-task [%d]", _current_task->pid);
-    for (;;) ;
-  }
 
-  tprintf ("I would idle now on PID [%d]...\n", _current_task->pid);
-  for (;;) ;
+    tprintf ("This is the mainloop for init-task [%d]", _current_task->pid);
+    for (;;) tprintf ("2");
+  }
 
   // This is the idle task (PID 0)
   tprintf ("IDLE (%d)\n", _current_task->pid);

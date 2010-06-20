@@ -37,11 +37,7 @@
 
       Uint32 *kstack;                         // Points to kernel stack
       Uint32 *ustack;                         // Points to user stack
-
-      regs_t *context;
-      Uint32 esp0;                            // Points to the stack-top of the kernel-stack
-
-      Uint32 esp, ebp, eip;
+      regs_t *context;                        // Points to the saved context somewhere in the task->kstack
 
       pagedirectory_t *page_directory;        // Points to the page directory of this task
 

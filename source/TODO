@@ -37,3 +37,4 @@ Things todo:
  ( ) bootparam  boot_info=0-5 (boot debug info)
  ( ) VGA (800x600) boot screen
  ( ) Exec()
+ ( ) faster updates on screen (remove flush / optimize)

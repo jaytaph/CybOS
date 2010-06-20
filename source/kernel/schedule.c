@@ -26,9 +26,7 @@ TSS tss_entry;                   // Memory to hold the TSS. Address is loaded in
 int current_pid = PID_IDLE - 1;      // First call to allocate_pid will return PID_IDLE
 
 
-void context_switch (Uint32 *prev_context, Uint32 new_context);    // Found in task.S
-Uint32 read_eip (void);
-
+void do_context_switch (regs_t **prev_context, regs_t *new_context);    // Found in task.S
 
 
 /**
@@ -43,8 +41,11 @@ void sched_init_pid_0 () {
 
   // Create kernel stack and setup "start" stack that gets pop'ed by context_switch()
   task->kstack = (Uint32 *)kmalloc_pageboundary (KERNEL_STACK_SIZE);
-  task->context = (regs_t *)(task->kstack + KERNEL_STACK_SIZE - sizeof (regs_t));
-  task->esp0 = (Uint32)task->kstack + KERNEL_STACK_SIZE;
+
+  /* Context is the place where the interrupt handler has saved all data. It's an address
+   * somewhere in the kernelstack. Normally, this will be the TOP of the stack. If it's not,
+   * it might be a re-entry inside the kernel (@TODO: research: is this correct?) */
+  task->context = (regs_t *)0xdead1234;
 
   // Set page directory
   task->page_directory = _current_pagedirectory;
@@ -69,7 +70,6 @@ void sched_init_pid_0 () {
   // We are all done. Available for scheduling
   task->state = TASK_STATE_RUNNABLE;
 }
-
 
 
 /*******************************************************
@@ -103,6 +103,7 @@ void sched_add_task (task_t *new_task) {
   // Enable ints (if needed)
   restore_ints (state);
 }
+
 
 /*******************************************************
  * Removes a task from the linked list of tasks.
@@ -176,7 +177,6 @@ found:
 }
 
 
-
 /****
  *
  */
@@ -185,6 +185,7 @@ void sys_signal (task_t *task, int signal) {
   // task->signal |= (1 << signal);
   task->signal = bts (task->signal, signal);
 }
+
 
 /****
  * Checks for signals in the current task, and act accordingly
@@ -265,8 +266,6 @@ void global_task_administration (void) {
 }
 
 
-
-
 /****
  *
  */
@@ -282,8 +281,10 @@ void switch_task () {
   // This is the task we're running. It will be the old task after this
   next_task = previous_task = _current_task;
 
-  /* Don't use _current_task from this point on. We define previous_task as the one we are
-   * about to leave, and next_task as the one we are about to enter. */
+  /*
+   * Don't use _current_task from this point on. We define previous_task as the one we are
+   * about to leave, and next_task as the one we are about to enter.
+   */
 
   // Only set this task to be available again if it was still running. If it's
   // sleeping TASK_STATE_(UN)INTERRUPTIBLE), then don't change this setting.
@@ -303,49 +304,31 @@ void switch_task () {
     return;
   }
 
-  kprintf ("Reschedule from PID %d to PID %d\n", previous_task->pid, next_task->pid);
+//  kprintf ("Rescheduling from PID %d to PID %d\n", previous_task->pid, next_task->pid);
 
   // Old task is available again. New task is running
   if (next_task->pid != PID_IDLE) {
     next_task->state = TASK_STATE_RUNNING;
   }
 
-
-
   // Set kernel stack and page directroy of new task
-  tss_set_kernel_stack ((Uint32)(next_task->kstack + KERNEL_STACK_SIZE));
+  tss_set_kernel_stack ((Uint32)next_task->kstack + KERNEL_STACK_SIZE);
   set_pagedirectory (next_task->page_directory);
 
-  Uint32 esp, ebp, eip;
-  asm volatile("mov %%esp, %0" : "=r"(esp));
-  asm volatile("mov %%ebp, %0" : "=r"(ebp));
-
-  eip = read_eip();
-  if (eip == 0x12345) return;
-
-  previous_task->esp = esp;
-  previous_task->ebp = ebp;
-  previous_task->eip = eip;
-
-  eip = next_task->eip;
-  esp = next_task->esp;
-  ebp = next_task->ebp;
-
-  // The next task is now the current task..
+  // The next task becomes now the current task..
   _current_task = next_task;
 
-  kprintf ("Jumping to %08x [ESP: %08X]\n", eip, esp);
+//  kprintf ("1 PT->context: %08X (%08X)\n", &previous_task->context, previous_task->context);
+//  kprintf ("1 NT->context: %08X (%08X)\n", &next_task->context, next_task->context);
 
-BOCHS_BREAKPOINT;
-  asm volatile("         \
-    cli;                 \
-    mov %0, %%ecx;       \
-    mov %1, %%esp;       \
-    mov %2, %%ebp;       \
-    mov $0x12345, %%eax; \
-    sti;                 \
-    jmp *%%ecx           "
-                 : : "r"(eip), "r"(esp), "r"(ebp));
+  do_context_switch (&previous_task->context, next_task->context);
+
+//  kprintf ("2 PT->context: %08X (%08X)\n", &previous_task->context, previous_task->context);
+//  kprintf ("2 NT->context: %08X (%08X)\n", &next_task->context, next_task->context);
+
+
+  restore_ints (state);
+  return;
 }
 
 /****
@@ -360,7 +343,7 @@ void switch_to_usermode (void) {
   _current_task = _task_list;
 
   // Set the correct kernel stack
-  tss_set_kernel_stack((Uint32)(_current_task->kstack + KERNEL_STACK_SIZE));
+  tss_set_kernel_stack ((Uint32)_current_task->kstack + KERNEL_STACK_SIZE);
 
   // Move from kernel ring0 to usermode ring3 AND start interrupts at the same time.
   // This is needed because we cannot use sti() inside usermode. Since there is no 'real'
@@ -389,7 +372,9 @@ void switch_to_usermode (void) {
   // the idle-task's stack AND with interrupts running.. We are go...
 }
 
-// ========================================================================================
+/***
+ *
+ */
 int allocate_new_pid (void) {
   task_t *tmp;
   int b;
@@ -416,8 +401,6 @@ int allocate_new_pid (void) {
 
   return current_pid;
 }
-
-
 
 
 /**
@@ -504,6 +487,7 @@ int sys_getppid (void) {
  * Forks the current process
  */
 int sys_fork (regs_t *r) {
+  kprintf ("Entering sys_fork()\n");
   task_t *child_task, *parent_task;
 
   int state = disable_ints();
@@ -533,71 +517,28 @@ int sys_fork (regs_t *r) {
 
   // Allocate child's kernel stack
   child_task->kstack = (Uint32 *)kmalloc_pageboundary (KERNEL_STACK_SIZE);
-  kprintf ("KMalloced chidl task at %08X\n", (Uint32)child_task->kstack);
+  kprintf ("kmalloc() child kernel stack at %08X\n", (Uint32)child_task->kstack);
 
-  sched_add_task (child_task);
-
-  Uint32 eip = read_eip ();
-  if (_current_task == parent_task) {
-    Uint32 esp;  asm volatile ("mov %%esp, %0" : "=r" (esp));
-    Uint32 ebp;  asm volatile ("mov %%ebp, %0" : "=r" (ebp));
-    child_task->esp = esp;
-    child_task->ebp = ebp;
-    child_task->eip = eip;
-
-    restore_ints (state);
-    return child_task->pid;
-  }
-
-  restore_ints (state);
-  return 0;
-
-
-/*
+  // Copy parent kernel stack to the child kernel stack
+//  kprintf ("memcopied %08X-%08X to %08X-%08X\n", parent_task->kstack, (Uint32)parent_task->kstack+KERNEL_STACK_SIZE, child_task->kstack, (Uint32)child_task->kstack+KERNEL_STACK_SIZE);
   memcpy ((void *)child_task->kstack, (void *)parent_task->kstack, KERNEL_STACK_SIZE);
+//  kprintf ("R = %08X\n", r);
 
-  Uint32 *ptr = (Uint32 *)(child_task->kstack + (KERNEL_STACK_SIZE/4));
-  int i;
-  for (i=0; i!=20; i++) {
-    kprintf ("CHILD %d %08X %08X\n", i, ptr, *ptr);
-    ptr--;
-  }
+  Uint32 stackpointer_offset = (Uint32)parent_task->kstack + KERNEL_STACK_SIZE - (Uint32)r;
+  kprintf ("Parent task kstack + KERNEL_STACK_SIZE = %08X\n", (Uint32)parent_task->kstack + KERNEL_STACK_SIZE);
+//  kprintf ("Diff is %08X\n", stackpointer_offset);
+  kprintf ("Child task kstack + KERNEL_STACK_SIZE = %08X\n", (Uint32)child_task->kstack + KERNEL_STACK_SIZE);
 
-  ptr = (Uint32 *)(parent_task->kstack + (KERNEL_STACK_SIZE/4));
-  for (i=0; i!=20; i++) {
-    kprintf ("PARENT %d %08X %08X\n", i, ptr, *ptr);
-    ptr--;
-  }
+  child_task->context = (regs_t *) ((Uint32)child_task->kstack + KERNEL_STACK_SIZE - stackpointer_offset);
+  kprintf ("Context is at %08X\n", child_task->context);
 
-//  child_task->context = (regs_t *)(child_task->kstack + KERNEL_STACK_SIZE - sizeof (regs_t));
-//  child_task->esp0 = (Uint32)child_task->kstack + KERNEL_STACK_SIZE;
+  // Set return value by manipulating the saved context on the stack
+  child_task->context->eax = 0;
 
-  // User stack gets copied by the clone_pagedirectory() function
-
-//  // Allocate child's kernel stack and copy parent stack over
-//  child_task->kstack = (Uint32 *)kmalloc_pageboundary (KERNEL_STACK_SIZE);
-//  memcpy ((void *)child_task->kstack, (void *)parent_task->kstack, KERNEL_STACK_SIZE);
-
-//  child_task->context->eax = 0xDEADBEEF;
-//  parent_task->context->eax = 0xCAFEBABE;
-
-//  // Set returning EAX value
-//  regs_t *regs = (regs_t *)(child_task->kstack + KERNEL_STACK_SIZE - sizeof (regs_t));
-//  regs->eax = 0xDEADBEEF;
-
-  // Add task to schedule-switcher. We are still initialising so it does not run yet.
   sched_add_task (child_task);
 
-  kprintf (" -- Task list --\n");
-  task_t *task;
-  for (task = _task_list; task != NULL; task = task->next) {
-    kprintf ("%02d  %c  %-20s\n", task->pid, task->state, task->name);
-  }
-  kprintf (" ---------------\n\n");
-
   restore_ints (state);
-  return child_task->pid;   // Return the PID of the child
-*/
+  return child_task->pid;
 }
 
 

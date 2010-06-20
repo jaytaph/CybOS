@@ -471,9 +471,6 @@ int stack_init (Uint32 src_stack_top) {
   __asm__ __volatile__ ("mov %0, %%esp" : : "r" (new_esp));
   __asm__ __volatile__ ("mov %0, %%ebp" : : "r" (new_ebp));
 
-
-  kprintf ("Moved old stack %08X to %08X\n", old_esp, new_esp);
-
   flush_pagedirectory ();
 
   return ERR_OK;

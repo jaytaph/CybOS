@@ -15,8 +15,8 @@
   // Syscall defines
   #define SYS_NULL                        0
   #define SYS_CONSOLE                     1
-      #define SYS_CONSOLE_CREATE               0
-      #define SYS_CONSOLE_DESTROY              1
+  #define SYS_CONSOLE_CREATE               0
+  #define SYS_CONSOLE_DESTROY              1
   #define SYS_CONWRITE                    2
   #define SYS_CONREAD                     3
   #define SYS_CONFLUSH                    4

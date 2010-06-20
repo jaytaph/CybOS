@@ -12,7 +12,9 @@
 #include "keyboard.h"
 
 
-// These are all corresponding service calls
+/* These macro creates an <func>() function that does a syscall (INT 42) call with the correct
+ * parameters. Since syscalls accept a variable number of parameters (some 0, some 1, some even
+ * more), we have create_syscall_entryX(), where X stands for the number of parameters. */
 create_syscall_entry0(exit,    SYS_EXIT)
 create_syscall_entry0(getppid, SYS_GETPPID)
 create_syscall_entry0(getpid,  SYS_GETPID)
@@ -23,11 +25,27 @@ create_syscall_entry1(sleep,   SYS_SLEEP,  ms)
 
 
 
-// Could be handled by a lowlevel lookup-table, but this is probably a bit more readable
+  /***
+   *
+   * @TODO Could be handled by a lowlevel lookup-table, but this is probably a bit more readable
+   *
+   * Calling paramters:
+   *   param 1 : EBX
+   *   param 2 : ECX
+   *   param 3 : EDX
+   *   param 4 : ESI
+   *   param 5 : EDI
+   *   param 6 : time for using a structure instead of so many parameters...
+   *
+   *  This parameter list is defined in the create_syscall_entryX macro's (service.h)
+   *
+   */
   int service_interrupt (regs_t *r) {
-    int retval;
+    int retval = 0;
+    int service = (r->eax & 0x0000FFFF);
 
-    switch ( (r->eax & 0x0000FFFF) ) {
+    switch (service) {
+      default        :
       case  SYS_NULL :
                       retval = sys_null ();
                       break;

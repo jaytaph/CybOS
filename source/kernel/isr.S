@@ -38,8 +38,8 @@ section .text
       handle_irq%1:
         cli
 
-        push 0xA5A5A5A5    ; Dummy error code
-        push byte %1      ; Current IRQ code
+        push 0xA5A5A5A5      ; Dummy error code
+        push byte %1         ; Current IRQ code
         jmp irq_common_stub
 %endmacro
 
