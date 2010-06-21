@@ -21,6 +21,9 @@
  * but it really would not have to.
  */
 
+// Wait queue with all tasks currently waiting for FDC
+waitqueue_t fdc_wait_queue;
+
 // Constants for drive driveinfo. These are hardcoded per drive type
 const fdc_driveinfo_t driveinfo[8] = {
                                        { 0,  0, 0,  0,    0, 0, 0, 0, 0, 0 },  // No drive
@@ -44,7 +47,7 @@ const char *floppyTypes[] = { "no drive",
                               "Unknown type"
                              };
 
-// Flag to be set as soon as IRQ happens (set by IRQ handler)
+// Flag to be set as soon as IRQ happens in blocking mode (set by IRQ handler)
 static volatile Uint8 fdc_receivedIRQ = 0;
 
 // Buffer (in DMA memory <16MB) for DMA transfers, @TODO: @allocate per controller
@@ -74,16 +77,27 @@ int fdc_wait_status_ready (void) {
  * Wait until a floppy IRQ happens
  */
 void fdc_wait_for_irq (void) {
-  // Wait until it's not 0
-  while (! fdc_receivedIRQ) {
-    // @TODO: Instead of polling, we should sleep()/reschedule. Wake up on IRQ6
+  if (_current_task == NULL) {
+    /* Since we cannot use sched_*() functions while context-switching is not active, we
+     * are doing a blocked wait */
 
-    // Make sure IRQ's are enabled when waiting for IRQ
-    if (! ints_enabled ()) kpanic ("Waiting for IRQ, but interrupts are not enabled");
-  };
+    // Wait until it's not 0
+    while (! fdc_receivedIRQ) {
+      // Make sure IRQ's are enabled when waiting for IRQ
+      if (! ints_enabled ()) kpanic ("Block wait for IRQ, but interrupts are not enabled");
+    };
 
-  // Reset to 0
-  fdc_receivedIRQ = 0;
+    // Reset to 0
+    fdc_receivedIRQ = 0;
+
+    return;
+  }
+
+  // This is the "normal" wait for IRQ by letting this task sleep on the fdc_wait_queue
+
+  kprintf ("fdc_wait_for_irq\n");
+  sched_interruptable_sleep (&fdc_wait_queue);
+  kprintf ("woken up again.. resuming irq stuff\n");
 }
 
 
@@ -113,8 +127,11 @@ Uint32 fdc_recv_data (void) {
 /**
  * Floppy interrupt handler. Does nothing except setting flag
  */
-void floppy_interrupt (regs_t *r) {
+int floppy_interrupt (regs_t *r) {
   fdc_receivedIRQ = 1;
+
+  if (_current_task != NULL) sched_wakeup (&fdc_wait_queue);
+  return 1;
 }
 
 
@@ -561,6 +578,8 @@ void fdc_init_controller (fdc_t *fdc, Uint8 controller_num, Uint32 base_address,
  */
 void fdc_init (void) {
   int i, fdcBaseAddr;
+
+  sched_init_waitqueue (&fdc_wait_queue);
 
   // Try to initialise 2 controllers
   for (i=0; i!=2; i++) {

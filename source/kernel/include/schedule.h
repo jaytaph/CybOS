@@ -49,6 +49,14 @@
   } task_t;
 
 
+  #define MAX_WAITQUEUE_TASKS     10          // Maximum number of items inside a wait queue
+
+  typedef struct {
+      task_t  *task[MAX_WAITQUEUE_TASKS];
+      int     count;
+  } waitqueue_t;
+
+
   #define PRIO_LOW            1     // Minimum priority
   #define PRIO_DEFAULT       50     // Default priority
   #define PRIO_HIGH         100     // Maximum priority
@@ -78,6 +86,10 @@
   void kernel_idle (void);
   void switch_to_usermode (void);
   int allocate_new_pid (void);
+
+  void sched_interruptable_sleep (waitqueue_t *queue);
+  void sched_wakeup (waitqueue_t *queue);
+  void sched_init_waitqueue (waitqueue_t *queue);
 
   void sched_add_task (task_t *task);
   void sched_remove_task (task_t *task);

@@ -25,6 +25,7 @@
 #include "io.h"
 #include "dma.h"
 #include "pci.h"
+#include "exec.h"
 #include "drivers/floppy.h"
 #include "drivers/ide.h"
 #include "vfs.h"
@@ -160,15 +161,19 @@ void kernel_setup (int stack_start, int total_sys_memory, const char *boot_param
    * @TODO: Remove this as soon as we are able to use kmalloc_dma () */
   kmalloc_pageboundary_physical (FDC_DMABUFFER_SIZE, (Uint32 *)&floppyDMABuffer);
 
+  // Setup stack
   kprintf ("MEM ");
   heap_init();
 
+  // Setup stack
   kprintf ("STK ");
   stack_init (stack_start);
 
+  // Initialize DMA
   kprintf ("DMA ");
   dma_init ();
 
+  // Initialise PCI
   kprintf ("PCI ");
   pci_init ();
 
@@ -182,7 +187,7 @@ void kernel_setup (int stack_start, int total_sys_memory, const char *boot_param
   cybfs_init ();
   devfs_init ();
   fat12_init ();
-  // ext3_init ();  // @TODO
+  // ext3_init ();  // @TODO: create ext3
 
   int ret = sys_mount (NULL, "devfs", "DEVICE", "/", 0);
   if (! ret) kpanic ("Error while mounting DevFS filesystem. Cannot continue!\n");
@@ -208,7 +213,7 @@ void kernel_setup (int stack_start, int total_sys_memory, const char *boot_param
   kprintf ("\n");
 
   // Start interrupts here
-  sti ();
+  sti ()
 }
 
 
@@ -251,7 +256,7 @@ void start_init (const char *boot_params) {
   get_boot_parameter (boot_params, "init=", (char *)&init_prog);
 
   tprintf ("Transfering control to user mode and starting %s.\n\n\n", init_prog);
-  //exec (init_prog);   // @TODO
+  exec (init_prog);
 
 // Remove this testcode below
 
@@ -283,7 +288,7 @@ void start_init (const char *boot_params) {
       tprintf ("Wakeup");
     }
   }
-*/
+
 
   for (;;) {
     int i;
@@ -292,6 +297,7 @@ void start_init (const char *boot_params) {
     sleep (1000);
     tprintf ("Wakeup");
   }
+*/
 }
 
 
@@ -460,17 +466,17 @@ void kernel_entry (int stack_start, int total_sys_memory, const char *boot_param
 
   tprintf ("* Starting init program\n");
 
-/*
   if (! fork()) {
     tprintf ("FORK0 (%d)\n", _current_task->pid);
     start_init (boot_params);
     tprintf ("The init program was terminated!");
-    kdeadlock ();
+    for (;;) ;
   }
-*/
 
-  /* The first fork() does not work the way you'd expect. Since it's a fork of PID 0, it
-   * only returns when there is no other process currently available for running. */
+  // PID 0 idles
+  for (;;) idle ();
+
+/*
 
   // Initial fork() between idle[0] and init[1]
   int pid = fork ();
@@ -510,6 +516,7 @@ void kernel_entry (int stack_start, int total_sys_memory, const char *boot_param
   // This is the idle task (PID 0)
   tprintf ("IDLE (%d)\n", _current_task->pid);
   for (;;) idle ();
+*/
 
 /*
   if (! fork()) {

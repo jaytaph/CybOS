@@ -193,7 +193,42 @@ void fat12_umount (struct vfs_mount *mount) {
  *
  */
 Uint32 fat12_read (vfs_node_t *node, Uint32 offset, Uint32 size, char *buffer) {
-  return 0;//    return node->block->read (node->block->major, node->block->minor, offset, size, buffer);
+  int i;
+
+  fat12_fatinfo_t *fat12_info = node->mount->fs_data; // Alias for easier usage
+
+  kprintf ("Reading inode %d\n", node->inode_nr);
+
+  // We do need nothing to read
+  if (size == 0) return 0;
+
+  // Cannot read behind file
+  if (offset > node->length) return 0;
+
+  // We can only read X amount of bytes
+  if (offset + size > node->length) {
+    kprintf ("Truncated size from %d\n", size);
+    size = node->length - offset;
+    kprintf ("to %d\n", size);
+  }
+
+  // Find the start cluster (by skipping all non-used cluster)
+  int cluster_size = fat12_info->bpb->SectorsPerCluster * fat12_info->bpb->BytesPerSector;
+  int tmp = offset / cluster_size;
+  kprintf ("We need cluster number %d\n", tmp);
+
+  Uint16 cluster = node->inode_nr;
+  for (i=0; i!=tmp; i++) {
+    cluster = fat12_get_next_cluster (fat12_info->fat, cluster);
+  }
+  Uint32 disk_offset = (fat12_info->dataOffset+cluster) * fat12_info->bpb->SectorsPerCluster * fat12_info->bpb->BytesPerSector;
+  kprintf ("Start cluster : %08X\n", cluster);
+  kprintf ("Disk offset   : %08X\n", disk_offset);
+
+  node->mount->dev->read (node->mount->dev->major_num, node->mount->dev->minor_num, disk_offset, size, buffer);
+
+  kprintf ("Returing %d bytes read\n", size);
+  return size;
 }
 
 /**
@@ -372,9 +407,7 @@ vfs_node_t *fat12_finddir (vfs_node_t *node, const char *name) {
 
   } else {
     // Read 'normal' subdirectory
-
     Uint16 cluster = node->inode_nr;
-//    kprintf ("Cluster: %04x\n", cluster);
 
     // Do as long as we have file entries (always padded on sector which is always divved by 512)
     do {
@@ -399,7 +432,6 @@ vfs_node_t *fat12_finddir (vfs_node_t *node, const char *name) {
 
       // Fetch next cluster from file
       cluster = fat12_get_next_cluster (fat12_info->fat, cluster);
-      kprintf ("New Cluster: %04x\n", cluster);
       // Repeat until we hit end of cluster list
     } while (cluster > 0x002 && cluster <= 0xFF7);
   }

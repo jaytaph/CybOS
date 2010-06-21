@@ -11,7 +11,6 @@
   #include "console.h"
   #include "schedule.h"
 
-
   // Syscall defines
   #define SYS_NULL                        0
   #define SYS_CONSOLE                     1
@@ -28,6 +27,7 @@
   #define SYS_IDLE                       14
   #define SYS_EXIT                       15
   #define SYS_SIGNAL                     16
+  #define SYS_EXEC                       17
 
 
   /* Function macro's to define syscall functions. Bascially every syscall get's a special syscall function. For instance:
@@ -67,5 +67,6 @@
   int sys_getppid (void);
   int sys_idle (void);
   int sys_exit (void);
+  int sys_exec (char *path);
 
 #endif //__SERVICE_H__

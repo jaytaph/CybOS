@@ -58,6 +58,7 @@ OBJS =  main.o \
         klib.o \
         pci.o \
         dma.o \
+        exec.o \
         device.o \
         drivers/floppy/floppy.o \
         drivers/ide/ide.o \
@@ -67,7 +68,8 @@ OBJS =  main.o \
         vfs.o \
         vfs/fat12.o \
         vfs/cybfs.o \
-        vfs/devfs.o
+        vfs/devfs.o \
+        ff/elf.o
 
 
 # Default target

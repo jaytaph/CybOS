@@ -30,14 +30,67 @@ void do_context_switch (regs_t **prev_context, regs_t *new_context);    // Found
 
 
 /**
+ * Initializes a waitqueue
+ */
+void sched_init_waitqueue (waitqueue_t *queue) {
+  int i;
+  queue->count = MAX_WAITQUEUE_TASKS;
+  for (i=0; i!=queue->count; i++) queue->task[i] = NULL;
+}
+
+/**
+ *
+ */
+void sched_wakeup (waitqueue_t *queue) {
+  int i;
+  kprintf ("sw: sched_wakeup\n");
+
+  for (i=0; i!=queue->count; i++) {
+    if (queue->task[i]) {
+      kprintf ("sw: Found task on slot %d\n", i);
+
+      // Set task to runnable
+      queue->task[i]->state = TASK_STATE_RUNNABLE;
+      // Remove from queue
+      queue->task[i] = NULL;
+    }
+  }
+}
+
+/**
+ *
+ */
+void sched_interruptable_sleep (waitqueue_t *queue) {
+  int i;
+
+  kprintf ("sis: sched_interruptable_sleep\n");
+  for (i=0; i!=queue->count; i++) {
+    if (queue->task[i] == NULL) {
+      kprintf ("Found empty slot on %d\n", i);
+      queue->task[i] = _current_task;
+      _current_task->state = TASK_STATE_INTERRUPTABLE;
+      kprintf ("sis: Going to sleep..\n");
+      reschedule ();
+
+      kprintf ("sis: Done sleeping..\n");
+      return;
+    }
+  }
+  kpanic ("Not enough room on the waitqueue\n");
+}
+
+
+/**
  * Creates a new thread (process)
  */
 void sched_init_pid_0 () {
   // Create room for task
   task_t *task = (task_t *)kmalloc (sizeof (task_t));
+  memset (task, 0, sizeof (task_t));
 
   // We are initialising this task at the moment
   task->state = TASK_STATE_INITIALISING;
+  task->signal = 0;
 
   // Create kernel stack and setup "start" stack that gets pop'ed by context_switch()
   task->kstack = (Uint32 *)kmalloc_pageboundary (KERNEL_STACK_SIZE);
@@ -161,9 +214,8 @@ task_t *get_next_runnable_task (task_t *current_task) {
     // Goto next task or wrap around (to the SECOND task so we skip idle-task)
     next_task = (next_task->next != NULL) ? next_task->next : _task_list;
 
-// @TODO: REMOVE ME FAST!!! THIS WILL SELECT THE IDLE TASK AS WELL!
-//    if (next_task->state == TASK_STATE_RUNNABLE && next_task->pid != PID_IDLE) goto found;
-    if (next_task->state == TASK_STATE_RUNNABLE) goto found;
+    if (next_task->state == TASK_STATE_RUNNABLE && next_task->pid != PID_IDLE) goto found;
+//    if (next_task->state == TASK_STATE_RUNNABLE) goto found;
   } while (next_task != current_task);
 
   // No runnable tasks found. return NULL so the scheduler can pick up the idle-task
@@ -193,7 +245,7 @@ void sys_signal (task_t *task, int signal) {
 void handle_pending_signals (void) {
   int state = disable_ints ();
 
-//  kprintf ("sign handling (%d)\n", _current_task->pid);
+//  kprintf ("sign handling (%d, %08X)\n", _current_task->pid, _current_task->signal);
   if (_current_task == NULL) {
     restore_ints (state);
     return;
@@ -258,6 +310,7 @@ void global_task_administration (void) {
 
     // A signal is found and the task can be interrupted. Set the task to be ready again
     if (task->signal && task->state == TASK_STATE_INTERRUPTABLE) {
+//      kprintf ("A signal is found on pid %d\n", task->pid);
       task->state = TASK_STATE_RUNNABLE;
     }
   }
@@ -273,8 +326,13 @@ void switch_task () {
   task_t *previous_task;
   task_t *next_task;
 
+  if (_current_task == NULL) return;
+
   // There is a signal pending. Do that first before we actually run code again (TODO: is this really a good idea?)
-  if (_current_task->signal != 0) return;
+  if (_current_task->signal != 0) {
+    kprintf ("signal not zero");
+    return;
+  }
 
   int state = disable_ints ();
 
@@ -434,14 +492,14 @@ int sys_sleep (int ms) {
 
   if (_current_task->pid == PID_IDLE) kpanic ("Cannot sleep idle task!");
 
-  kprintf ("Sleeping process %d for %d ms\n", _current_task->pid, ms);
+//  kprintf ("Sleeping process %d for %d ms\n", _current_task->pid, ms);
 
   _current_task->alarm = ms;
   _current_task->state = TASK_STATE_INTERRUPTABLE;
 
   restore_ints (state);
 
-  kprintf ("Reschedule()\n");
+//  kprintf ("Reschedule()\n");
 
   // We're sleeping. So go to a next task.
   reschedule ();
@@ -487,7 +545,7 @@ int sys_getppid (void) {
  * Forks the current process
  */
 int sys_fork (regs_t *r) {
-  kprintf ("Entering sys_fork()\n");
+//  kprintf ("Entering sys_fork()\n");
   task_t *child_task, *parent_task;
 
   int state = disable_ints();
@@ -517,7 +575,7 @@ int sys_fork (regs_t *r) {
 
   // Allocate child's kernel stack
   child_task->kstack = (Uint32 *)kmalloc_pageboundary (KERNEL_STACK_SIZE);
-  kprintf ("kmalloc() child kernel stack at %08X\n", (Uint32)child_task->kstack);
+//  kprintf ("kmalloc() child kernel stack at %08X\n", (Uint32)child_task->kstack);
 
   // Copy parent kernel stack to the child kernel stack
 //  kprintf ("memcopied %08X-%08X to %08X-%08X\n", parent_task->kstack, (Uint32)parent_task->kstack+KERNEL_STACK_SIZE, child_task->kstack, (Uint32)child_task->kstack+KERNEL_STACK_SIZE);
@@ -525,12 +583,12 @@ int sys_fork (regs_t *r) {
 //  kprintf ("R = %08X\n", r);
 
   Uint32 stackpointer_offset = (Uint32)parent_task->kstack + KERNEL_STACK_SIZE - (Uint32)r;
-  kprintf ("Parent task kstack + KERNEL_STACK_SIZE = %08X\n", (Uint32)parent_task->kstack + KERNEL_STACK_SIZE);
+//  kprintf ("Parent task kstack + KERNEL_STACK_SIZE = %08X\n", (Uint32)parent_task->kstack + KERNEL_STACK_SIZE);
 //  kprintf ("Diff is %08X\n", stackpointer_offset);
-  kprintf ("Child task kstack + KERNEL_STACK_SIZE = %08X\n", (Uint32)child_task->kstack + KERNEL_STACK_SIZE);
+//  kprintf ("Child task kstack + KERNEL_STACK_SIZE = %08X\n", (Uint32)child_task->kstack + KERNEL_STACK_SIZE);
 
   child_task->context = (regs_t *) ((Uint32)child_task->kstack + KERNEL_STACK_SIZE - stackpointer_offset);
-  kprintf ("Context is at %08X\n", child_task->context);
+//  kprintf ("Context is at %08X\n", child_task->context);
 
   // Set return value by manipulating the saved context on the stack
   child_task->context->eax = 0;
@@ -583,15 +641,6 @@ int sched_init () {
   /* Setup task for PID 0. The first switch will save everything into task 0 so we don't
    * need to jumpstart to a certain entrypoint */
   sched_init_pid_0 ();
-
-//  /* We create a task here.. Actually, we define the current task that is running. It
-//   * changes into the idle-task as soon as we switch to another process. Since this is the
-//   * first call to create_kernel_thread, we get PID 0, which is a special pid as well
-//   * (ie: cannot be killed, goto sleep etc). Since this is not completely a new task, we
-//   * do not need to define the entry_point (the entrypoint, amongst all other things will
-//   * be saved on the first context-switch call. This is more or less the jump-start for
-//   * context switching. */
-//  thread_create_kernel_thread (0, "Idle process", CONSOLE_USE_KCONSOLE);
 
   // @TODO: Fix this everywhere
   return ERR_OK;

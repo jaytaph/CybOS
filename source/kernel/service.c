@@ -10,6 +10,7 @@
 #include "console.h"
 #include "schedule.h"
 #include "keyboard.h"
+#include "exec.h"
 
 
 /* These macro creates an <func>() function that does a syscall (INT 42) call with the correct
@@ -22,6 +23,7 @@ create_syscall_entry0(fork,    SYS_FORK)
 create_syscall_entry0(idle,    SYS_IDLE)
 create_syscall_entry0(signal,  SYS_SIGNAL)
 create_syscall_entry1(sleep,   SYS_SLEEP,  ms)
+create_syscall_entry1(exec,    SYS_EXEC, path)
 
 
 
@@ -75,6 +77,9 @@ create_syscall_entry1(sleep,   SYS_SLEEP,  ms)
                       break;
       case  SYS_EXIT :
                       retval = sys_exit ();
+                      break;
+      case  SYS_EXEC :
+                      retval = sys_exec ((char *)r->ebx);
                       break;
     }
     return retval;

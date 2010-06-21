@@ -15,21 +15,6 @@
 vfs_mount_t vfs_mount_table[VFS_MAX_MOUNTS];    // Mount table with all mount points (@TODO: dynamically allocated or linkedlist)
 vfs_system_t vfs_systems[VFS_MAX_FILESYSTEMS];  // There will be a maximum of 100 different filesystems that can be loaded (@TODO: linkedlist or dynamically allocation)
 
-/**
- *
- */
-void vfs_printnode (vfs_node_t *node) {
-  kprintf ("PrintNode()\n");
-
-  kprintf ("node->inode_nr    : %d\n", node->inode_nr);
-  kprintf ("node->name        : '%s'\n", node->name);
-  kprintf ("node->owner       : %d\n", node->owner);
-  kprintf ("node->length      : %d\n", node->length);
-  kprintf ("node->flags       : %4x\n", node->flags);
-  kprintf ("node->major_num   : %d\n", node->major_num);
-  kprintf ("node->minor_num   : %d\n", node->minor_num);
-  kprintf ("\n");
-}
 
 /**
  * Returns the mount from the path (path is formatted like MOUNT:PATH), the path
@@ -122,7 +107,7 @@ struct dirent *vfs_readdir(vfs_node_t *node, Uint32 index) {
 /**
  *
  */
-vfs_node_t *vfs_finddir(vfs_node_t *node, const char *name) {
+vfs_node_t *vfs_finddir (vfs_node_t *node, const char *name) {
   // Check if it's a directory
   if ((node->flags & 0x7) != FS_DIRECTORY) return NULL;
 
@@ -270,6 +255,7 @@ vfs_node_t *vfs_get_node_from_path (const char *path) {
 
   // Start with the supernode (the only in-memory node needed)
   vfs_node_t *cur_node = mount->supernode;
+  cur_node->mount = mount;
 
   // This is a absolute path, start from root node (don't care
   char *c = path_suffix;
@@ -321,7 +307,6 @@ vfs_node_t *vfs_get_node_from_path (const char *path) {
   }
 
 //  kprintf ("All done.. returning vfs inode: %d\n\n", cur_node->inode_nr);
-  cur_node->mount = mount;
   return cur_node;
 }
 

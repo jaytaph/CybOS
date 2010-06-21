@@ -233,8 +233,7 @@ void do_handle_irq (regs_t *r) {
     case 5 :
              break;
     case 6 :
-             floppy_interrupt (r);
-             rescheduling = 0;
+             rescheduling = floppy_interrupt (r);
              break;
     case 7 :
              break;
