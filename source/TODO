@@ -1,3 +1,8 @@
+ (*) Done
+ (-) In progress
+ (?) Unknown
+ (/) Will not fix
+
 Things todo:
  (*) Fork()
  (*) change CYBOS_TASK, TPAGEDIRECTORY etc etc into size_t, pid_t etc
@@ -36,5 +41,7 @@ Things todo:
  ( ) bootinfo_printf ()  prints info depending on level
  ( ) bootparam  boot_info=0-5 (boot debug info)
  ( ) VGA (800x600) boot screen
- ( ) Exec()
+ (-) Exec()
+ (-) ELF loader
  ( ) faster updates on screen (remove flush / optimize)
+ ( ) create kmalloc_dma
