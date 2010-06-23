@@ -135,10 +135,12 @@ vfs_node_t *fat12_mount (struct vfs_mount *mount, device_t *dev, const char *pat
       goto cleanup;
     }
   }
+
 /*
-  for (k=0, i=0; i!=10; i++) {
+  int k,j;
+  for (k=0, i=0; i!=20; i++) {
     kprintf ("  Entry %04d  : ", i*10);
-    for (j=0; j!=10; j++,k++) kprintf ("%04X ", fat12_get_fat_entry (k));
+    for (j=0; j!=10; j++,k++) kprintf ("%04X ", fat12_get_next_cluster (fat12_info->fat, k));
     kprintf ("\n");
   }
   kprintf ("\n");
@@ -193,41 +195,97 @@ void fat12_umount (struct vfs_mount *mount) {
  *
  */
 Uint32 fat12_read (vfs_node_t *node, Uint32 offset, Uint32 size, char *buffer) {
-  int i;
-
   fat12_fatinfo_t *fat12_info = node->mount->fs_data; // Alias for easier usage
+  char *buf_ptr = buffer;
+  int count = size;
+  int tmp;
 
-  kprintf ("Reading inode %d\n", node->inode_nr);
+//  kprintf ("Reading inode: %d  Offset: %d  Size: %d\n", node->inode_nr, offset, size);
 
   // We do need nothing to read
   if (size == 0) return 0;
 
-  // Cannot read behind file
+  // Cannot read behind file length
   if (offset > node->length) return 0;
 
-  // We can only read X amount of bytes
+  // We can only read X amount of bytes, so adjust maximum size
   if (offset + size > node->length) {
     kprintf ("Truncated size from %d\n", size);
     size = node->length - offset;
     kprintf ("to %d\n", size);
   }
 
-  // Find the start cluster (by skipping all non-used cluster)
+  // Find the starting cluster we need to read from
   int cluster_size = fat12_info->bpb->SectorsPerCluster * fat12_info->bpb->BytesPerSector;
-  int tmp = offset / cluster_size;
-  kprintf ("We need cluster number %d\n", tmp);
+  if (cluster_size != 512) kpanic ("cluster size needs to be 512!");
 
+  int skip_cluster_count = offset / cluster_size;
+  int cluster_offset = offset % cluster_size;
+//  kprintf ("We need to skip the first %d clusters\n", skip_cluster_count);
+
+  /* Find start cluster and skip X amount of clusters to find the correct position in the
+   * file */
   Uint16 cluster = node->inode_nr;
-  for (i=0; i!=tmp; i++) {
+  while (skip_cluster_count > 0) {
+//    kprintf ("Pre skip: %02X\n", cluster);
     cluster = fat12_get_next_cluster (fat12_info->fat, cluster);
+//    kprintf ("Post skip: %02X\n", cluster);
+    skip_cluster_count--;
   }
+
+
   Uint32 disk_offset = (fat12_info->dataOffset+cluster) * fat12_info->bpb->SectorsPerCluster * fat12_info->bpb->BytesPerSector;
-  kprintf ("Start cluster : %08X\n", cluster);
-  kprintf ("Disk offset   : %08X\n", disk_offset);
+//  kprintf ("Start cluster  : %08X\n", cluster);
+//  kprintf ("Disk offset    : %08X\n", disk_offset);
+//  kprintf ("Cluster offset : %08X\n", cluster_offset);
 
-  node->mount->dev->read (node->mount->dev->major_num, node->mount->dev->minor_num, disk_offset, size, buffer);
 
-  kprintf ("Returing %d bytes read\n", size);
+  // Read partial cluster
+  if (size + cluster_offset < 512) {
+//    kprintf ("Reading partial cluster\n");
+    // We do not cross a sector, only 1 sector is needed
+    node->mount->dev->read (node->mount->dev->major_num, node->mount->dev->minor_num, disk_offset + cluster_offset, size, buffer);
+//    kprintf ("Returing %d bytes read\n", size);
+    return size;
+  }
+
+
+  // read intial half block
+  if (cluster_offset > 0) {
+//    kprintf ("Reading intial half cluster\n");
+    tmp = (cluster_size - cluster_offset);
+    disk_offset += 512-tmp;
+    node->mount->dev->read (node->mount->dev->major_num, node->mount->dev->minor_num, disk_offset, tmp, buf_ptr);
+
+    disk_offset += tmp;
+    buf_ptr += tmp;
+    count -= tmp;
+  }
+
+  // read whole blocks
+  while (count > 512) {
+//    kprintf ("Reading whole cluster\n");
+    node->mount->dev->read (node->mount->dev->major_num, node->mount->dev->minor_num, disk_offset, 512, buf_ptr);
+
+    disk_offset += 512;
+    buf_ptr += 512;
+    count -= 512;
+  }
+
+  // read last half block
+  if (count > 0) {
+//    kprintf ("Reading final partial cluster\n");
+    tmp = count;
+
+    node->mount->dev->read (node->mount->dev->major_num, node->mount->dev->minor_num, disk_offset, tmp, buf_ptr);
+
+    disk_offset += tmp;
+    buf_ptr += tmp;
+    count -= tmp;
+  }
+
+
+//  kprintf ("Returing %d bytes read\n", size);
   return size;
 }
 
@@ -353,6 +411,8 @@ int fat12_parse_directory_sector (fat12_dirent_t *direntbuf, vfs_node_t *node, c
       filenode.owner = 0;
       filenode.length = direntbufptr->FileSize;
       filenode.flags = (direntbufptr->Attrib == 0x10) ? FS_DIRECTORY : FS_FILE;
+
+//      kprintf ("INODE : %d\n", filenode.inode_nr);
 
       return 1;
     }
@@ -542,9 +602,11 @@ void fat12_init (void) {
  */
 Uint16 fat12_get_next_cluster (fat12_fat_t *fat, Uint16 cluster) {
   Uint32 offset = cluster + (cluster / 2);
-  Uint16 next_cluster = *( (Uint16 *)(fat + offset));
 
-  if ((cluster & 1) == 0) {
+  Uint16 *tmp = (Uint16 *)((char *)fat + offset);
+  Uint16 next_cluster = *tmp;
+
+  if ( (cluster & 1) == 0) {
     next_cluster &= 0x0FFF;
   } else {
     next_cluster >>= 4;
