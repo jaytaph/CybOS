@@ -165,6 +165,7 @@ int do_section_headers (FILE *f, elf32_ehdr *hdr) {
 
   for (i=0; i!=hdr->e_shnum; i++) {
     printf ("Reading section header %d\n", i);
+    printf ("sh_name      : %04X\n", sh_ptr->sh_name);
     printf ("sh_type      : %04X\n", sh_ptr->sh_type);
     printf ("sh_flags     : %04X\n", sh_ptr->sh_flags);
     printf ("sh_addr      : %04X\n", sh_ptr->sh_addr);

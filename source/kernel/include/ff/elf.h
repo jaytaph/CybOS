@@ -146,11 +146,12 @@ typedef struct {
 
 #pragma pack(1)
 typedef struct {
+  elf32_word        sh_name;
   elf32_word        sh_type;
   elf32_word        sh_flags;
-  elf32_word        sh_addr;
-  elf32_addr        sh_offset;
-  elf32_off         sh_size;
+  elf32_addr        sh_addr;
+  elf32_off         sh_offset;
+  elf32_word        sh_size;
   elf32_word        sh_link;
   elf32_word        sh_info;
   elf32_word        sh_addralign;
