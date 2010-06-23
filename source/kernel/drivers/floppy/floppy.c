@@ -95,9 +95,9 @@ void fdc_wait_for_irq (void) {
 
   // This is the "normal" wait for IRQ by letting this task sleep on the fdc_wait_queue
 
-  kprintf ("fdc_wait_for_irq\n");
+//  kprintf ("fdc_wait_for_irq\n");
   sched_interruptable_sleep (&fdc_wait_queue);
-  kprintf ("woken up again.. resuming irq stuff\n");
+//  kprintf ("woken up again.. resuming irq stuff\n");
 }
 
 
@@ -387,14 +387,14 @@ void fdc_read_floppy_sector (fdc_drive_t *drive, Uint32 lba_sector, char *buffer
 }
 
 
-
+/**
+ * Will read from 1 sector only. When offset % 512 == 0, we can read 512 bytes, less if
+ * offset % 512 > 0
+ */
 Uint32 fdc_block_read (Uint8 major, Uint8 minor, Uint32 offset, Uint32 size, char *buffer) {
-  char *buf_ptr = buffer;
   char tmpbuf[512];
-  Uint32 count = size;
 
   // Unknown minor device (ie: drive to read from)
-//  kprintf ("Minor node check\n");
   if (minor < 0 || minor > 3) return 0;
 
   // Switch to wanted drive
@@ -405,38 +405,22 @@ Uint32 fdc_block_read (Uint8 major, Uint8 minor, Uint32 offset, Uint32 size, cha
   Uint32 lba_sector = offset / 512;
   Uint32 rest_data = offset % 512;
 
-//  kprintf ("LBA_Sector: %d\n", lba_sector);
-//  kprintf ("LBA_rest  : %d\n", rest_data);
-
-  // Offset not on boundary, read half data
-  if (rest_data != 0) {
-//    kprintf ("Reading rest data: %d %d bytes", lba_sector, rest_data);
-    fdc_read_floppy_sector (&fdc->drives[minor], lba_sector, (char *)&tmpbuf);
-    lba_sector++;
-    memcpy (buffer, &tmpbuf[512-rest_data], rest_data);
-    count -= rest_data;
-    buf_ptr += rest_data;
+  // Truncate the amount we can read.
+  if (size + rest_data > 512) {
+    size = 512-rest_data;
+    kprintf ("Truncating size to %d\n", size);
   }
 
-  // Read whole blocks
-  while (count >= 512) {
-//    kprintf ("Reading whole block %d", lba_sector);
-    fdc_read_floppy_sector (&fdc->drives[minor], lba_sector, buf_ptr);
-    lba_sector++;
-    buf_ptr += 512;
-    count -= 512;
-  }
+  // Read complete sector into temporary buffer
+  fdc_read_floppy_sector (&fdc->drives[minor], lba_sector, (char *)&tmpbuf);
 
-  // Read part of last block
-  if (count > 0) {
-//    kprintf ("Reading last block (%d %d bytes)", lba_sector, count);
-    fdc_read_floppy_sector (&fdc->drives[minor], lba_sector, (char *)&tmpbuf);
-    memcpy (buffer, &tmpbuf, count);
-  }
+  // Copy the part of the buffer we need
+//  kprintf ("fdc_block_read(): Returning from %d to %d (%d bytes)\n", rest_data, rest_data+size, size);
+  memcpy (buffer, &tmpbuf[rest_data], size);
 
-//  kprintf ("all done");
   return size;
 }
+
 
 Uint32 fdc_block_write (Uint8 major, Uint8 minor, Uint32 offset, Uint32 size, char *buffer) {
   kprintf ("fdc_block_write(%d, %d, %d, %d, %08X)\n", major, minor, offset, size, buffer);
