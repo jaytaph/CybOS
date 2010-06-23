@@ -43,11 +43,11 @@ void sched_init_waitqueue (waitqueue_t *queue) {
  */
 void sched_wakeup (waitqueue_t *queue) {
   int i;
-  kprintf ("sw: sched_wakeup\n");
+//  kprintf ("sw: sched_wakeup\n");
 
   for (i=0; i!=queue->count; i++) {
     if (queue->task[i]) {
-      kprintf ("sw: Found task on slot %d\n", i);
+//      kprintf ("sw: Found task on slot %d\n", i);
 
       // Set task to runnable
       queue->task[i]->state = TASK_STATE_RUNNABLE;
@@ -63,16 +63,16 @@ void sched_wakeup (waitqueue_t *queue) {
 void sched_interruptable_sleep (waitqueue_t *queue) {
   int i;
 
-  kprintf ("sis: sched_interruptable_sleep\n");
+//  kprintf ("sis: sched_interruptable_sleep\n");
   for (i=0; i!=queue->count; i++) {
     if (queue->task[i] == NULL) {
-      kprintf ("Found empty slot on %d\n", i);
+//      kprintf ("Found empty slot on %d\n", i);
       queue->task[i] = _current_task;
       _current_task->state = TASK_STATE_INTERRUPTABLE;
-      kprintf ("sis: Going to sleep..\n");
+//      kprintf ("sis: Going to sleep..\n");
       reschedule ();
 
-      kprintf ("sis: Done sleeping..\n");
+//      kprintf ("sis: Done sleeping..\n");
       return;
     }
   }
