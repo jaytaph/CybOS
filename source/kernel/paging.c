@@ -12,6 +12,8 @@
 #include "gdt.h"
 #include "paging.h"
 
+char debug_vmm = 0;
+
 bitmap_t *framebitmap;      // Bitmap with all pages (4KB page per bit)
 
 // Kernel stack @TODO: obsolete?
@@ -326,6 +328,7 @@ void create_pageframe (pagedirectory_t *directory, Uint32 dst_address, int pagel
 //  kprintf ("Frame index found: 0x%05X 000\n", frame_index);
 }
 
+
 /**
  * Return the PAGE structure for a certain address. This depends on the directory used.
  * When no page structure is available (ie the table is not yet created), the create_flag
@@ -334,8 +337,7 @@ void create_pageframe (pagedirectory_t *directory, Uint32 dst_address, int pagel
 void map_virtual_memory (pagedirectory_t *directory, Uint32 src_address, Uint32 dst_address, int pagelevels, int set_bitmap) {
   Uint32 tmp, src_frame, dst_frame, dst_table, dst_page;
 
-
-//  kprintf ("map_virtual_memory 0x%08X -> 0x%08X\n", src_address, dst_address);
+  if (debug_vmm) kprintf ("map_virtual_memory 0x%08X -> 0x%08X\n", src_address, dst_address);
 
   // Is the page directory already initialized?
   if (directory->physical_address == NULL) return;
@@ -372,6 +374,24 @@ void map_virtual_memory (pagedirectory_t *directory, Uint32 src_address, Uint32 
   if (set_bitmap == SET_BITMAP) bm_set (framebitmap, src_frame);
 }
 
+
+/**
+ *
+ */
+void allocate_virtual_memory (Uint32 physical_address, Uint32 size, Uint32 virtual_address) {
+  kprintf ("allocate_virtual_memory P 0x%08X -> V 0x%08X\n", physical_address, virtual_address);
+
+  Uint32 off = 0;
+  int count = (size / 0x1000) + 1;
+
+  do {
+    map_virtual_memory (_current_task->page_directory, physical_address + off, virtual_address + off, PAGEFLAG_USER | PAGEFLAG_PRESENT | PAGEFLAG_READWRITE, SET_BITMAP);
+    off += 0x1000;
+    count--;
+  } while (count);
+
+  BOCHS_BREAKPOINT;
+}
 
 // ====================================================================================
 void obs_pbm (int size) {

@@ -7,6 +7,8 @@
 #ifndef __PAGING_H__
 #define __PAGING_H__
 
+  extern char debug_vmm;
+
   typedef Uint32 page_t;
 
   typedef struct {
@@ -37,6 +39,7 @@
   void create_pageframe (pagedirectory_t *directory, Uint32 dst_address, int pagelevels);
   Uint32 get_physical_address (pagedirectory_t *directory, Uint32 virtual_address);
   pagedirectory_t *clone_pagedirectory (pagedirectory_t *src);
+  void allocate_virtual_memory (Uint32 physical_address, Uint32 size, Uint32 virtual_address);
 
 
   pagedirectory_t *_kernel_pagedirectory;      // Page directory for kernel
