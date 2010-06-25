@@ -79,7 +79,7 @@ CREATE_SYSCALL_ENTRY3(execve,  SYS_EXECVE, char *, char **, char **)
                       retval = sys_exit ();
                       break;
       case  SYS_EXECVE :
-                      retval = sys_execve ((char *)r->ebx, (char **)r->ecx, (char **)r->edx);
+                      retval = sys_execve (r, (char *)r->ebx, (char **)r->ecx, (char **)r->edx);
                       break;
     }
     return retval;

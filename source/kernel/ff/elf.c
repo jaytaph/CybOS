@@ -27,8 +27,6 @@ Uint32 load_binary_elf (const char *path) {
 
 //  debug_vmm = 1;
 
-//  kprintf ("load ELF()\n");
-
   vfs_node_t *node = vfs_get_node_from_path (path);
   if (! node) return 0;
 
@@ -86,8 +84,6 @@ Uint32 load_binary_elf (const char *path) {
     if (! do_section_header (node, hdr)) return 0;
    */
 
-//BOCHS_BREAKPOINT
-  __asm__ volatile ("jmp *%%eax" : : "a" (hdr.e_entry));
   return hdr.e_entry;
 }
 
@@ -109,7 +105,6 @@ void init_string_section (vfs_node_t *node, elf32_ehdr hdr) {
   elf32_shdr *sh_arr = (elf32_shdr *)shbuf;
 
   // Allocate string table buffer
-  kprintf ("ISS: Allocating %d bytes\n", sh_arr[i].sh_size);
   string_table_buffer = kmalloc (sh_arr[i].sh_size);
   string_table_buffer_size = sh_arr[i].sh_size;
 
@@ -173,6 +168,7 @@ int do_section_header (vfs_node_t *node, elf32_ehdr hdr) {
 //  kprintf ("Buffer ptr: %08X\n", sh_ptr);
 
   for (i=0; i!=hdr.e_shnum; i++) {
+/*
     kprintf ("Buffer ptr: %08X\n", sh_ptr);
     kprintf ("sh_name      : %04X (%s)\n", sh_ptr->sh_name, get_section_string (sh_ptr->sh_name));
     kprintf ("sh_type      : %04X\n", sh_ptr->sh_type);
@@ -184,13 +180,13 @@ int do_section_header (vfs_node_t *node, elf32_ehdr hdr) {
     kprintf ("sh_info      : %04X\n", sh_ptr->sh_info);
     kprintf ("sh_addralign : %04X\n", sh_ptr->sh_addralign);
     kprintf ("sh_entsize   : %04X\n", sh_ptr->sh_entsize);
-
+*/
     // No address, so nothing to add to there
     if (sh_ptr->sh_addr != 0) {
       // @TODO: should be malloc()
       Uint32 phys_address;
       kmalloc_physical (sh_ptr->sh_size, &phys_address);
-      kprintf ("ELF BUFFER: %08X\n", phys_address);
+//      kprintf ("ELF BUFFER: %08X\n", phys_address);
       allocate_virtual_memory (phys_address, sh_ptr->sh_size, sh_ptr->sh_addr);
       vfs_read (node, sh_ptr->sh_offset, sh_ptr->sh_size, (char *)phys_address);
     }

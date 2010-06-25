@@ -315,12 +315,12 @@ void printf (const char *fmt, ...) {
  *
  */
 int main (void) {
-  printf ("Hello world from the userapp INIT.BIN!");
+  printf ("Hello world from the userapp INIT.BIN!\n");
   return 0;
 }
 
 void exit (void) {
-  printf ("Exit() called from INIT.BIN");
+  printf ("Exit() called from INIT.BIN\n");
 }
 
 

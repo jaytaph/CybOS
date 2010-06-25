@@ -84,6 +84,5 @@
   int sys_getppid (void);
   int sys_idle (void);
   int sys_exit (void);
-  int sys_execve (char *path, char **args, char **environ);
 
 #endif //__SERVICE_H__

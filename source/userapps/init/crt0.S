@@ -11,7 +11,16 @@ start:
 _start:
   call main
   call exit
-.wait:
-  hlt
-  jmp .wait
+
+.sysexit:
+  mov  eax, 15
+  int  0x42
+
+.hang:
+  jmp  .hang
+  
+
+
+
+
 
