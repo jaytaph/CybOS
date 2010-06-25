@@ -379,8 +379,7 @@ void map_virtual_memory (pagedirectory_t *directory, Uint32 src_address, Uint32 
  *
  */
 void allocate_virtual_memory (Uint32 physical_address, Uint32 size, Uint32 virtual_address) {
-  kprintf ("allocate_virtual_memory P 0x%08X -> V 0x%08X\n", physical_address, virtual_address);
-
+//  kprintf ("allocate_virtual_memory P 0x%08X -> V 0x%08X   S: %08x\n", physical_address, virtual_address, size);
   Uint32 off = 0;
   int count = (size / 0x1000) + 1;
 
@@ -390,11 +389,10 @@ void allocate_virtual_memory (Uint32 physical_address, Uint32 size, Uint32 virtu
     count--;
   } while (count);
 
-  BOCHS_BREAKPOINT;
 }
 
 // ====================================================================================
-void obs_pbm (int size) {
+void obsolete_pbm (int size) {
   int i,j;
   kprintf ("Bitmap:\n");
 

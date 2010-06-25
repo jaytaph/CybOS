@@ -194,6 +194,6 @@ typedef struct {
 } elf32_phdr;
 
 
-  int load_binary_elf (const char *path);
+  Uint32 load_binary_elf (const char *path);
 
 #endif //__FF_ELF_H__
