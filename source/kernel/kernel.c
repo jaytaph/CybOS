@@ -256,7 +256,7 @@ void start_init (const char *boot_params) {
   get_boot_parameter (boot_params, "init=", (char *)&init_prog);
 
   tprintf ("Transfering control to user mode and starting %s.\n\n\n", init_prog);
-  exec (init_prog);
+  execve (init_prog, NULL, environ);
 
 // Remove this testcode below
 

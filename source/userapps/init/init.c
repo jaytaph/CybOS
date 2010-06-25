@@ -18,7 +18,7 @@
   #define SYS_IDLE                       14
   #define SYS_EXIT                       15
   #define SYS_SIGNAL                     16
-  #define SYS_EXEC                       17
+  #define SYS_EXECVE                     17
 
 
 
