@@ -83,6 +83,6 @@
   int sys_getpid (void);
   int sys_getppid (void);
   int sys_idle (void);
-  int sys_exit (void);
+  int sys_exit (char exitcode);
 
 #endif //__SERVICE_H__

@@ -16,13 +16,13 @@
 /* These macro creates an <func>() function that does a syscall (INT 42) call with the correct
  * parameters. Since syscalls accept a variable number of parameters (some 0, some 1, some even
  * more), we have create_syscall_entryX(), where X stands for the number of parameters. */
-CREATE_SYSCALL_ENTRY0(exit,    SYS_EXIT)
+CREATE_SYSCALL_ENTRY1(exit,    SYS_EXIT, char)
 CREATE_SYSCALL_ENTRY0(getppid, SYS_GETPPID)
 CREATE_SYSCALL_ENTRY0(getpid,  SYS_GETPID)
 CREATE_SYSCALL_ENTRY0(fork,    SYS_FORK)
 CREATE_SYSCALL_ENTRY0(idle,    SYS_IDLE)
 CREATE_SYSCALL_ENTRY0(signal,  SYS_SIGNAL)
-CREATE_SYSCALL_ENTRY1(sleep,   SYS_SLEEP,  int)
+CREATE_SYSCALL_ENTRY1(sleep,   SYS_SLEEP, int)
 CREATE_SYSCALL_ENTRY3(execve,  SYS_EXECVE, char *, char **, char **)
 
 
@@ -76,7 +76,7 @@ CREATE_SYSCALL_ENTRY3(execve,  SYS_EXECVE, char *, char **, char **)
                       retval = sys_idle ();
                       break;
       case  SYS_EXIT :
-                      retval = sys_exit ();
+                      retval = sys_exit (r->ebx);
                       break;
       case  SYS_EXECVE :
                       retval = sys_execve (r, (char *)r->ebx, (char **)r->ecx, (char **)r->edx);

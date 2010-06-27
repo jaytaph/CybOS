@@ -43,6 +43,7 @@
 
       int  alarm;                             // Remaining alarm ticks
       int  signal;                            // Current raised signals (bitfields)
+      char exitcode;                          // Tasks exit code (available only when we are a zombie)
 
       pid_t pid;                              // PID of the task
       pid_t ppid;                             // PID of the parent task (or 0 on no parent)
@@ -74,6 +75,7 @@
   #define TASK_STATE_RUNNING          'R'       // This task is currently running
   #define TASK_STATE_INTERRUPTABLE    'S'       // Task is sleeping, but can be interrupted
   #define TASK_STATE_UNINTERRUPTABLE  'U'       // Task is sleeping, and cannot be interrupted
+  #define TASK_STATE_ZOMBIE           'Z'       // Task is closed, but needs to be acknowledged by parent
 
   extern task_t *_current_task;             // Current task which is running.
   extern task_t *_idle_task;                // Idle task

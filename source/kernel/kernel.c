@@ -256,48 +256,12 @@ void start_init (const char *boot_params) {
   get_boot_parameter (boot_params, "init=", (char *)&init_prog);
 
   tprintf ("Transfering control to user mode and starting %s.\n\n\n", init_prog);
-  execve (init_prog, NULL, environ);
-
-// Remove this testcode below
-
-  // @TODO: sys_exec (init_prog);
-  strncpy (_current_task->name, "init", 30);
-
-/*
-  int pid = fork ();
-  if (pid == 0) {
-    strncpy (_current_task->name, "app01", 30);
-    for (;;) {
-      sleep (2500);
-
-      tprintf ("\n\n");
-      tprintf ("PID  PPID TASK                STAT  PRIO  KTIME     UTIME\n");
-      task_t *t;
-      for (t=_task_list; t!=NULL; t=t->next) {
-        tprintf ("%04d %04d %-17s      %c  %4d  %08X  %08X\n", t->pid, t->ppid, t->name, t->state, t->priority, LO32(t->ktime), LO32(t->utime));
-      }
-      tprintf ("\n");
-    }
-  } else {
-    tprintf ("Doing child (%d)\n", getpid());
-    for (;;) {
-      int i;
-      for (i=0; i!=500; i++) tprintf ("Q");
-      tprintf ("ZZZZ");
-      sleep (1000);
-      tprintf ("Wakeup");
-    }
+  if (! execve (init_prog, NULL, environ)) {
+    tprintf ("Cannot execute init file! Halting system.");
+    for (;;);
   }
 
-
-  for (;;) {
-    int i;
-    for (i=0; i!=100; i++) tprintf ("Q");
-    tprintf ("ZZZZ");
-    sleep (1000);
-    tprintf ("Wakeup");
-  }
-*/
+  // We cannot be here since execve will overwrite the current task
 }
 
 
@@ -466,86 +430,10 @@ void kernel_entry (int stack_start, int total_sys_memory, const char *boot_param
 
   tprintf ("* Starting init program\n");
 
-  if (! fork()) {
-    tprintf ("FORK0 (%d)\n", _current_task->pid);
-    start_init (boot_params);
-    tprintf ("The init program was terminated!");
-    for (;;) ;
-  }
+  // Child fork will run init (and does not return)
+  if (! fork()) start_init (boot_params);
 
-  // PID 0 idles
+  // PID 0 idles when no running process could be found
   for (;;) idle ();
-
-/*
-
-  // Initial fork() between idle[0] and init[1]
-  int pid = fork ();
-  tprintf ("Initial fork: %08x\n", pid);
-  if (pid == 0) {
-    tprintf ("Child process triggered!");
-
-    // Child task (PID 1)
-    strcpy (_current_task->name, "Init task");
-
-    int pid;
-    pid = fork ();
-    tprintf ("RETURNED BY FORK1: [%d]\n", pid);
-    if (pid == 0) {
-      strcpy (_current_task->name, "Init - process 1");
-      tprintf ("child %d will hang..\n", _current_task->pid);
-      for (;;) {
-        int i;
-        for (i=0; i!=500; i++) tprintf ("1");
-        tprintf ("Z");
-        sleep (1000);
-        tprintf ("W");
-      }
-    }
-    pid = fork ();
-    tprintf ("RETURNED BY FORK2: [%d]\n", pid);
-    if (pid == 0) {
-      strcpy (_current_task->name, "Init - process 2");
-      tprintf ("child %d will hang..\n", _current_task->pid);
-      for (;;) tprintf ("3");
-    }
-
-    tprintf ("This is the mainloop for init-task [%d]", _current_task->pid);
-    for (;;) tprintf ("2");
-  }
-
-  // This is the idle task (PID 0)
-  tprintf ("IDLE (%d)\n", _current_task->pid);
-  for (;;) idle ();
-*/
-
-/*
-  if (! fork()) {
-    tprintf ("FORK1 (%d)\n", _current_task->pid);
-    for (;;) tprintf ("1");
-  }
-
-  if (! fork()) {
-    tprintf ("FORK2 (%d)\n", _current_task->pid);
-    for (;;) do_tprintf (0xCAFEBABE);
-  }
-  if (! fork()) {
-    tprintf ("FORK3 (%d)\n", _current_task->pid);
-    for (;;) {
-      int i;
-      for (i=0; i!=250; i++) tprintf ("3");
-      tprintf ("Z");
-      sleep (500);
-      tprintf ("W");
-    }
-  }
-  if (! fork()) {
-    tprintf ("FORK4 (%d)\n", _current_task->pid);
-    for (;;) tprintf ("4");
-  }
-
-  // This is the idle task (PID 0)
-  tprintf ("IDLE (%d)\n", _current_task->pid);
-  for (;;) idle ();
-*/
 }
 

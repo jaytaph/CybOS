@@ -233,8 +233,7 @@ found:
  *
  */
 void sys_signal (task_t *task, int signal) {
-//  kprintf ("\nsys_signal (PID %d   SIG %d)\n", task->pid, signal);
-  // task->signal |= (1 << signal);
+  kprintf ("\nsys_signal (PID %d   SIG %d)\n", task->pid, signal);
   task->signal = bts (task->signal, signal);
 }
 
@@ -268,6 +267,10 @@ void handle_pending_signals (void) {
 
 // TODO: handle like this:  _current_task->sighandler[signal]
   switch (signal) {
+    case SIGCHLD :
+                   kprintf ("SIGCHLD");
+                   break;
+
     case SIGHUP :
                    kprintf ("SIGHUP");
                    break;
@@ -507,21 +510,53 @@ int sys_sleep (int ms) {
   return 0;
 }
 
+task_t *sched_get_task (int pid) {
+  task_t *task;
+  for (task = _task_list; task != NULL; task = task->next) {
+    if (task->pid == pid) return task;
+  }
+
+  return NULL;
+}
 
 /**
  * Exits current task
  */
-int sys_exit () {
+int sys_exit (char exitcode) {
+  kprintf ("Sys_exit (%d) called!!!!", exitcode);
+
   if (_current_task->pid == PID_IDLE) {
     kpanic ("Exit() called by a PID > 0...\n");
     return -1;
   }
 
   // @TODO: Free all user-allocated pages from the page-directory
-  // @TODO: Remove task from list and free task
 
-  kprintf ("Sys_exit called!!!!");
-  for (;;) ;
+  task_t *task;
+  for (task = _task_list; task != NULL; task = task->next) {
+    // Set parent to 0 when a task has the current task as a parent
+    if (task->ppid == _current_task->pid) task->ppid = 0;
+  }
+
+  // Set this child as a zombie when there is a parent tas
+  if (_current_task->ppid > 0) {
+    _current_task->state = TASK_STATE_ZOMBIE;
+    sys_signal (sched_get_task (_current_task->ppid), SIGCHLD);
+    _current_task->exitcode = exitcode;
+  } else {
+    sched_remove_task (_current_task);
+  }
+
+  // Remove kernel stack for the process
+  kfree ((Uint32)_current_task->kstack);   // @TODO: can this be interrupted?
+  kfree ((Uint32)_current_task);
+
+  // Reschedule to another task
+  reschedule ();
+
+  /* We never come here since we are rescheduling and this task is not
+   * available anymore. Just add return value to make the compiler happy. */
+  return (0);
 }
 
 

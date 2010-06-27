@@ -18,7 +18,9 @@ char **environ = __env;
  */
 int sys_execve (regs_t *r, char *path, char **args, char **environ) {
   Uint32 entrypoint = load_binary_elf (path);
-  if (! entrypoint) return -1;
+  if (! entrypoint) return 0;
+
+    kprintf ("Entry point: %08X\n", entrypoint);
 
   // Get calling stack frame
   Uint32 stackpointer_offset = (Uint32)_current_task->kstack + KERNEL_STACK_SIZE - (Uint32)r;
@@ -26,6 +28,7 @@ int sys_execve (regs_t *r, char *path, char **args, char **environ) {
 
   /* We return to the start of the newly loaded program instead of after execve. Since we can never
    * return from an execve(), everything written afterwards is void.. */
+BOCHS_BREAKPOINT
   context->eip = entrypoint;
   return 0;
 }
