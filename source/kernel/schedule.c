@@ -548,8 +548,8 @@ int sys_exit (char exitcode) {
   }
 
   // Remove kernel stack for the process
-  kfree ((Uint32)_current_task->kstack);   // @TODO: can this be interrupted?
-  kfree ((Uint32)_current_task);
+  kfree (_current_task->kstack);   // @TODO: can this be interrupted?
+  kfree (_current_task);
 
   // Reschedule to another task
   reschedule ();

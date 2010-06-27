@@ -25,9 +25,9 @@
   void *kmalloc_physical (Uint32 size, Uint32 *physical_address);
   void *kmalloc_pageboundary_physical (Uint32 size, Uint32 *physical_address);
 
-  void kfree (Uint32 block);
+  void kfree (void *ptr);
 
-  void _preheap_kfree (Uint32);
+  void _preheap_kfree (void *);
   void *_preheap_kmalloc (Uint32 size, int pageboundary, Uint32 *physical_address);
 
   // Fast memory move function

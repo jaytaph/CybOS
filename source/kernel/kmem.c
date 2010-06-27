@@ -30,7 +30,7 @@ Uint32 _preheap_top   = NULL;         // 'normal' heap end
  * without rebuilding if's to switches etc etc.. design patterns ftw.. :p
  */
 void * (*_func_kmalloc)(Uint32 size, int pageboundary, Uint32 *physical_address) = &_preheap_kmalloc;   // func_kmalloc points to preheap malloc
-void (*_func_kfree)(Uint32 ptr) = &_preheap_kfree;       // func_kfree points to preheap free
+void (*_func_kfree)(void *ptr) = &_preheap_kfree;       // func_kfree points to preheap free
 
 Uint32 _unfreeable_kmem = 0;
 
@@ -106,7 +106,7 @@ void *_preheap_kmalloc (Uint32 size, int pageboundary, Uint32 *physical_address)
 /************************************************************************
  * kfree when we haven't initialized the heap yet. It cannot free anything!
  */
-void _preheap_kfree (Uint32 ptr) {
+void _preheap_kfree (void *ptr) {
   kpanic ("preheap_kfree() called. Not available!");
 }
 
@@ -134,6 +134,6 @@ void *kmalloc_pageboundary_physical (Uint32 size, Uint32 *physical_address) {
 
 // ==========================================================================================
 //
-void kfree (Uint32 ptr) {
+void kfree (void *ptr) {
   return _func_kfree (ptr);
 }

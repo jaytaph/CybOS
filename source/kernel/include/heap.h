@@ -17,6 +17,6 @@
   int heap_init ();
 
   void *_heap_kmalloc (Uint32 size, int pageboundary, Uint32 *physical_address);
-  void _heap_kfree (Uint32 ptr);
+  void _heap_kfree (void *ptr);
 
 #endif // __HEAP_H__

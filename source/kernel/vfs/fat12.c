@@ -170,9 +170,9 @@ vfs_node_t *fat12_mount (struct vfs_mount *mount, device_t *dev, const char *pat
 
   // Jumped to when error during mount
 cleanup:
-  if (fat12_info && fat12_info->fat) kfree ((Uint32)fat12_info->fat);
-  if (fat12_info && fat12_info->bpb) kfree ((Uint32)fat12_info->bpb);
-  if (fat12_info) kfree ((Uint32)fat12_info);
+  if (fat12_info && fat12_info->fat) kfree (fat12_info->fat);
+  if (fat12_info && fat12_info->bpb) kfree (fat12_info->bpb);
+  if (fat12_info) kfree (fat12_info);
   return NULL;
 }
 
@@ -184,9 +184,9 @@ void fat12_umount (struct vfs_mount *mount) {
   // Free our fs_data
   fat12_fatinfo_t *fat12_info = (fat12_fatinfo_t *)mount->fs_data;
 
-  kfree ((Uint32)fat12_info->fat);
-  kfree ((Uint32)fat12_info->bpb);
-  kfree ((Uint32)fat12_info);
+  kfree (fat12_info->fat);
+  kfree (fat12_info->bpb);
+  kfree (fat12_info);
 }
 
 
@@ -367,7 +367,7 @@ vfs_dirent_t *fat12_readdir (vfs_node_t *node, Uint32 index) {
 
   // No more entries when first char of filename is 0
   if (direntbufptr->Filename[0] == 0) {
-    kfree ((Uint32)direntbuf);
+    kfree (direntbuf);
     return NULL;
   }
 
@@ -376,7 +376,7 @@ vfs_dirent_t *fat12_readdir (vfs_node_t *node, Uint32 index) {
   dirent.inode_nr = direntbufptr->FirstCluster;
 
 //kprintf ("dirent.name: '%s'\n", dirent.name);
-  kfree ((Uint32)direntbuf);
+  kfree (direntbuf);
   return &dirent;
 }
 
@@ -456,11 +456,11 @@ vfs_node_t *fat12_finddir (vfs_node_t *node, const char *name) {
                   break;
         case 1 :
                   // Directory found
-                  kfree ((Uint32)direntbuf);
+                  kfree (direntbuf);
                   return &filenode;
         case 2 :
                   // No directory found and end of buffer
-                  kfree ((Uint32)direntbuf);
+                  kfree (direntbuf);
                   return NULL;
       }
     } // for sectors
@@ -482,11 +482,11 @@ vfs_node_t *fat12_finddir (vfs_node_t *node, const char *name) {
                   break;
         case 1 :
                   // Directory found
-                  kfree ((Uint32)direntbuf);
+                  kfree (direntbuf);
                   return &filenode;
         case 2 :
                   // No directory found and end of buffer
-                  kfree ((Uint32)direntbuf);
+                  kfree (direntbuf);
                   return NULL;
       }
 
@@ -496,7 +496,7 @@ vfs_node_t *fat12_finddir (vfs_node_t *node, const char *name) {
     } while (cluster > 0x002 && cluster <= 0xFF7);
   }
 
-  kfree ((Uint32)direntbuf);
+  kfree (direntbuf);
   return NULL;
 }
 
@@ -676,7 +676,7 @@ void obs_fat12_read_file_data (fat12_file_t *file, char *buffer, Uint32 byte_cou
   } while (!file->eof || bytes_left > 0);
 
   // Free temporary cluster buffer
-  kfree ((Uint32)cluster);
+  kfree (cluster);
 }
 */
 

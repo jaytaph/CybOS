@@ -45,4 +45,4 @@ Things todo:
  (-) ELF loader
  ( ) faster updates on screen (remove flush / optimize)
  ( ) create kmalloc_dma
- ( ) kfree should accept void *, not Uint32
+ (*) kfree should accept void *, not Uint32

@@ -112,7 +112,7 @@ void init_string_section (vfs_node_t *node, elf32_ehdr hdr) {
   vfs_read (node, sh_arr[i].sh_offset, sh_arr[i].sh_size, (char *)string_table_buffer);
 
   // Free section header buffer
-  kfree ((Uint32)shbuf);
+  kfree (shbuf);
 }
 
 
@@ -193,7 +193,7 @@ int do_section_header (vfs_node_t *node, elf32_ehdr hdr) {
     sh_ptr++;
   }
 
-  kfree ((Uint32)shbuf);
+  kfree (shbuf);
 
   // Correctly loaded
   return 1;
@@ -255,7 +255,7 @@ int do_program_header (vfs_node_t *node, elf32_ehdr hdr) {
     ph_ptr++;
   }
 
-  kfree ((Uint32)phbuf);
+  kfree (phbuf);
 
   // Correctly loaded
   return 1;
