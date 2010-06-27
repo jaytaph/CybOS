@@ -316,7 +316,7 @@ void printf (const char *fmt, ...) {
  */
 int main (void) {
   printf ("Hello world from the userapp INIT.BIN!\n");
-  return 0;
+  return 123;
 }
 
 void exit (void) {
