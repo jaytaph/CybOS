@@ -28,6 +28,10 @@ cp bootlvl1.bin /tmp/fat12mnt/SYSTEM/BOOTLVL1.BIN
 cp bootlvl2.bin /tmp/fat12mnt/SYSTEM/BOOTLVL2.BIN
 cp kernel.bin /tmp/fat12mnt/SYSTEM/KERNEL.BIN
 cp userapps/tofloppy/init.bin /tmp/fat12mnt/SYSTEM/INIT.BIN
+cp userapps/tofloppy/test1.bin /tmp/fat12mnt/SYSTEM/TEST1.BIN
+cp userapps/tofloppy/test2.bin /tmp/fat12mnt/SYSTEM/TEST2.BIN
+cp userapps/tofloppy/test3.bin /tmp/fat12mnt/SYSTEM/TEST3.BIN
+cp userapps/tofloppy/test4.bin /tmp/fat12mnt/SYSTEM/TEST4.BIN
 
 # Unmount
 umount /tmp/fat12mnt

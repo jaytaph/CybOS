@@ -24,6 +24,7 @@
 #include "pic.h"
 #include "io.h"
 #include "dma.h"
+#include "queue.h"
 #include "pci.h"
 #include "exec.h"
 #include "drivers/floppy.h"
@@ -245,6 +246,16 @@ void mount_root_system (const char *boot_params) {
 }
 
 
+char queue_find_item_str[20];
+int queue_find_item (const void *item) {
+  kprintf ("inside queue_find_item: Browsing item '%s'\n", item);
+  if (strcmp (item, queue_find_item_str) == 0) {
+    kprintf ("Found a match!\n");
+    return 1;
+  }
+  return 0;
+}
+
 /**
  *
  */
@@ -255,11 +266,19 @@ void start_init (const char *boot_params) {
   // Get init from the command line (if given)
   get_boot_parameter (boot_params, "init=", (char *)&init_prog);
 
-  tprintf ("Transfering control to user mode and starting %s.\n\n\n", init_prog);
+  tprintf ("!!!!Transfering control to user mode and starting %s.\n\n\n", init_prog);
+
+  for (;;) {
+    tprintf ("Helloo world!! ");
+  }
+
+/*
   if (! execve (init_prog, NULL, environ)) {
     tprintf ("Cannot execute init file! Halting system.");
     for (;;);
   }
+*/
+  for (;;);
 
   // We cannot be here since execve will overwrite the current task
 }
