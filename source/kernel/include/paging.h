@@ -40,6 +40,9 @@
   Uint32 get_physical_address (pagedirectory_t *directory, Uint32 virtual_address);
   pagedirectory_t *clone_pagedirectory (pagedirectory_t *src);
   void allocate_virtual_memory (Uint32 physical_address, Uint32 size, Uint32 virtual_address);
+  void allocate_pageframe (page_t *page, int rw, int level);
+  void free_pageframe (page_t *page);
+  page_t *get_pageframe (Uint32 address, int make, pagedirectory_t *directory);
 
 
   pagedirectory_t *_kernel_pagedirectory;      // Page directory for kernel

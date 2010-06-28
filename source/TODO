@@ -44,6 +44,6 @@ Things todo:
  (-) Exec()
  (-) ELF loader
  (-) faster updates on screen (remove flush / optimize)
- ( ) create kmalloc_dma
+ ( ) create kmalloc_dma (use _dmaheap = heap_create (0xF00100000,0xF0020000) or something...
  (*) kfree should accept void *, not Uint32
  (*) Create linked lists

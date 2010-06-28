@@ -23,9 +23,11 @@ typedef struct queue {
 
 
 queue_t *queue_init ();
-queue_item_t *queue_seek (queue_t *queue, int (*callback)(const void *));
-void queue_destroy (queue_t *queue, void (*callback)(const void *));
+queue_item_t *queue_seek (queue_t *queue, int (*callback)(void *));
+void queue_destroy (queue_t *queue, void (*callback)(void *));
 int queue_append (queue_t *queue, void *data);
+int queue_insert (queue_t *queue, void *data, queue_item_t *pre_item);
+int queue_insert_noalloc (queue_t *queue, queue_item_t *pre_item, queue_item_t *item);
 int queue_prepend (queue_t *queue, void *data);
 int queue_remove (queue_t *queue, queue_item_t *item);
 queue_item_t *queue_iterate (queue_t *queue, queue_item_t *cur_item);

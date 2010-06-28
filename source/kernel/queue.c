@@ -27,7 +27,7 @@ queue_t *queue_init () {
 /**
  * Destroys whole queue while running callback() on east queue_item->data
  */
-void queue_destroy (queue_t *queue, void (*callback)(const void *)) {
+void queue_destroy (queue_t *queue, void (*callback)(void *)) {
 
   while (queue->count) {
     queue_item_t *item = queue->tail;
@@ -44,7 +44,7 @@ void queue_destroy (queue_t *queue, void (*callback)(const void *)) {
  * Seek item in the queue. Needs a callback in order to check if the
  * item is the one we seek.
  */
-queue_item_t *queue_seek (queue_t *queue, int (*callback)(const void *)) {
+queue_item_t *queue_seek (queue_t *queue, int (*callback)(void *)) {
   queue_item_t *item = queue->head;
 
   kprintf ("queue_seek()\n");
@@ -67,16 +67,13 @@ queue_item_t *queue_seek (queue_t *queue, int (*callback)(const void *)) {
 
 /**
  * Inserts data AFTER queue_item. When dst is NULL, it adds to the head
- * of the queue
+ * of the queue. Note that item here MUST be already allocated. This is needed
+ * in some situations in the VMM, where we are calling alloc() inside the alloc(),
+ * which does not work when all the pointers are laying open.
+ *
  */
-int _queue_insert (queue_t *queue, void *data, queue_item_t *dst) {
-  kprintf ("_queue_insert\n");
-
-  // Allocate queue item memory
-  queue_item_t *item = (queue_item_t *)kmalloc (sizeof(queue_item_t));
-
-  // Set data
-  item->data = data;
+int queue_insert_noalloc (queue_t *queue, queue_item_t *pre_item, queue_item_t *item) {
+  kprintf ("queue_insert\n");
 
   // Increase queue count
   queue->count++;
@@ -95,7 +92,7 @@ int _queue_insert (queue_t *queue, void *data, queue_item_t *dst) {
   }
 
   // 2: Add item to the head of the queue?
-  if (dst == NULL) {
+  if (pre_item == NULL) {
     kprintf ("Adding to head\n");
     item->next = queue->head;
     item->prev = NULL;
@@ -105,7 +102,7 @@ int _queue_insert (queue_t *queue, void *data, queue_item_t *dst) {
   }
 
   // 3: Item to be added after the tail of the queue?
-  if (dst == queue->tail) {
+  if (pre_item == queue->tail) {
     kprintf ("Adding after tail\n");
     item->next = NULL;
     item->prev = queue->tail;
@@ -116,11 +113,24 @@ int _queue_insert (queue_t *queue, void *data, queue_item_t *dst) {
 
   // 4: Somewhere in between then
   kprintf ("Adding in between \n");
-  item->next = dst->next;
-  item->prev = dst;
-  dst->next->prev = item;
-  dst->next = item;
+  item->next = pre_item->next;
+  item->prev = pre_item;
+  pre_item->next->prev = item;
+  pre_item->next = item;
   return 1;
+}
+
+
+/**
+ * Inserts data AFTER queue_item. When dst is NULL, it adds to the head
+ * of the queue.
+ */
+int queue_insert (queue_t *queue, void *data, queue_item_t *pre_item) {
+  // Allocate queue item memory
+  queue_item_t *item = (queue_item_t *)kmalloc (sizeof(queue_item_t));
+  item->data = data;
+
+  return queue_insert_noalloc (queue, pre_item, item);
 }
 
 
@@ -129,7 +139,7 @@ int _queue_insert (queue_t *queue, void *data, queue_item_t *dst) {
  */
 int queue_append (queue_t *queue, void *data) {
   kprintf ("queue_add\n");
-  return _queue_insert (queue, data, queue->tail);
+  return queue_insert (queue, data, queue->tail);
 }
 
 
@@ -138,7 +148,7 @@ int queue_append (queue_t *queue, void *data) {
  */
 int queue_prepend (queue_t *queue, void *data) {
   kprintf ("queue_add_head\n");
-  return _queue_insert (queue, data, NULL);
+  return queue_insert (queue, data, NULL);
 }
 
 

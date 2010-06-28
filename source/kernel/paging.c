@@ -116,6 +116,31 @@ int bm_findfirst (bitmap_t *bitmap) {
 }
 
 
+/**
+ *
+ */
+page_t *get_pageframe (Uint32 address, int make, pagedirectory_t *directory) {
+  address /= 0x1000;
+
+  Uint32 idx = address / 1024;
+  if (directory->tables[idx]) {
+    return &directory->tables[idx]->pages[address % 1024];
+  }
+
+  if (make) {
+    // Not found, and we are allowed to make the pageframe
+    Uint32 tmp;
+    directory->tables[idx] = (pagetable_t *)kmalloc_pageboundary_physical (sizeof (pagetable_t), &tmp);
+    directory->phystables[idx] = tmp | 0x7;
+
+    memset (directory->tables[idx], 0, sizeof (pagetable_t));
+    return &directory->tables[idx]->pages[address % 1024];
+  }
+
+  // Did not find it, and we do not need to make the entry
+  return NULL;
+}
+
 // ====================================================================================
 // Find a new empty page in the bitmap if this page is not initialized. Set the page flags as well.
 void allocate_pageframe (page_t *page, int rw, int level) {
@@ -139,7 +164,7 @@ void allocate_pageframe (page_t *page, int rw, int level) {
 }
 
 // ====================================================================================
-void obsolete_free_frame (page_t *page) {
+void free_pageframe (page_t *page) {
   // Frame was not allocated in the first place
   if (*page != 0) return;
 
