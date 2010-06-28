@@ -13,6 +13,10 @@
   #define CON_KERNEL_IDX                  0     // First entry (#0) is always the kernel
   #define MAX_KEYBUF                    256     // Maximum number of keys in the keybuffer
 
+  #define CON_FLUSHMODE_NO_FLUSH          0     // No need for flush
+  #define CON_FLUSHMODE_PARTIAL           1     // Only partial screen must be updated
+  #define CON_FLUSHMODE_WHOLESCREEN       2     // Whole screen must be updated
+
   // Console entry
   #pragma pack(1)                 // TODO: Pack it, it doesn't like boundaries anymore somehow (why is that?)
   typedef struct {
@@ -20,10 +24,14 @@
     void *next;                   // Pointer to the next console entry
     void *prev;                   // Pointer to the previous console entry
 
-    char name[21];       // 20 chars (and terminating zero)
+    char name[21];                // 20 chars (and terminating zero)
 
     Uint8  screenmode;            // Screenmode to be set by bios
     char *palette;                // Current palette for this console
+
+    char   flush;                 // 2 whole screen flush, 1 partial flush, 0 no flush needed
+    Uint8  block_s_x, block_s_y;  // block that is changed (@TODO should handle more blocks)
+    Uint8  block_e_x, block_e_y;
 
     Uint8  attr;                  // Current attribute
     Uint8  opx,opy;               // Last known X,Y position
@@ -31,7 +39,7 @@
     Uint8  max_px,max_py;         // Maximum screen position
     Uint32 size;                  // Size of the buffer (char+attr)
 
-    char *buf;         // Pointer to the screen buffer
+    char *buf;                    // Pointer to the screen buffer
   } console_t;
 
 

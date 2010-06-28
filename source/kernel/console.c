@@ -14,7 +14,7 @@
 #include "kmem.h"
 #include "io.h"
 
-  static char _con_defpal[768];                   // Default palette for a console initialisation
+  static char _con_default_palette[768];                    // Default palette for a console initialisation
   console_t *_current_console = NULL;              // Current console on the screen
   console_t *_console_list = NULL;                 // Console linked list
   console_t *_kconsole;                            // Console for kernel info (first screen)
@@ -36,7 +36,7 @@ int console_init (void) {
 
   // Get global palette, which is used to create the palettes for the other consoles as default
   outb (0x3C7, 0);
-  for (i=0; i!=768; i++) _con_defpal[i] = inb (0x3C9);
+  for (i=0; i!=768; i++) _con_default_palette[i] = inb (0x3C9);
 
   // Create a construct. We assume that that works...
   if ( (_kconsole = (console_t *)sys_console (SYS_CONSOLE_CREATE, 0, "Construct")) == NULL) {
@@ -143,8 +143,7 @@ console_t *create_console (char *name, int visible) {
 
   // Set default palette for this screen
   console->palette = (char *)kmalloc (768);
-  for (i=0; i!=768; i++) console->palette[i] = _con_defpal[i];
-
+  memcpy (console->palette, _con_default_palette, 768);
 
 
   // First console init?
@@ -227,10 +226,17 @@ int switch_console (console_t *new_console, int force_update) {
 }
 
 
+/**
+ * Returns next console in linked list
+ */
 console_t *get_next_console_in_list (console_t *console) {
   return console->next != NULL ? console->next : _console_list;
 }
 
+
+/**
+ * Returns previous console in linked list
+ */
 console_t *get_prev_console_in_list (console_t *console) {
   if (console->prev != NULL) return console->prev;
 

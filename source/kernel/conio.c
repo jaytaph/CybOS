@@ -19,6 +19,54 @@
 
 
 
+/**
+ *
+ */
+void con_flush_block (console_t *console) {
+  Uint32 y;
+
+  // No need to flush on 0
+  if (console->flush == CON_FLUSHMODE_NO_FLUSH) return;
+
+  // Complete flush
+  if (console->flush == CON_FLUSHMODE_WHOLESCREEN) {
+    memmove ((char *)0xF00B8000, console->buf, console->size-(console->max_px*2));
+  }
+
+  if (console->flush == CON_FLUSHMODE_PARTIAL) {
+    // Get start offset
+    Uint32 offset = console->block_s_y * console->max_px*2 + console->block_s_x;
+
+    // Size of each row to copy
+    Uint32 row_size = (console->block_e_x - console->block_s_x) * 2;
+
+    // Copy all rows
+    for (y=console->block_s_y; y!=console->block_e_y; y++) {
+      // Copy row
+      memmove ((char *)0xF00B8000 + offset, console->buf + offset, row_size);
+
+      // Goto next row
+      offset += console->max_px*2;
+    }
+  }
+
+  // All data is flushed, set invalid data
+  console->flush = CON_FLUSHMODE_NO_FLUSH;
+  console->block_s_x = console->max_px;
+  console->block_s_y = console->max_py;
+  console->block_e_x = 0;
+  console->block_e_y = 0;
+}
+
+
+/**
+ *
+ */
+void con_set_complete_flush (console_t *console) {
+  // The whole screen must be flushed
+  console->flush = CON_FLUSHMODE_WHOLESCREEN;
+}
+
 
 /********************************************************************
  * Set cursor at the cursor_offset directory through VGA-ports.
@@ -76,6 +124,9 @@ int con_clrscr (console_t *console) {
     console->buf[i++] = console->attr;
   }
 
+  // The whole screen must be flushed
+  con_set_complete_flush (console);
+
   // Goto start of the screen and flush screen
   con_setxy (console, 0, 0);
   con_flush (console);
@@ -110,6 +161,9 @@ int con_scrollup (console_t *console) {
   // Empty the line which is now double on screen
   memset (console->buf+size, 0, start);
 
+  // The whole screen must be flushed
+  con_set_complete_flush (console);
+
   // Return
   return ERR_OK;
 }
@@ -134,6 +188,13 @@ int con_plot (console_t *console, int x, int y, char ch) {
 
   console->buf[offset+0] = ch;             // Write character
   console->buf[offset+1] = console->attr;  // in the default attribute
+
+  // Adjust flush size
+  if (console->flush == CON_FLUSHMODE_NO_FLUSH) console->flush = CON_FLUSHMODE_PARTIAL;
+  if (x < console->block_s_x) console->block_s_x = x;
+  if (x > console->block_e_x) console->block_e_x = x;
+  if (y < console->block_s_y) console->block_s_y = y;
+  if (y > console->block_e_y) console->block_e_y = y;
 
   return ERR_OK;
 }
@@ -263,6 +324,8 @@ int con_flush (console_t *console) {
 }
 
 
+
+
 /********************************************************************
  * Low level function to copy the buffer of console "con_idx" to the
  * screen in selector 0x08 (must change hardcoded stuff into defines)
@@ -284,12 +347,12 @@ int con_update_screen (console_t *console) {
     ctrltab_bar = console_get_ctrltab_bar ();
 
     // Copy buffer to the screen, except for the last line and add ctrltab-bar there
-    memmove ((char *)0xF00B8000, console->buf, console->size-(console->max_px*2));
+    con_set_complete_flush (console);
+    con_flush_block (console);
     memmove ((char *)0xF00B8000+((console->max_py-1)*console->max_px*2), ctrltab_bar, (console->max_px*2));
 
   } else {
-    // Just copy the whole buffer to the screen
-    memmove ((char *)0xF00B8000, console->buf, console->size);
+    con_flush_block (console);
   }
 
   return ERR_OK;
