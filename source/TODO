@@ -43,6 +43,7 @@ Things todo:
  ( ) VGA (800x600) boot screen
  (-) Exec()
  (-) ELF loader
- ( ) faster updates on screen (remove flush / optimize)
+ (-) faster updates on screen (remove flush / optimize)
  ( ) create kmalloc_dma
  (*) kfree should accept void *, not Uint32
+ (*) Create linked lists

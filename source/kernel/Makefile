@@ -50,6 +50,7 @@ OBJS =  main.o \
         keyboard.o \
         service.o \
         command.o \
+        queue.o \
         io.o \
         pit.o \
         pic.o \
