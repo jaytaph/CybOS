@@ -47,17 +47,17 @@ void queue_destroy (queue_t *queue, void (*callback)(void *)) {
 queue_item_t *queue_seek (queue_t *queue, int (*callback)(void *)) {
   queue_item_t *item = queue->head;
 
-  kprintf ("queue_seek()\n");
+//  kprintf ("queue_seek()\n");
 
   // No correct callback
   if (callback == NULL) return NULL;
 
   while (item) {
-    kprintf ("queue_seek(): item  prev: %08X  next: %08X\n", item->prev, item->next);
+//    kprintf ("queue_seek(): item  prev: %08X  next: %08X\n", item->prev, item->next);
 
     if (callback(item->data)) return item;
 
-    kprintf ("queue_seek(): next item\n");
+//    kprintf ("queue_seek(): next item\n");
     item = item->next;
   }
 
@@ -73,7 +73,7 @@ queue_item_t *queue_seek (queue_t *queue, int (*callback)(void *)) {
  *
  */
 int queue_insert_noalloc (queue_t *queue, queue_item_t *pre_item, queue_item_t *item) {
-  kprintf ("queue_insert\n");
+//  kprintf ("queue_insert_noalloc\n");
 
   // Increase queue count
   queue->count++;
@@ -93,17 +93,18 @@ int queue_insert_noalloc (queue_t *queue, queue_item_t *pre_item, queue_item_t *
 
   // 2: Add item to the head of the queue?
   if (pre_item == NULL) {
-    kprintf ("Adding to head\n");
+//    kprintf ("Adding to head\n");
     item->next = queue->head;
     item->prev = NULL;
     queue->head->prev = item;
     queue->head = item;
+//    kprintf ("queue head is now: %08X\n", queue->head);
     return 1;
   }
 
   // 3: Item to be added after the tail of the queue?
   if (pre_item == queue->tail) {
-    kprintf ("Adding after tail\n");
+//    kprintf ("Adding after tail\n");
     item->next = NULL;
     item->prev = queue->tail;
     queue->tail->next = item;
@@ -112,7 +113,7 @@ int queue_insert_noalloc (queue_t *queue, queue_item_t *pre_item, queue_item_t *
   }
 
   // 4: Somewhere in between then
-  kprintf ("Adding in between \n");
+//  kprintf ("Adding in between \n");
   item->next = pre_item->next;
   item->prev = pre_item;
   pre_item->next->prev = item;
@@ -126,6 +127,7 @@ int queue_insert_noalloc (queue_t *queue, queue_item_t *pre_item, queue_item_t *
  * of the queue.
  */
 int queue_insert (queue_t *queue, void *data, queue_item_t *pre_item) {
+//  kprintf ("queue_insert\n");
   // Allocate queue item memory
   queue_item_t *item = (queue_item_t *)kmalloc (sizeof(queue_item_t));
   item->data = data;
@@ -138,7 +140,7 @@ int queue_insert (queue_t *queue, void *data, queue_item_t *pre_item) {
  * Add to the tail of the queue
  */
 int queue_append (queue_t *queue, void *data) {
-  kprintf ("queue_add\n");
+//  kprintf ("queue_append\n");
   return queue_insert (queue, data, queue->tail);
 }
 
@@ -147,7 +149,7 @@ int queue_append (queue_t *queue, void *data) {
  * Add to the head of the queue
  */
 int queue_prepend (queue_t *queue, void *data) {
-  kprintf ("queue_add_head\n");
+//  kprintf ("queue_prepend\n");
   return queue_insert (queue, data, NULL);
 }
 
@@ -155,7 +157,7 @@ int queue_prepend (queue_t *queue, void *data) {
 /**
  * Removes queue item from the queue
  */
-int queue_remove (queue_t *queue, queue_item_t *item) {
+int _queue_remove (queue_t *queue, queue_item_t *item, char free_item) {
   queue_item_t *prev_item;
   queue_item_t *next_item;
 
@@ -182,11 +184,27 @@ int queue_remove (queue_t *queue, queue_item_t *item) {
   }
 
   queue->count--;
-  kfree (item);
+
+  // Only free the queue item if we need to
+  if (free_item) kfree (item);
 
   return 1;
 }
 
+
+/**
+ *
+ */
+int queue_remove (queue_t *queue, queue_item_t *item) {
+  return _queue_remove (queue, item, 1);
+}
+
+/**
+ *
+ */
+int queue_remove_noalloc (queue_t *queue, queue_item_t *item) {
+  return _queue_remove (queue, item, 0);
+}
 
 /**
  * Iterates a queue. If current_item is NULL it will start from the head. Returns NULL

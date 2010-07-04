@@ -54,6 +54,7 @@
 /**
  *
  */
+/*
 void readdir (vfs_node_t *root, int depth) {
 //  kprintf ("readdir ()\n");
   vfs_dirent_t *unsafe_dirent;
@@ -105,7 +106,7 @@ void readdir (vfs_node_t *root, int depth) {
 
 //  kprintf ("readdir() done\n");
 }
-
+*/
 
 /**
  *
@@ -236,7 +237,6 @@ void mount_root_system (const char *boot_params) {
   int ret = sys_mount (root_device_path, root_type, "ROOT", "/", MOUNTOPTION_REMOUNT);
   if (! ret) kpanic ("Error while mounting root filesystem from '%s'. Cannot continue!\n", root_device_path);
 
-
 /*
   kprintf ("- MOUNT ROOT SYSTEM ---------------------\n");
   vfs_node_t *node = vfs_get_node_from_path ("ROOT:/");
@@ -245,7 +245,7 @@ void mount_root_system (const char *boot_params) {
 */
 }
 
-
+/*
 char queue_find_item_str[20];
 int queue_find_item (const void *item) {
   kprintf ("inside queue_find_item: Browsing item '%s'\n", item);
@@ -255,6 +255,7 @@ int queue_find_item (const void *item) {
   }
   return 0;
 }
+*/
 
 /**
  *
@@ -266,21 +267,15 @@ void start_init (const char *boot_params) {
   // Get init from the command line (if given)
   get_boot_parameter (boot_params, "init=", (char *)&init_prog);
 
-  tprintf ("!!!!Transfering control to user mode and starting %s.\n\n\n", init_prog);
+  tprintf ("Transfering control to user mode and starting %s.\n\n\n", init_prog);
 
-  for (;;) {
-    tprintf ("Helloo world!! ");
-  }
-
-/*
   if (! execve (init_prog, NULL, environ)) {
     tprintf ("Cannot execute init file! Halting system.");
     for (;;);
   }
-*/
-  for (;;);
 
   // We cannot be here since execve will overwrite the current task
+  for (;;);  // Just in case
 }
 
 
@@ -334,7 +329,7 @@ void kdeadlock (void) {
 /************************************
  * Only print when we can print
  */
-int kprintf_help (char c, void **ptr) {
+int _kprintf_help (char c, void **ptr) {
   // Bochs debug output
 #ifdef __DEBUG__
   outb (0xE9, c);
@@ -356,7 +351,7 @@ void kprintf (const char *fmt, ...) {
   va_list args;
 
   va_start (args, fmt);
-  (void)do_printf (fmt, args, kprintf_help, NULL);
+  (void)do_printf (fmt, args, _kprintf_help, NULL);
   va_end (args);
 
   if (_kflush) con_flush (_kconsole);
@@ -393,7 +388,7 @@ void kpanic (const char *fmt, ...) {
 
   kprintf ("\n[KRN] KERNEL PANIC: ");
   va_start (args, fmt);
-  do_printf (fmt, args, kprintf_help, NULL);
+  do_printf (fmt, args, _kprintf_help, NULL);
   va_end (args);
 
   con_flush (_kconsole);
@@ -404,7 +399,7 @@ void kpanic (const char *fmt, ...) {
 /************************************
  * Prints on the construct console (but we don't switch to it)
  */
-int tprintf_help (char c, void **ptr) {
+int _tprintf_help (char c, void **ptr) {
   // Bochs debug output
 #ifdef __DEBUG__
   outb (0xE9, c);
@@ -419,17 +414,11 @@ void tprintf (const char *fmt, ...) {
   va_list args;
 
   va_start (args, fmt);
-  (void)do_printf (fmt, args, tprintf_help, NULL);
+  (void)do_printf (fmt, args, _tprintf_help, NULL);
   va_end (args);
 
   // Flush output
   __asm__ __volatile__ ("int	$" SYSCALL_INT_STR " \n\t" : : "a" (SYS_CONFLUSH));
-}
-
-
-void do_tprintf (int dummy) {
-  dummy += 1;
-  tprintf ("2");
 }
 
 
