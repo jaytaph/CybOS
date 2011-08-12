@@ -19,5 +19,5 @@ kernel:
 
 install:
 	echo [Create bootdisk]
-	sudo ./bootalize ../fat12.img bootlvl1.bin bootlvl2.bin
+	sudo ./bootalize ../binary/image/fat12.img ../binary/boot/bootlvl1.bin ../binary/boot/bootlvl2.bin
 

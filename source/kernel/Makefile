@@ -18,7 +18,7 @@ LIBS =
 
 
 # Main target
-TARGET = ../kernel.bin
+TARGET = ../binary/kernel/cybos32.bin
 
 # Compiler and user flags
 CC_FLAGS = -nostdlib -nostdinc -fno-builtin -fno-exceptions -fomit-frame-pointer -Wall
