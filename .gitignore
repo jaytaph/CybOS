@@ -5,3 +5,4 @@
 *.map
 *.bin
 bochsout.txt
+.DS_Store
