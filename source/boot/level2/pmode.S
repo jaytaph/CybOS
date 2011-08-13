@@ -18,13 +18,13 @@
         KERNEL_DATA_SELECTOR     equ 0x10
 
         GDT_TABLE:
-          dd 0x0000000,0x000000000    ; null descriptor
-          dd 0x00cf9a0,0x00000ffff    ; kernel code (complete memory)
-          dd 0x00cf920,0x00000ffff    ; kernel data (complete memory)
-          dd 0x0000000,0x000000000    ; TSS selector (filled later on)
-          dd 0x0000000,0x000000000    ; LDT selector (filled later on)
-          dd 0x00cffa0,0x00000ffff    ; user code (ring 3)
-          dd 0x00cff20,0x00000ffff    ; user data (ring 3)
+          dq 0x0000000000000000    ; null descriptor
+          dq 0x00cf9a000000ffff    ; kernel code (complete memory)
+          dq 0x00cf92000000ffff    ; kernel data (complete memory)
+          dq 0x0000000000000000    ; TSS selector (filled later on)
+          dq 0x0000000000000000    ; LDT selector (filled later on)
+          dq 0x00cffa000000ffff    ; user code (ring 3)
+          dq 0x00cff2000000ffff    ; user data (ring 3)
 
         gdt_size EQU $-GDT_TABLE    ; Size of the GDT table
 
@@ -102,8 +102,8 @@ EnterPMode:
         or   al,1
         mov  cr0,eax                    ; Flags know we're in PM right now, let's make sure the whole CPU knows it:
 
-        jmp ClearPreFetchQueue	 	    ; Jump
-ClearPreFetchQueue:			            ; Everything knows we know we're in PM at this point.
+        jmp ClearPreFetchQueue	 	; Jump
+ClearPreFetchQueue:			; Everything knows we know we're in PM at this point.
 
         ; Jump to PM_START in our code-descriptor
         jmp dword KERNEL_CODE_SELECTOR:PM_START

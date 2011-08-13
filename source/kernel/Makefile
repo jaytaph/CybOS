@@ -11,17 +11,17 @@ RM       = rm
 
 # Linker flags
 LD_ENTRY  = -e kernel_entry
-LD_TEXT   = -Ttext=0xC0010000 -Map kernel.map
+LD_TEXT   = --section-start .text=0xC0010000 -Map kernel.map
 
 #LIBS =  ../stdlib/stdlib.a
 LIBS =
 
 
 # Main target
-TARGET = ../binary/kernel/cybos32.bin
+TARGET = ../../binary/kernel/cybos32.bin
 
 # Compiler and user flags
-CC_FLAGS = -nostdlib -nostdinc -fno-builtin -fno-exceptions -fomit-frame-pointer -Wall
+CC_FLAGS = -m32 -nostdlib -nostdinc -fno-pic -fno-builtin -fno-exceptions -fomit-frame-pointer -Wall
 
 USR_FLAGS = -D__KERNEL__ -D__DEBUG__
 

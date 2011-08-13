@@ -37,6 +37,7 @@
         times BootLvl2SigOffset-($-$$) db 0x0         ; make sure level 2 signature is on correct offset
         dw BootLvl2Signature
 
+
 ; Do not add code before this label
 Start:
     jmp  0x0000:StartRelocated          ; At this point we need to be at segment 0, this is because the
@@ -50,6 +51,7 @@ StartRelocated:
     %include "level2/preload.S"     ; Pre loading stuff
     %include "level2/loader.S"      ; FAT12 loader of the kernel
     %include "level2/pmode.S"       ; Protected mode entering code
+
     ; NOTE: PMODE.S JUMPS TO KERNEL
 
 
@@ -60,6 +62,7 @@ StartRelocated:
 ; Writes a message on screen
 ;  In: DS:SI -> Message offset
 WriteMsg:
+        pusha
         lodsb                           ; Get char and point to the next
         cmp  al, 0
         je   .done                      ; Yes, break the loop
@@ -70,6 +73,7 @@ WriteMsg:
 
         jmp  WriteMsg                   ; And loop
 .done:
+        popa
         ret
 
 

@@ -8,7 +8,7 @@
         jmp SOC_Loader                          ; Jump over the data
 
         BootLvl2Dir     db 'SYSTEM     '            ; Directory containing system files
-        KernelFile      db 'KERNEL  BIN'            ; Kernel file
+        KernelFile      db 'CYBOS32 BIN'            ; Kernel file
 
         BootDriveID     db 0                        ; Holds the current boot drive ID
 
@@ -42,7 +42,7 @@
 
         ErrorReading      db 13,10,'Error while reading floppy...',0
         ErrorNoSystemDir  db 13,10,'Cannot find /SYSTEM directory...',0
-        ErrorNoKernelFile db 13,10,'Cannot find /SYSTEM/KERNEL.BIN...',0
+        ErrorNoKernelFile db 13,10,'Cannot find /SYSTEM/CYBOS32.BIN...',0
 
 ; -------------------------------------------------------
 ; Start of code
@@ -101,6 +101,7 @@ SOC_Loader:
 ;  In: DX:AX -> 32bit LBA start sector
 ;      CL    -> Sector count
 ;      ES:BX -> target memory block
+
 ReadSectors:
         call LBA2CHS
 

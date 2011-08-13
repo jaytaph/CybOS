@@ -79,6 +79,7 @@ DetectCPU:
 .detectCPU_End:
 
 
+
 ; -------------------------------------------------------
 ; Init FPU
         fninit                          ; Initialise FPU 387

@@ -1,4 +1,4 @@
-#!/bin/sh -x
+#!/bin/sh
 
 # This will create a CYBOS (fat12) boot image. Mind that the sectors we need to
 # load BOOTLVL2.BIN are hardcoded in BOOTLVL1.BIN. As soon as the actual bootalize
@@ -20,7 +20,7 @@ if [ ! -d /tmp/fat12mnt ] ; then
   mkdir /tmp/fat12mnt
 fi
 
-sudo mount -o loop ../fat12.img /tmp/fat12mnt
+sudo mount -o loop ../binary/image/fat12.img /tmp/fat12mnt
 
 # Make items in image
 mkdir /tmp/fat12mnt/SYSTEM
