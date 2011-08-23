@@ -268,19 +268,13 @@ void start_init (const char *boot_params) {
 
   tprintf ("!!!!Transfering control to user mode and starting %s.\n\n\n", init_prog);
 
-  for (;;) {
-    tprintf ("Helloo world!! ");
-  }
-
-/*
   if (! execve (init_prog, NULL, environ)) {
-    tprintf ("Cannot execute init file! Halting system.");
+    tprintf ("Cannot execute init. Halting system!");
     for (;;);
   }
-*/
-  for (;;);
 
   // We cannot be here since execve will overwrite the current task
+  kdeadlock();
 }
 
 

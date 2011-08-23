@@ -8,7 +8,7 @@
 #include "kernel.h"
 
 /************************************************************
- * We created this wrapper because it's in a seperate object which we can link in front of the
+ * We created this wrapper because it's in a separate object which we can link in front of the
  * rest. This is to make sure that this function stays at 0x0000000 in .TEXT. The main-kernel
  * function in kernel.c doesn't do that because of all the data inside the functions.
  */

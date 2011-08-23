@@ -1,1 +1,0 @@
-sudo mount -o loop ../binary/image/fat12.img /tmp/fat12mnt
