@@ -27,11 +27,11 @@ mkdir /tmp/fat12mnt/SYSTEM
 cp ../binary/boot/bootlvl1.bin /tmp/fat12mnt/SYSTEM/BOOTLVL1.BIN
 cp ../binary/boot/bootlvl2.bin /tmp/fat12mnt/SYSTEM/BOOTLVL2.BIN
 cp ../binary/kernel/cybos32.bin /tmp/fat12mnt/SYSTEM/CYBOS32.BIN
-cp ../binary/boot/apps/init.bin /tmp/fat12mnt/SYSTEM/INIT.BIN
-cp ../binary/boot/apps/test1.bin /tmp/fat12mnt/SYSTEM/TEST1.BIN
-cp ../binary/boot/apps/test2.bin /tmp/fat12mnt/SYSTEM/TEST2.BIN
-cp ../binary/boot/apps/test3.bin /tmp/fat12mnt/SYSTEM/TEST3.BIN
-cp ../binary/boot/apps/test4.bin /tmp/fat12mnt/SYSTEM/TEST4.BIN
+#cp ../binary/boot/apps/init.bin /tmp/fat12mnt/SYSTEM/INIT.BIN
+#cp ../binary/boot/apps/test1.bin /tmp/fat12mnt/SYSTEM/TEST1.BIN
+#cp ../binary/boot/apps/test2.bin /tmp/fat12mnt/SYSTEM/TEST2.BIN
+#cp ../binary/boot/apps/test3.bin /tmp/fat12mnt/SYSTEM/TEST3.BIN
+#cp ../binary/boot/apps/test4.bin /tmp/fat12mnt/SYSTEM/TEST4.BIN
 
 # Unmount
 umount /tmp/fat12mnt
