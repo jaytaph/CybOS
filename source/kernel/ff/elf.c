@@ -32,7 +32,6 @@ Uint32 load_binary_elf (const char *path) {
 
   vfs_read (node, 0, sizeof (elf32_ehdr), (char *)&hdr);
 
-/*
   int i;
   kprintf ("=== ELF HEADER === \n");
   kprintf ("INDENT      : "); for (i=0; i!=EI_NIDENT; i++) kprintf ("%02X ", hdr.e_indent[i]); kprintf ("\n");
@@ -50,7 +49,6 @@ Uint32 load_binary_elf (const char *path) {
   kprintf ("e_shnum     : %04X\n", hdr.e_shnum);
   kprintf ("e_shstrndx  : %04X\n", hdr.e_shstrndx);
   kprintf ("\n");
-*/
 
   // Must have ELF-signature
   if (hdr.e_indent[EI_MAG0] != 0x7F &&
@@ -133,7 +131,6 @@ char *get_section_string (Uint32 offset) {
 int do_section_header (vfs_node_t *node, elf32_ehdr hdr) {
   int i;
 
-/*
   kprintf ("\n**** DOSECTIONHEADERS ***\n");
   kprintf ("=== ELF HEADER === \n");
   kprintf ("INDENT      : "); for (i=0; i!=EI_NIDENT; i++) kprintf ("%02X ", hdr.e_indent[i]); kprintf ("\n");
@@ -151,7 +148,6 @@ int do_section_header (vfs_node_t *node, elf32_ehdr hdr) {
   kprintf ("e_shnum     : %04X\n", hdr.e_shnum);
   kprintf ("e_shstrndx  : %04X\n", hdr.e_shstrndx);
   kprintf ("\n");
-*/
 
   // Allocate buffer for section headers
   Uint32 shtable_size = hdr.e_shnum * sizeof (elf32_shdr);

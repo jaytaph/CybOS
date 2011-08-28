@@ -331,7 +331,7 @@ void ide_init_controller (ide_controller_t *ctrl, pci_device_t *pci_dev, Uint16 
 void ide_init (void) {
   int controller_num;
 
-//  kprintf ("ide_init() start\n");
+  kprintf ("ide_init() start\n");
 
   // Clear ide_controllers info
   memset (ide_controllers, 0, sizeof(ide_controllers));
@@ -340,7 +340,7 @@ void ide_init (void) {
   pci_device_t *pci_dev = NULL;
   controller_num = 0;
   while (pci_dev = pci_find_next_class (pci_dev, 0x01, 0x01), pci_dev != NULL) {
-//    kprintf ("Found controller %04X:%04X [class: %02X:%02X] on [%02x:%02x:%02x]\n", pci_dev->vendor_id, pci_dev->device_id, pci_dev->class, pci_dev->subclass, pci_dev->bus, pci_dev->slot, pci_dev->func);
+    kprintf ("Found controller %04X:%04X [class: %02X:%02X] on [%02x:%02x:%02x]\n", pci_dev->vendor_id, pci_dev->device_id, pci_dev->class, pci_dev->subclass, pci_dev->bus, pci_dev->slot, pci_dev->func);
 
     // Set controller number (for easy searching)
     ide_controllers[controller_num].controller_nr = controller_num;
@@ -352,10 +352,9 @@ void ide_init (void) {
     controller_num++;
   }
 
-//  kprintf ("ide_init() done\n");
+  kprintf ("ide_init() done\n");
 
 
-/*
   int i,j,k;
   for (i=0; i!=MAX_IDE_CONTROLLERS; i++) {
     if (! ide_controllers[i].enabled) continue;
@@ -373,7 +372,7 @@ void ide_init (void) {
       }
     }
   }
-*/
+
 }
 
 

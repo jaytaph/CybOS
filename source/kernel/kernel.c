@@ -237,12 +237,10 @@ void mount_root_system (const char *boot_params) {
   if (! ret) kpanic ("Error while mounting root filesystem from '%s'. Cannot continue!\n", root_device_path);
 
 
-/*
   kprintf ("- MOUNT ROOT SYSTEM ---------------------\n");
   vfs_node_t *node = vfs_get_node_from_path ("ROOT:/");
   readdir (node, 0);
   kprintf ("-----------------------------------------\n");
-*/
 }
 
 
@@ -266,10 +264,10 @@ void start_init (const char *boot_params) {
   // Get init from the command line (if given)
   get_boot_parameter (boot_params, "init=", (char *)&init_prog);
 
-  tprintf ("!!!!Transfering control to user mode and starting %s.\n\n\n", init_prog);
+  tprintf ("!!!!Transfering control to user mode and starting: %s.\n", init_prog);
 
   if (! execve (init_prog, NULL, environ)) {
-    tprintf ("Cannot execute init. Halting system!");
+    tprintf ("**** Cannot execute init. Halting system!");
     for (;;);
   }
 
