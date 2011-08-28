@@ -1,8 +1,8 @@
 .SILENT :
 
-.PHONY: kernel boot
+.PHONY: kernel boot apps
 
-all: kernel boot install
+all: kernel boot apps install
 
 clean:
 	echo [Clean]
@@ -16,6 +16,10 @@ boot:
 kernel:
 	echo [Kernel]
 	make -C kernel
+
+apps:
+	echo [Apps]
+	make -C userapps
 
 install:
 	echo [Create bootdisk]
