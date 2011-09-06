@@ -1,5 +1,3 @@
-# $header$
-
 .SILENT :
 
 # Standard compiler programs
@@ -20,8 +18,10 @@ LIBS =
 # Main target
 TARGET = ../../binary/kernel/cybos32.bin
 
+DEBUG_FLAGS = -ggdb
+
 # Compiler and user flags
-CC_FLAGS = -m32 -nostdlib -nostdinc -fno-pic -fno-builtin -fno-exceptions -fomit-frame-pointer -Wall
+CC_FLAGS = -m32 -nostdlib -nostdinc -fno-pic -fno-builtin -fno-exceptions -fomit-frame-pointer -Wall $(DEBUG_FLAGS)
 
 USR_FLAGS = -D__KERNEL__ -D__DEBUG__
 
@@ -81,11 +81,16 @@ clean:
 	echo [RM]
 	$(RM) *.o || true
 	$(RM) $(TARGET) || true
+	$(RM) $(TARGET).sym || true
+	$(RM) $(TARGET).elf || true
 	$(RM) *.map || true
 
 
 kernel: $(OBJS)
 	echo [LD] $(TARGET)
+	$(LD) $(LD_TEXT) $(LD_ENTRY) -o $(TARGET).elf -g $(OBJS) $(LIBS) $(DEBUG_FLAGS)
+	$(OBJCOPY) --only-keep-debug $(TARGET).elf $(TARGET).sym
+#	$(LD) $(LD_TEXT) $(LD_ENTRY) -o $(TARGET).elf -g $(OBJS) $(LIBS) $(DEBUG_FLAGS)
 	$(LD) $(LD_TEXT) $(LD_ENTRY) -s -o $(TARGET) --oformat binary $(OBJS) $(LIBS)
 
 # Implicit Rules
