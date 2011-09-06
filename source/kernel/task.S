@@ -47,6 +47,8 @@ do_context_switch:
 .do_iret_on_first_switch:
     ; THIS CODE COMES FROM THE MACRO  ENDOFINTERRUPT from isr.S and MUST BE THE SAME
 
+    ; @TODO: Can't I just cal ENDOFINTERRUPT macro here?
+
     pop    eax               ; Pop data descriptor and fill others
     mov    ds, ax
     mov    es, ax
