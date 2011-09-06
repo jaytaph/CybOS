@@ -437,7 +437,7 @@ void switch_to_usermode (void) {
  *
  */
 int allocate_new_pid (void) {
-  task_t *tmp;
+  task_t *tmp_task;
   int b;
 
   int state = disable_ints ();
@@ -449,11 +449,11 @@ int allocate_new_pid (void) {
     current_pid = (current_pid < MAX_PID) ? current_pid+1 : PID_IDLE;
 
     // No task list present, no need to check for running pids
-    if (_task_list == NULL) return current_pid;
+    if (_task_list == NULL) break;
 
     // Check if there is a process currently running with this PID
-    for (tmp = _task_list; tmp->next != NULL && b != 1; tmp = tmp->next) {
-      if (tmp->pid == current_pid) b = 1;
+    for (tmp_task = _task_list; tmp_task->next != NULL && b != 1; tmp_task = tmp_task->next) {
+      if (tmp_task->pid == current_pid) b = 1;
     }
   } while (b == 1);
 
@@ -470,14 +470,14 @@ int allocate_new_pid (void) {
 int sys_idle () {
   /* We can only idle when we are the 0 (idle) task. Other tasks cannot idle, because if
    * they are doing nothing (for instance, they are waiting on a signal (sleep, IO etc), they
-   * should not idle themself, but other processes will take over (this is taken care of by
+   * should not idle themselves, but other processes will take over (this is taken care of by
    * the scheduler). So anyway, when there is absolutely no process available that can be
    * run (everybody is waiting), the scheduler will choose the idle task, which only job is
    * to call this function (over and over again). It will put the processor into a standby
    * mode and waits until a IRQ arrives. It's way better to call a HLT() than to do a
    * "for(;;) ;".. */
   if (_current_task->pid != PID_IDLE) {
-    kpanic ("Idle() called by a PID > 0...\n");
+    kpanic ("Idle() called by a PID > 0 (PID %d)...\n", _current_task->pid);
     return -1;
   }
 
@@ -491,10 +491,9 @@ int sys_idle () {
  *
  */
 int sys_sleep (int ms) {
-  int state = disable_ints ();
-
   if (_current_task->pid == PID_IDLE) kpanic ("Cannot sleep idle task!");
-
+  
+  int state = disable_ints ();
 //  kprintf ("Sleeping process %d for %d ms\n", _current_task->pid, ms);
 
   _current_task->alarm = ms;
@@ -510,6 +509,13 @@ int sys_sleep (int ms) {
   return 0;
 }
 
+
+/**
+ * Returns the task structure for specified PID
+ * 
+ * @param pid PID for the task
+ * @return  task structure or NULL when not found
+ */
 task_t *sched_get_task (int pid) {
   task_t *task;
   for (task = _task_list; task != NULL; task = task->next) {
@@ -526,7 +532,7 @@ int sys_exit (char exitcode) {
   kprintf ("Sys_exit (%d) called!!!!", exitcode);
 
   if (_current_task->pid == PID_IDLE) {
-    kpanic ("Exit() called by a PID > 0...\n");
+    kpanic ("Exit() called by PID 0...\n");
     return -1;
   }
 
@@ -594,16 +600,11 @@ int sys_fork (regs_t *r) {
   // copy all data from the parent into the child
   memcpy (child_task, parent_task, sizeof (task_t));
 
-  // Available for scheduling
-  child_task->state = TASK_STATE_RUNNABLE;
-
   // The page directory is the cloned space
-  clone_debug = 0;
   child_task->page_directory = clone_pagedirectory (parent_task->page_directory);
-  clone_debug = 0;
 
   child_task->pid  = allocate_new_pid ();           // Make new PID
-  child_task->ppid = parent_task->pid;              // Set the parent pid
+  child_task->ppid = parent_task->pid;              // Set the parent PID
 
   // Reset task times for the child
   child_task->ktime = child_task->utime = 0;
@@ -623,12 +624,20 @@ int sys_fork (regs_t *r) {
 //  kprintf ("Child task kstack + KERNEL_STACK_SIZE = %08X\n", (Uint32)child_task->kstack + KERNEL_STACK_SIZE);
 
   child_task->context = (regs_t *) ((Uint32)child_task->kstack + KERNEL_STACK_SIZE - stackpointer_offset);
+
+/*
+  Uint32 esp; asm volatile("mov %%esp, %0" : "=r"(esp));
+  Uint32 ebp; asm volatile("mov %%ebp, %0" : "=r"(ebp));
+*/
 //  kprintf ("Context is at %08X\n", child_task->context);
 
   // Set return value by manipulating the saved context on the stack
   child_task->context->eax = 0;
-
+  
   sched_add_task (child_task);
+  
+  // Available for scheduling
+  child_task->state = TASK_STATE_RUNNABLE;
 
   restore_ints (state);
   return child_task->pid;

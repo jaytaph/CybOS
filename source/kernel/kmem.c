@@ -10,7 +10,7 @@
 #include "heap.h"
 
 
-// Basically, we use kmalloc before heap is initialised and malloc afterwards. Both functions
+// Basically, we use kmalloc before heap is initialized and malloc afterwards. Both functions
 // check if the heap is initialised and use the correct internal functions anyway.
 
 // Memory top of the kernel
@@ -24,7 +24,7 @@ Uint32 _preheap_top   = NULL;         // 'normal' heap end
 
 /*
  * kmalloc and kfree have 2 different "modes" of operating. One mode is before heap is
- * initialied. In that case we use the _preheap_kmalloc/kfree functions. When the heap
+ * initialized. In that case we use the _preheap_kmalloc/kfree functions. When the heap
  * is setup, we switch the functions to the "correct" _kmalloc/_kfree. We could have this
  * done with an 'if'-statement, but this way allows us to easily add new functions (if needed)
  * without rebuilding if's to switches etc etc.. design patterns ftw.. :p
@@ -51,12 +51,12 @@ int kmem_init (int total_sys_memory) {
   // Set total memory
   _memory_total = total_sys_memory;
 
-  // Number of bytes allocated by kmalloc before heap is initialised. This
+  // Number of bytes allocated by kmalloc before heap is initialized. This
   // memory cannot be freed at this moment so use wisely!
   _unfreeable_kmem = 0;
 
   // This will setup the heap.
-  _k_preheap_start = (unsigned int)&end;    // _k_preheap_start will start immediatly after the end of the code. No need to align (actually, we should maybe?)
+  _k_preheap_start = (unsigned int)&end;    // _k_preheap_start will start immediately after the end of the code. No need to align (actually, we should maybe?)
 
   // Top of the heap is the start of the heap.. nothing used..
   _k_preheap_top = _k_preheap_start;
@@ -98,7 +98,6 @@ void *_preheap_kmalloc (Uint32 size, int pageboundary, Uint32 *physical_address)
 
   //kprintf ("_preheap_kmalloc(): %d bytes. S: %08X   New: %08X\n", size, mem_ptr, _k_preheap_top);
 
-  // Why doesn't newblock->base work!?
   return (void *)mem_ptr;
 }
 
