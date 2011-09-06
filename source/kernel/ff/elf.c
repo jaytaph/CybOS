@@ -10,9 +10,9 @@
 #include "ff/elf.h"
 #include "kmem.h"
 
-int do_program_header (vfs_node_t *node, elf32_ehdr hdr);
-int do_section_header (vfs_node_t *node, elf32_ehdr hdr);
-void init_string_section (vfs_node_t *node, elf32_ehdr hdr);
+int elf_do_program_header (vfs_node_t *node, elf32_ehdr hdr);
+int elf_do_section_header (vfs_node_t *node, elf32_ehdr hdr);
+void elf_init_string_section (vfs_node_t *node, elf32_ehdr hdr);
 
 char str_no_info[] = "no string info";
 char *string_table_buffer = NULL;
@@ -74,14 +74,12 @@ Uint32 load_binary_elf (const char *path) {
   // Version 2 must also be current elf spec
   if (hdr.e_version != EV_CURRENT) return 0;
 
-  if (! do_program_header (node, hdr)) return 0;
+//  if (! elf_do_program_header (node, hdr)) return 0;
 
   // Don't care about sections yet
-  /*
-    init_string_section (node, hdr);
-    if (! do_section_header (node, hdr)) return 0;
-   */
-
+ elf_init_string_section (node, hdr);
+ if (! elf_do_section_header (node, hdr)) return 0;
+ 
   return hdr.e_entry;
 }
 
@@ -89,7 +87,7 @@ Uint32 load_binary_elf (const char *path) {
 /**
  *
  */
-void init_string_section (vfs_node_t *node, elf32_ehdr hdr) {
+void elf_init_string_section (vfs_node_t *node, elf32_ehdr hdr) {
   if (! hdr.e_shstrndx) return;
 
   int i = hdr.e_shstrndx;
@@ -117,7 +115,7 @@ void init_string_section (vfs_node_t *node, elf32_ehdr hdr) {
 /**
  *
  */
-char *get_section_string (Uint32 offset) {
+char *elf_get_section_string (Uint32 offset) {
   if (string_table_buffer == NULL) return str_no_info;
 
   if (offset > string_table_buffer_size) return str_no_info;
@@ -128,7 +126,8 @@ char *get_section_string (Uint32 offset) {
 /**
  *
  */
-int do_section_header (vfs_node_t *node, elf32_ehdr hdr) {
+int elf_do_section_header (vfs_node_t *node, elf32_ehdr hdr) {
+  Uint32 phys_address;
   int i;
 
   kprintf ("\n**** DOSECTIONHEADERS ***\n");
@@ -155,17 +154,18 @@ int do_section_header (vfs_node_t *node, elf32_ehdr hdr) {
   elf32_shdr *shbuf = (elf32_shdr *)kmalloc (shtable_size);
   if (! shbuf) return 0;
 
-  kprintf ("Buffer read: %08X\n", shbuf);
-
   // Read program haeder table into buffer
   vfs_read (node, hdr.e_shoff, shtable_size, (char *)shbuf);
   elf32_shdr *sh_ptr = shbuf;
 
-  kprintf ("Buffer ptr: %08X\n", sh_ptr);
-
-  for (i=0; i!=hdr.e_shnum; i++) {
+  for (i=0; i!=hdr.e_shnum; i++, sh_ptr++) {
     kprintf ("Buffer ptr: %08X\n", sh_ptr);
-    kprintf ("sh_name      : %04X (%s)\n", sh_ptr->sh_name, get_section_string (sh_ptr->sh_name));
+    
+    // Didn't find an address or size
+    if (! sh_ptr->sh_addr || ! sh_ptr->sh_size) continue;
+
+    
+    kprintf ("sh_name      : %04X (%s)\n", sh_ptr->sh_name, elf_get_section_string (sh_ptr->sh_name));
     kprintf ("sh_type      : %04X\n", sh_ptr->sh_type);
     kprintf ("sh_flags     : %04X\n", sh_ptr->sh_flags);
     kprintf ("sh_addr      : %04X\n", sh_ptr->sh_addr);
@@ -175,18 +175,24 @@ int do_section_header (vfs_node_t *node, elf32_ehdr hdr) {
     kprintf ("sh_info      : %04X\n", sh_ptr->sh_info);
     kprintf ("sh_addralign : %04X\n", sh_ptr->sh_addralign);
     kprintf ("sh_entsize   : %04X\n", sh_ptr->sh_entsize);
-    // No address, so nothing to add to there
-    if (sh_ptr->sh_addr != 0) {
-      // @TODO: should be malloc()
-      Uint32 phys_address;
-      kmalloc_physical (sh_ptr->sh_size, &phys_address);
-      kprintf ("ELF BUFFER: %08X\n", phys_address);
-      allocate_virtual_memory (phys_address, sh_ptr->sh_size, sh_ptr->sh_addr);
-      vfs_read (node, sh_ptr->sh_offset, sh_ptr->sh_size, (char *)phys_address);
-    }
+        
+    switch (sh_ptr->sh_type) {
+      case SHT_PROGBITS :
+        // @TODO: should be malloc()      
+        kmalloc_pageboundary_physical (sh_ptr->sh_size, &phys_address);
+        kprintf (".text: %08X (%08X/%4x)\n", phys_address, sh_ptr->sh_addr, sh_ptr->sh_size);
 
-    // Next entry
-    sh_ptr++;
+        allocate_virtual_memory (phys_address, sh_ptr->sh_size, sh_ptr->sh_addr);
+        vfs_read (node, sh_ptr->sh_offset, sh_ptr->sh_size, (char *)sh_ptr->sh_addr);
+
+        break;
+      case SHT_NOBITS :
+        kmalloc_physical (sh_ptr->sh_size, &phys_address);
+        kprintf (".bss: %08X (%08X/%4x)\n", phys_address, sh_ptr->sh_addr, sh_ptr->sh_size);
+
+        allocate_virtual_memory (phys_address, sh_ptr->sh_size, sh_ptr->sh_addr);
+        memset ((char *)(sh_ptr->sh_offset), 0, sh_ptr->sh_size);
+    }
   }
 
   kfree (shbuf);
@@ -199,7 +205,7 @@ int do_section_header (vfs_node_t *node, elf32_ehdr hdr) {
 /**
  *
  */
-int do_program_header (vfs_node_t *node, elf32_ehdr hdr) {
+int elf_do_program_header (vfs_node_t *node, elf32_ehdr hdr) {
   int i;
 
 //  kprintf ("\n**** DOPROGRAMHEADERS ***\n");
@@ -233,7 +239,7 @@ int do_program_header (vfs_node_t *node, elf32_ehdr hdr) {
     if (ph_ptr->p_type == PT_LOAD) {
       Uint32 phys_address;
       char *buffer = (char *)kmalloc_pageboundary_physical (ph_ptr->p_memsz, &phys_address);
-
+      
       // We allocated a buffer, make sure this buffer has the correct virtual address
       kprintf ("Allocated memory onto %08X (%d bytes)\n", ph_ptr->p_vaddr, ph_ptr->p_memsz);
       allocate_virtual_memory (phys_address, ph_ptr->p_memsz, ph_ptr->p_vaddr);
