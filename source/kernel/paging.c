@@ -157,17 +157,17 @@ void obsolete_free_frame (page_t *page) {
  * Creates a new page directory and resets all pages to 0
  */
 pagedirectory_t *create_pagedirectory (void) {
-  Uint32 tmp;
+  Uint32 phys_addr;
 
   // Allocate the kernel page directory on page boundary
-  pagedirectory_t *pagedir = (pagedirectory_t *) kmalloc_pageboundary_physical (sizeof (pagedirectory_t), &tmp);
+  pagedirectory_t *pagedir = (pagedirectory_t *) kmalloc_pageboundary_physical (sizeof (pagedirectory_t), &phys_addr);
 
   // Clear the whole structure
   memset (pagedir, 0, sizeof (pagedirectory_t));
 
   // Note that this is the START of the structure. This means we need the phystables[] to be at the START of the structure as well.
   // Another way would be to have 2 separate structures in here. One for maintenance and one for CR3.
-  pagedir->physical_address = tmp;
+  pagedir->physical_address = phys_addr;
 
   return pagedir;
 }
@@ -210,7 +210,7 @@ pagedirectory_t *clone_pagedirectory (pagedirectory_t *src) {
 
 //  kprintf ("\n** Cloning page directory from P %08X to P %08X\n", src->physical_address, phys_addr);
 
-  if (clone_debug) {
+  if (clone_debug || 1) {
 //    kprintf ("But first... some information about the SRC table...\n");
 //    kprintf ("physical_address: %08X\n", src->physical_address);
     for (i=0; i!=1024; i++) {
@@ -219,12 +219,12 @@ pagedirectory_t *clone_pagedirectory (pagedirectory_t *src) {
         c = ((src->phystables[i] & 0xFFFFF000) != (_kernel_pagedirectory->phystables[i] & 0xFFFFF000)) ? 'C' : 'L';
 
         if (c != 'C') continue;
-        kprintf ("TABLE[%4d] [%c]  P %08X\n", i, c, src->phystables[i]);
+//        kprintf ("TABLE[%4d] [%c]  P %08X\n", i, c, src->phystables[i]);
         int k =  (i == 832) ? 25 : 5;
         for (j=0; j!=k; j++) {
           if (src->tables[i]->pages[j] != 0) {
             Uint32 va = (i << 22) + (j << 12);
-            kprintf ("     PAGE[%d] : %08X  (%08X)\n", j, src->tables[i]->pages[j], va);
+//            kprintf ("     PAGE[%d] : %08X  (%08X)\n", j, src->tables[i]->pages[j], va);
           }
         }
       }
@@ -288,7 +288,7 @@ pagedirectory_t *clone_pagedirectory (pagedirectory_t *src) {
     }
   }
 
-//kprintf ("--- Stats [Z: %d]  [L: %d]  [C: %d] ----------------\n\n", zero, linked, copied);
+//  kprintf ("--- Stats [Z: %d]  [L: %d]  [C: %d] ----------------\n\n", zero, linked, copied);
 
   return dst;
 }
@@ -379,7 +379,7 @@ void map_virtual_memory (pagedirectory_t *directory, Uint32 src_address, Uint32 
  *
  */
 void allocate_virtual_memory (Uint32 physical_address, Uint32 size, Uint32 virtual_address) {
-//  kprintf ("allocate_virtual_memory P 0x%08X -> V 0x%08X   S: %08x\n", physical_address, virtual_address, size);
+  kprintf ("allocate_virtual_memory P 0x%08X -> V 0x%08X   S: %08x\n", physical_address, virtual_address, size);
   Uint32 off = 0;
   int count = (size / 0x1000) + 1;
 
@@ -440,23 +440,22 @@ int stack_init (Uint32 src_stack_top) {
   _current_pagedirectory = clone_pagedirectory (_kernel_pagedirectory);
   set_pagedirectory (_current_pagedirectory);
 
-/*
   // Allocate room for a new stack
   // @TODO: THIS ALREADY WORKS, BUT WE USE 0xCF000000 for easy debugging!
-  _kernel_stack = (unsigned int *)kmalloc (KERNEL_STACK_SIZE);
+//  _kernel_stack = (unsigned int *)kmalloc (KERNEL_STACK_SIZE);
 //  kprintf ("\nKernel stack based on %08X\n", _kernel_stack);
 
-//  // TODO: IS IT REALLY A KERNEL-STACK??? IS IT!???? YOU SURE!???
+  // TODO: IS IT REALLY A KERNEL-STACK??? IS IT!???? YOU SURE!???: Yes, i think so
   _kernel_stack = (unsigned int *)0xCF000000;
 
   // Allocate some space for the new stack.
-  for(i=0; i< KERNEL_STACK_SIZE; i += 0x1000) {
+  for (i=0; i < KERNEL_STACK_SIZE; i += 0x1000) {
     create_pageframe (_current_pagedirectory, 0xCF000000+i, PAGEFLAG_PRESENT+PAGEFLAG_READWRITE+PAGEFLAG_USER);
   }
-*/
 
   // Allocate room for a new stack.
 
+/*
   // We cannot use kmalloc because we need to make sure our stack starts in a new directory-table and not inside
   // a directory-page. This is needed because the clone_pagedirectory only checks for differences in the
   // tables, not the pages inside those tables.
@@ -464,6 +463,7 @@ int stack_init (Uint32 src_stack_top) {
   for(i=0; i < KERNEL_STACK_SIZE; i += 0x1000) {
     create_pageframe (_current_pagedirectory, (Uint32)_kernel_stack + i, PAGEFLAG_PRESENT+PAGEFLAG_READWRITE+PAGEFLAG_USER);
   }
+*/
 
   // Work with 2 stack-tops instead of kernel-stack-bottom and src-stack-bottom
   kernel_stack_top = (Uint32)_kernel_stack + KERNEL_STACK_SIZE;
@@ -481,7 +481,7 @@ int stack_init (Uint32 src_stack_top) {
 
   // Copy stack, but only until the current stack pointer. Maybe you notice it (or not), but we
   // also push some extra stuff on the stack while copying (namely the parameters for memcpy). These
-  // get copyied too, but since we saved the orinal ESP, these values are useless and get
+  // get copied too, but since we saved the original ESP, these values are useless and get
   // overwritten later on. We don't care about that..
   memcpy ((void *)(kernel_stack_top-stacklength), (void *)(src_stack_top-stacklength), stacklength);
 
