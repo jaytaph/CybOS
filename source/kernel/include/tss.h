@@ -11,13 +11,13 @@
 
   #pragma pack(1)
   typedef struct {
-    Uint32 link;
+    Uint16 link, __linkh;
     Uint32 esp0;
-    Uint32 ss0;           // last 16 reserved
+    Uint16 ss0, __ss0h;
     Uint32 esp1;
-    Uint32 ss1;           // last 16 reserved
+    Uint16 ss1, __ss1h;
     Uint32 esp2;
-    Uint32 ss2;           // last 16 reserved
+    Uint16 ss2, __ss2h;
     Uint32 cr3;
     Uint32 eip;
     Uint32 eflags;
@@ -29,13 +29,13 @@
     Uint32 ebp;
     Uint32 esi;
     Uint32 edi;
-    Uint32 es;            // last 16 reserved
-    Uint32 cs;            // last 16 reserved
-    Uint32 ss;            // last 16 reserved
-    Uint32 ds;            // last 16 reserved
-    Uint32 fs;            // last 16 reserved
-    Uint32 gs;            // last 16 reserved
-    Uint32 ldtr;          // last 16 reserved
+    Uint16 es, __esh;
+    Uint16 cs, __csh;
+    Uint16 ss, __ssh;
+    Uint16 ds, __dsh;
+    Uint16 fs, __fsh;
+    Uint16 gs, __gsh;
+    Uint16 ldtr, __ldtrh;
     Uint16 iopb_offset;
     Uint16 T;             // Only the first bit!
   } TSS;
