@@ -162,7 +162,7 @@ void kernel_setup (int stack_start, int total_sys_memory, const char *boot_param
    * @TODO: Remove this as soon as we are able to use kmalloc_dma () */
   kmalloc_pageboundary_physical (FDC_DMABUFFER_SIZE, (Uint32 *)&floppyDMABuffer);
 
-  // Setup stack
+  // Setup heap
   kprintf ("MEM ");
   heap_init();
 
@@ -238,8 +238,10 @@ void mount_root_system (const char *boot_params) {
 
 
   kprintf ("- MOUNT ROOT SYSTEM ---------------------\n");
+/*
   vfs_node_t *node = vfs_get_node_from_path ("ROOT:/");
   readdir (node, 0);
+*/
   kprintf ("-----------------------------------------\n");
 }
 
@@ -270,6 +272,8 @@ void start_init (const char *boot_params) {
     tprintf ("**** Cannot execute init. Halting system!");
     for (;;);
   }
+  
+  tprintf ("**** This is something else that has returned...");
 
   // We cannot be here since execve will overwrite the current task
   kdeadlock();
@@ -438,12 +442,30 @@ void kernel_entry (int stack_start, int total_sys_memory, const char *boot_param
 
   kprintf ("* Switching to usermode\n");
   switch_to_usermode ();
+  
+  // From this point on, don't use kprintf() since we are on ring3!
 
   tprintf ("* Starting init program\n");
 
   // Child fork will run init (and does not return)
-  if (! fork()) start_init (boot_params);
-
+  int ret = fork();
+  tprintf ("Fork ret value: %08X\n", ret);
+  
+  // Sanity check
+  if (ret == -1) {
+    kpanic ("Cannot fork initial task!");
+  }
+  
+  if (ret == 0) {
+    // Child process
+    tprintf ("Hello, this is child: %08X\n", _current_task->pid);    
+    start_init (boot_params);
+    kpanic ("init terminated!");
+  }
+  
+  // Parent process (PID 0) will idle
+  tprintf ("Hello, this is parent: %08X\n", _current_task->pid);
+   
   // PID 0 idles when no running process could be found
   for (;;) idle ();
 }
