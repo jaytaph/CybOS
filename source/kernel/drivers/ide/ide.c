@@ -104,7 +104,7 @@ void ide_port_read_buffer (ide_channel_t *channel, Uint8 reg, Uint32 buffer, Uin
 Uint8 ide_sector_read (ide_drive_t *drive, Uint32 lba_sector, Uint32 count, char *buffer) {
   int ret;
 
-//  kprintf ("\nide_sector_read (drive, %d, %d, %08X)\n", lba_sector, count, buffer);
+  kprintf ("\nide_sector_read (drive, %d, %d, %08X)\n", lba_sector, count, buffer);
 
   // Not enabled drive
   if (! drive->enabled) return 0;

@@ -52,6 +52,37 @@ vfs_node_t filenode;   // Entry that gets returned by ext2_finddir
  * Called when a device that holds a EXT2 image gets mounted onto a mount_point
  */
 vfs_node_t *ext2_mount (struct vfs_mount *mount, device_t *dev, const char *path) {
+  //  kprintf ("fat12_mount\n");
+
+  // Allocate superblock room for this mount
+  mount->fs_data = kmalloc (sizeof (ext2_superblock_t));
+  ext2_superblock_t *ext2_superblock = mount->fs_data; // Alias for easier usage
+  if (!ext2_superblock) goto cleanup;
+  memset (ext2_superblock, 0, sizeof (ext2_superblock_t));
+
+  // Read superblock from disk
+  int rb = mount->dev->read (mount->dev->major_num, mount->dev->minor_num, 0, 1024, (char *)ext2_superblock);
+  if (rb != 1024) {
+    kprintf ("Cannot read superblock\n");
+    goto cleanup;
+  }
+  
+  
+
+
+
+  kprintf ("inodeCount    %04x\n", ext2_superblock->inodeCount);
+  kprintf ("blockCount    %04x\n", ext2_superblock->blockCount);
+  kprintf ("inodesInGroupCount    %04x\n", ext2_superblock->inodesInGroupCount);
+  kprintf ("ext2Signature    %04x\n", ext2_superblock->ext2Signature);
+  for (;;) ;
+  
+  return NULL;
+  
+cleanup:
+  // Thing went wrong when we are here. Do a cleanup
+  if (ext2_superblock) kfree (ext2_superblock);
+  return NULL;
 }
 
 /**
