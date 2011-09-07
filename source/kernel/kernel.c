@@ -247,7 +247,7 @@ void mount_root_system (const char *boot_params) {
   kprintf ("-----------------------------------------\n");
   
   kprintf ("-----------------------------------------\n");
-  sys_mount ("DEVICE:IDE0C0D0P0", "ext2", "HARDDISK", "/", MOUNTOPTION_REMOUNT);
+  sys_mount ("DEVICE:/IDE0C0D0P0", "ext2", "HARDDISK", "/", MOUNTOPTION_REMOUNT);
   vfs_node_t *node3 = vfs_get_node_from_path ("HARDDISK:/");
   readdir (node3, 0);
   kprintf ("-----------------------------------------\n");
