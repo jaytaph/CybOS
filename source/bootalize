@@ -7,31 +7,37 @@
 #
 
 # Create zero filled 1MB image
-dd if=/dev/zero of=../binary/image/fat12.img bs=1024 count=1024
+dd if=/dev/zero of=../binary/image/fdd.img bs=1024 count=1024
 
 # Format it to FAT12
-mkdosfs -n CYBOS ../binary/image/fat12.img
+mkdosfs -n CYBOS ../binary/image/fdd.img
 
 # Add boot sector to start of image (we overwrite BPB!)
-dd if=../binary/boot/bootlvl1.bin of=../binary/image/fat12.img bs=512 seek=0 conv=notrunc
+dd if=../binary/boot/bootlvl1.bin of=../binary/image/fdd.img bs=512 seek=0 conv=notrunc
 
 # Mount image
 if [ ! -d /tmp/fat12mnt ] ; then
   mkdir /tmp/fat12mnt
 fi
 
-sudo mount -o loop ../binary/image/fat12.img /tmp/fat12mnt
+sudo mount -o loop ../binary/image/fdd.img /tmp/fat12mnt
+
+# Create directory layout
+mkdir -p /tmp/fat12mnt/SYSTEM/BIN
+mkdir -p /tmp/fat12mnt/APPS
+mkdir -p /tmp/fat12mnt/DOCS
 
 # Make items in image
-mkdir /tmp/fat12mnt/SYSTEM
 cp ../binary/boot/bootlvl1.bin /tmp/fat12mnt/SYSTEM/BOOTLVL1.BIN
 cp ../binary/boot/bootlvl2.bin /tmp/fat12mnt/SYSTEM/BOOTLVL2.BIN
 cp ../binary/kernel/cybos32.bin /tmp/fat12mnt/SYSTEM/CYBOS32.BIN
 cp ../binary/apps/init.bin /tmp/fat12mnt/SYSTEM/INIT.BIN
-#cp ../binary/apps/test1.bin /tmp/fat12mnt/SYSTEM/TEST1.BIN
-#cp ../binary/apps/test2.bin /tmp/fat12mnt/SYSTEM/TEST2.BIN
-#cp ../binary/apps/test3.bin /tmp/fat12mnt/SYSTEM/TEST3.BIN
-#cp ../binary/apps/test4.bin /tmp/fat12mnt/SYSTEM/TEST4.BIN
+
+touch /tmp/fat12mnt/SYSTEM/BIN/MC.BIN
+touch /tmp/fat12mnt/APPS/MC.BIN
+touch /tmp/fat12mnt/APPS/MC.BIN
+
+echo "Hello world" > /tmp/fat12mnt/DOCS/DOCUMENT.TXT
 
 # Unmount
 umount /tmp/fat12mnt

@@ -1,1 +1,2 @@
 /Applications/Q.app/Contents/MacOS/i386-softmmu.app/Contents/MacOS/i386-softmmu -s -S -fda /Volumes/jthijssen/CybOS/binary/image/fat12.img -m 32
+/Applications/Q.app/Contents/MacOS/i386-softmmu.app/Contents/MacOS/i386-softmmu  -fda /Volumes/jthijssen/CybOS/binary/image/fdd.img -m 32 -hda /Volumes/jthijssen/CybOS/binary/image/hdd1.img -boot a

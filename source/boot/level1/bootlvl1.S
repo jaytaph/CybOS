@@ -43,12 +43,14 @@ BPB_Start:
         ; FOR US TO FIND BOOTLOADER LEVEL2.
         ; THE ONLY THING THIS BOOTSECTOR SHOULD DO IS LOAD AND RUN IT..
 
+        ; SINCE WE DIRECTLY READ FROM DISK, SOMETIMES THE SECTORS DOES NOT FIT
+        ; 0x24 == 4800
         BootLevel2Sectors:
-            dd 0x00000024           ; LBA sector 36
-            dd 0x00000025           ; If boot level 2 is more than 5120 bytes, we need to load
-            dd 0x00000026           ; the rest of the sectors in the start of boot level 2
-            dd 0x00000027
-            dd 0x00000000
+            dd 0x00000027           ; LBA sector 36
+            dd 0x00000028           ; If boot level 2 is more than 5120 bytes, we need to load
+            dd 0x00000029           ; the rest of the sectors in the start of boot level 2
+            dd 0x0000002A
+            dd 0x0000002B
             dd 0x00000000
             dd 0x00000000
             dd 0x00000000
