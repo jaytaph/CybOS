@@ -68,6 +68,7 @@ OBJS =  main.o \
         drivers/ide/partitions.o \
         vfs.o \
         vfs/fat12.o \
+	vfs/ext2.o \
         vfs/cybfs.o \
         vfs/devfs.o \
         ff/elf.o

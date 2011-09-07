@@ -31,6 +31,7 @@
 #include "drivers/ide.h"
 #include "vfs.h"
 #include "vfs/fat12.h"
+#include "vfs/ext2.h"
 #include "vfs/cybfs.h"
 #include "vfs/devfs.h"
 
@@ -185,7 +186,7 @@ void kernel_setup (int stack_start, int total_sys_memory, const char *boot_param
   cybfs_init ();
   devfs_init ();
   fat12_init ();
-  // ext3_init ();  // @TODO: create ext3
+  ext2_init ();
 
   int ret = sys_mount (NULL, "devfs", "DEVICE", "/", 0);
   if (! ret) kpanic ("Error while mounting DevFS filesystem. Cannot continue!\n");
@@ -232,13 +233,25 @@ void mount_root_system (const char *boot_params) {
   // Mount "ROOT" as our system
   int ret = sys_mount (root_device_path, root_type, "ROOT", "/", MOUNTOPTION_REMOUNT);
   if (! ret) kpanic ("Error while mounting root filesystem from '%s'. Cannot continue!\n", root_device_path);
+  
+  
 
-/*
-  kprintf ("- MOUNT ROOT SYSTEM ---------------------\n");
-  vfs_node_t *node = vfs_get_node_from_path ("ROOT:/");
-  readdir (node, 0);
   kprintf ("-----------------------------------------\n");
-*/
+  vfs_node_t *node1 = vfs_get_node_from_path ("ROOT:/");
+  readdir (node1, 0);
+  kprintf ("-----------------------------------------\n");
+    
+  kprintf ("-----------------------------------------\n");
+  vfs_node_t *node2 = vfs_get_node_from_path ("DEVICE:/");
+  readdir (node2, 0);
+  kprintf ("-----------------------------------------\n");
+  
+  kprintf ("-----------------------------------------\n");
+  sys_mount ("DEVICE:IDE0C0D0P0", "ext2", "HARDDISK", "/", MOUNTOPTION_REMOUNT);
+  vfs_node_t *node3 = vfs_get_node_from_path ("HARDDISK:/");
+  readdir (node3, 0);
+  kprintf ("-----------------------------------------\n");
+
 }
 
 
