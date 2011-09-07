@@ -210,7 +210,8 @@ pagedirectory_t *clone_pagedirectory (pagedirectory_t *src) {
 
 //  kprintf ("\n** Cloning page directory from P %08X to P %08X\n", src->physical_address, phys_addr);
 
-  if (clone_debug || 1) {
+/*
+  if (clone_debug) {
 //    kprintf ("But first... some information about the SRC table...\n");
 //    kprintf ("physical_address: %08X\n", src->physical_address);
     for (i=0; i!=1024; i++) {
@@ -224,12 +225,13 @@ pagedirectory_t *clone_pagedirectory (pagedirectory_t *src) {
         for (j=0; j!=k; j++) {
           if (src->tables[i]->pages[j] != 0) {
             Uint32 va = (i << 22) + (j << 12);
-//            kprintf ("     PAGE[%d] : %08X  (%08X)\n", j, src->tables[i]->pages[j], va);
+            kprintf ("     PAGE[%d] : %08X  (%08X)\n", j, src->tables[i]->pages[j], va);
           }
         }
       }
     }
   }
+*/
 
 
   for (i=0; i!=1024; i++) {
@@ -379,7 +381,7 @@ void map_virtual_memory (pagedirectory_t *directory, Uint32 src_address, Uint32 
  *
  */
 void allocate_virtual_memory (Uint32 physical_address, Uint32 size, Uint32 virtual_address) {
-  kprintf ("allocate_virtual_memory P 0x%08X -> V 0x%08X   S: %08x\n", physical_address, virtual_address, size);
+  //kprintf ("allocate_virtual_memory P 0x%08X -> V 0x%08X   S: %08x\n", physical_address, virtual_address, size);
   Uint32 off = 0;
   int count = (size / 0x1000) + 1;
 

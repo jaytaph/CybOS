@@ -32,6 +32,7 @@ Uint32 load_binary_elf (const char *path) {
 
   vfs_read (node, 0, sizeof (elf32_ehdr), (char *)&hdr);
 
+/*
   int i;
   kprintf ("=== ELF HEADER === \n");
   kprintf ("INDENT      : "); for (i=0; i!=EI_NIDENT; i++) kprintf ("%02X ", hdr.e_indent[i]); kprintf ("\n");
@@ -49,6 +50,7 @@ Uint32 load_binary_elf (const char *path) {
   kprintf ("e_shnum     : %04X\n", hdr.e_shnum);
   kprintf ("e_shstrndx  : %04X\n", hdr.e_shstrndx);
   kprintf ("\n");
+*/
 
   // Must have ELF-signature
   if (hdr.e_indent[EI_MAG0] != 0x7F &&
@@ -130,6 +132,7 @@ int elf_do_section_header (vfs_node_t *node, elf32_ehdr hdr) {
   Uint32 phys_address;
   int i;
 
+/*
   kprintf ("\n**** DOSECTIONHEADERS ***\n");
   kprintf ("=== ELF HEADER === \n");
   kprintf ("INDENT      : "); for (i=0; i!=EI_NIDENT; i++) kprintf ("%02X ", hdr.e_indent[i]); kprintf ("\n");
@@ -147,6 +150,7 @@ int elf_do_section_header (vfs_node_t *node, elf32_ehdr hdr) {
   kprintf ("e_shnum     : %04X\n", hdr.e_shnum);
   kprintf ("e_shstrndx  : %04X\n", hdr.e_shstrndx);
   kprintf ("\n");
+*/
 
   // Allocate buffer for section headers
   Uint32 shtable_size = hdr.e_shnum * sizeof (elf32_shdr);
@@ -159,12 +163,13 @@ int elf_do_section_header (vfs_node_t *node, elf32_ehdr hdr) {
   elf32_shdr *sh_ptr = shbuf;
 
   for (i=0; i!=hdr.e_shnum; i++, sh_ptr++) {
-    kprintf ("Buffer ptr: %08X\n", sh_ptr);
+//    kprintf ("Buffer ptr: %08X\n", sh_ptr);
     
     // Didn't find an address or size
     if (! sh_ptr->sh_addr || ! sh_ptr->sh_size) continue;
 
     
+/*
     kprintf ("sh_name      : %04X (%s)\n", sh_ptr->sh_name, elf_get_section_string (sh_ptr->sh_name));
     kprintf ("sh_type      : %04X\n", sh_ptr->sh_type);
     kprintf ("sh_flags     : %04X\n", sh_ptr->sh_flags);
@@ -175,12 +180,13 @@ int elf_do_section_header (vfs_node_t *node, elf32_ehdr hdr) {
     kprintf ("sh_info      : %04X\n", sh_ptr->sh_info);
     kprintf ("sh_addralign : %04X\n", sh_ptr->sh_addralign);
     kprintf ("sh_entsize   : %04X\n", sh_ptr->sh_entsize);
+*/
         
     switch (sh_ptr->sh_type) {
       case SHT_PROGBITS :
-        // @TODO: should be malloc()      
+        // @TODO: should be malloc()?
         kmalloc_pageboundary_physical (sh_ptr->sh_size, &phys_address);
-        kprintf (".text: %08X (%08X/%4x)\n", phys_address, sh_ptr->sh_addr, sh_ptr->sh_size);
+//        kprintf (".text: %08X (%08X/%4x)\n", phys_address, sh_ptr->sh_addr, sh_ptr->sh_size);
 
         allocate_virtual_memory (phys_address, sh_ptr->sh_size, sh_ptr->sh_addr);
         vfs_read (node, sh_ptr->sh_offset, sh_ptr->sh_size, (char *)sh_ptr->sh_addr);
@@ -188,7 +194,7 @@ int elf_do_section_header (vfs_node_t *node, elf32_ehdr hdr) {
         break;
       case SHT_NOBITS :
         kmalloc_physical (sh_ptr->sh_size, &phys_address);
-        kprintf (".bss: %08X (%08X/%4x)\n", phys_address, sh_ptr->sh_addr, sh_ptr->sh_size);
+//        kprintf (".bss: %08X (%08X/%4x)\n", phys_address, sh_ptr->sh_addr, sh_ptr->sh_size);
 
         allocate_virtual_memory (phys_address, sh_ptr->sh_size, sh_ptr->sh_addr);
         memset ((char *)(sh_ptr->sh_offset), 0, sh_ptr->sh_size);

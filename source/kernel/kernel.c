@@ -123,15 +123,12 @@ void kernel_setup (int stack_start, int total_sys_memory, const char *boot_param
   kprintf ("Initializing CybOS kernel v%s.%s (%s)\n", KERNEL_VERSION_MAJOR, KERNEL_VERSION_MINOR, KERNEL_COMPILER);
   kprintf ("This kernel was compiled at %s on %s\n", KERNEL_COMPILE_TIME, KERNEL_COMPILE_DATE);
   kprintf ("Available system memory: %dKB (%dMB)\n", total_sys_memory / 1024, total_sys_memory / (1024*1024));
-  if (boot_params != NULL) kprintf ("Boot parameters: %s\n", boot_params);
-  kprintf ("\n");
-
+  if (boot_params != NULL) kprintf ("Boot parameters: \n  %s\n", boot_params);
 
   /**
    * Init global kernel components that always need to be available
    */
-
-  kprintf ("Init components: [ ");
+  kprintf ("Init components: \n  [ ");
 
   // Setup (new) global descriptor table
   kprintf ("GDT ");
@@ -236,13 +233,12 @@ void mount_root_system (const char *boot_params) {
   int ret = sys_mount (root_device_path, root_type, "ROOT", "/", MOUNTOPTION_REMOUNT);
   if (! ret) kpanic ("Error while mounting root filesystem from '%s'. Cannot continue!\n", root_device_path);
 
-
-  kprintf ("- MOUNT ROOT SYSTEM ---------------------\n");
 /*
+  kprintf ("- MOUNT ROOT SYSTEM ---------------------\n");
   vfs_node_t *node = vfs_get_node_from_path ("ROOT:/");
   readdir (node, 0);
-*/
   kprintf ("-----------------------------------------\n");
+*/
 }
 
 
@@ -266,16 +262,12 @@ void start_init (const char *boot_params) {
   // Get init from the command line (if given)
   get_boot_parameter (boot_params, "init=", (char *)&init_prog);
 
-  tprintf ("!!!!Transfering control to user mode and starting: %s.\n", init_prog);
-
   if (! execve (init_prog, NULL, environ)) {
     tprintf ("**** Cannot execute init. Halting system!");
     for (;;);
   }
   
-  tprintf ("**** This is something else that has returned...");
-
-  // We cannot be here since execve will overwrite the current task
+  // We cannot be here since execve() will overwrite the current task
   kdeadlock();
 }
 
@@ -423,11 +415,6 @@ void tprintf (const char *fmt, ...) {
 }
 
 
-void do_tprintf (int dummy) {
-  dummy += 1;
-  tprintf ("2");
-}
-
 
 /****************************************************************************
  * Startup of the kernel.
@@ -436,35 +423,15 @@ void kernel_entry (int stack_start, int total_sys_memory, const char *boot_param
   cli ();   // Disable interrupts
 
   kernel_setup (stack_start, total_sys_memory, boot_params);
-
-  kprintf ("* Mounting root filesystem\n");
   mount_root_system (boot_params);
-
-  kprintf ("* Switching to usermode\n");
   switch_to_usermode ();
   
   // From this point on, don't use kprintf() since we are on ring3!
 
-  tprintf ("* Starting init program\n");
-
-  // Child fork will run init (and does not return)
-  int ret = fork();
-  tprintf ("Fork ret value: %08X\n", ret);
-  
-  // Sanity check
-  if (ret == -1) {
-    kpanic ("Cannot fork initial task!");
+  if (!fork()) {
+    // Child fork will run init (and does not return)
+    start_init(boot_params);
   }
-  
-  if (ret == 0) {
-    // Child process
-    tprintf ("Hello, this is child: %08X\n", _current_task->pid);    
-    start_init (boot_params);
-    kpanic ("init terminated!");
-  }
-  
-  // Parent process (PID 0) will idle
-  tprintf ("Hello, this is parent: %08X\n", _current_task->pid);
    
   // PID 0 idles when no running process could be found
   for (;;) idle ();

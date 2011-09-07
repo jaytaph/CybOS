@@ -20,7 +20,7 @@ int sys_execve (regs_t *r, char *path, char **args, char **environ) {
   Uint32 entrypoint = load_binary_elf (path);
   if (! entrypoint) return 0;
 
-  kprintf ("Entry point: %08X\n", entrypoint);
+//  kprintf ("Entry point: %08X\n", entrypoint);
   
   // @TODO: Set arguments and set environment in the environment for this process (I guess)
 
