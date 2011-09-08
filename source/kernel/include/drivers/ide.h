@@ -106,6 +106,7 @@
 */
 
 
+  #define   IDE_SECTOR_SIZE     512     // Size of a sector (@TODO: Atapi CDROM sector sizes?)
   #define   IDE_MAX_PARITIONS   16      // Maximum 16 partitions per drive (because of node numbers)
 
   // Slave or master drive (either atapi or ata)
@@ -165,7 +166,7 @@
   void ide_block_close(Uint8 major, Uint8 minor);
   void ide_block_seek(Uint8 major, Uint8 minor, Uint32 offset, Uint8 direction);
 
-  Uint8 ide_sector_read (ide_drive_t *drive, Uint32 lba_sector, Uint32 count, char *buffer);
+  Uint32 ide_sector_read (ide_drive_t *drive, Uint32 lba_sector, Uint32 count, char *buffer);
 
 
 

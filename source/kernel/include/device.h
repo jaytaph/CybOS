@@ -20,7 +20,8 @@
     typedef struct {
       Uint8  major_num;            // Major device node
       Uint8  minor_num;            // Minor device node
-
+      void   *data;                // Some data that might accompany the device
+      
       // Block device functions
       Uint32(*read)(Uint8 major, Uint8 minor, Uint32 offset, Uint32 size, char *buffer);
       Uint32(*write)(Uint8 major, Uint8 minor, Uint32 offset, Uint32 size, char *buffer);

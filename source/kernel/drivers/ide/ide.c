@@ -11,6 +11,7 @@
 #include "drivers/ide_ata.h"
 #include "drivers/ide_atapi.h"
 #include "drivers/ide_partitions.h"
+#include "device.h"
 #include "kernel.h"
 #include "kmem.h"
 #include "pci.h"
@@ -99,12 +100,13 @@ void ide_port_read_buffer (ide_channel_t *channel, Uint8 reg, Uint32 buffer, Uin
 
 
 /**
- * Read specified number of sectors from drive into buffer
+ * Read specified number of sectors from drive into buffer,
+ * returns number of sectors read
  */
-Uint8 ide_sector_read (ide_drive_t *drive, Uint32 lba_sector, Uint32 count, char *buffer) {
+Uint32 ide_sector_read (ide_drive_t *drive, Uint32 lba_sector, Uint32 sector_count, char *buffer) {
   int ret;
 
-  kprintf ("\nide_sector_read (drive, %d, %d, %08X)\n", lba_sector, count, buffer);
+  kprintf ("\nide_sector_read (drive, %d, %d, %08X)\n", lba_sector, sector_count, buffer);
 
   // Not enabled drive
   if (! drive->enabled) return 0;
@@ -113,9 +115,9 @@ Uint8 ide_sector_read (ide_drive_t *drive, Uint32 lba_sector, Uint32 count, char
   if (lba_sector > drive->size) return 0;
 
   if (drive->type == IDE_DRIVE_TYPE_ATA) {
-    ret = ide_ata_access (IDE_DIRECTION_READ, drive, lba_sector, count, buffer);
+    ret = ide_ata_access (IDE_DIRECTION_READ, drive, lba_sector, sector_count, buffer);
   } else if (drive->type == IDE_DRIVE_TYPE_ATAPI) {
-    ret = ide_atapi_access (IDE_DIRECTION_READ, drive, lba_sector, count, buffer);
+    ret = ide_atapi_access (IDE_DIRECTION_READ, drive, lba_sector, sector_count, buffer);
   } else {
     kpanic ("Unknown type (neither ATA nor ATAPI)");
   }
@@ -245,6 +247,7 @@ void ide_init_drive (ide_drive_t *drive) {
   device_t *device = (device_t *)kmalloc (sizeof (device_t));
   device->major_num = DEV_MAJOR_IDE;
   device->minor_num = (drive->channel->controller->controller_nr << 3) + (drive->channel->channel_nr << 1) + drive->drive_nr;
+  device->data = (ide_drive_t *)drive;
 
   device->read = ide_block_read;
   device->write = ide_block_write;
@@ -377,26 +380,87 @@ void ide_init (void) {
 
 
 
-
+/**
+ * Can read larger blocks
+ * 
+ * @param major
+ * @param minor
+ * @param offset
+ * @param size
+ * @param buffer
+ * @return 
+ */
 Uint32 ide_block_read (Uint8 major, Uint8 minor, Uint32 offset, Uint32 size, char *buffer) {
-  kprintf ("ide_block_read(%d, %d, %d, %d, %08X)\n", major, minor, offset, size, buffer);
-  kprintf ("read from IDE not supported yet\n");
-  return 0;
+  Uint32 lba_sector = offset / IDE_SECTOR_SIZE;
+  char *tmpbuf[IDE_SECTOR_SIZE];
+  Uint32 read_size = 0;
+  
+  if (major != DEV_MAJOR_IDE) return 0;
+  
+  // Fetch drive info from device
+  device_t *device = device_get_device(major, minor);
+  ide_drive_t *drive = device->data;
+  if (! drive || ! drive->enabled) {
+    kprintf("Incorrect drive specified");
+    return 0;
+  }
+  
+  // Read pre misaligned sector data
+  if (offset % IDE_SECTOR_SIZE > 0) {
+    Uint8 restcount = offset % IDE_SECTOR_SIZE;
+    kprintf("ide preread(%d)\n", restcount);
+    ide_sector_read(drive, lba_sector, 1, (char *)&tmpbuf);
+    memcpy(buffer, &tmpbuf[restcount], 512-restcount);
+    
+    read_size += restcount;
+    lba_sector++;
+    size -= restcount;
+    buffer += restcount;
+  }
+  
+  // Read as many full sectors as possible
+  while (size >= IDE_SECTOR_SIZE) {
+    // Read full sectors
+    ide_sector_read (drive, lba_sector, 1, buffer);
+    
+    kprintf ("Size: %d\n", size);
+    
+    read_size += IDE_SECTOR_SIZE;
+    lba_sector++;
+    size -= IDE_SECTOR_SIZE;
+    buffer += IDE_SECTOR_SIZE;
+  }
+  
+  // Read post misaligned sector data
+  if (size > 0) {
+    kprintf ("ide postread(%d)", size);
+    ide_sector_read(drive, lba_sector, 1, (char *)&tmpbuf);
+    memcpy(buffer, &tmpbuf[0], size);
+    
+    read_size += size;
+  }
+  
+  return read_size;
 }
+
 Uint32 ide_block_write (Uint8 major, Uint8 minor, Uint32 offset, Uint32 size, char *buffer) {
+  if (major != DEV_MAJOR_IDE) return 0;
   kprintf ("ide_block_write(%d, %d, %d, %d, %08X)\n", major, minor, offset, size, buffer);
   kprintf ("write to IDE not supported yet\n");
   return 0;
 }
 void ide_block_open(Uint8 major, Uint8 minor) {
+  if (major != DEV_MAJOR_IDE) return;
   kprintf ("ide_block_open(%d, %d)\n", major, minor);
   // Doesn't do anything. Device already open?
 }
 void ide_block_close(Uint8 major, Uint8 minor) {
+  if (major != DEV_MAJOR_IDE) return;
   kprintf ("ide_block_close(%d, %d)\n", major, minor);
   // Doesn't do anything. Device never closes?
 }
 void ide_block_seek(Uint8 major, Uint8 minor, Uint32 offset, Uint8 direction) {
+  if (major != DEV_MAJOR_IDE) return;
   kprintf ("ide_block_seek(%d, %d, %d, %d)\n", major, minor, offset, direction);
   // Doesn't do anything.
 }
