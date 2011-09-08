@@ -24,7 +24,12 @@ Things todo:
  ( ) FAT16
  ( ) FAT32
  ( ) VFAT
+ ( ) vfs: Joliet
+ ( ) vfs: ISO9660
+ ( ) vfs: UDF
+ ( ) vfs: RockRidge
  (*) ATA controller
+ ( ) ATAPI controller
  ( ) Network driver
  ( ) IPv4 Stack
  (-) Kernel.bin gzip
@@ -41,9 +46,10 @@ Things todo:
  ( ) bootinfo_printf ()  prints info depending on level
  ( ) bootparam  boot_info=0-5 (boot debug info)
  ( ) VGA (800x600) boot screen
- (-) Exec()
- (-) ELF loader
+ (*) Exec()
+ (*) ELF loader
  (-) faster updates on screen (remove flush / optimize)
  ( ) create kmalloc_dma
  (*) kfree should accept void *, not Uint32
  (*) Create linked lists
+ ( ) Major/Minor nodes should be Uint16
