@@ -61,13 +61,15 @@ vfs_node_t *ext2_mount (struct vfs_mount *mount, device_t *dev, const char *path
   memset (ext2_superblock, 0, sizeof (ext2_superblock_t));
 
   // Read superblock from disk
-  int rb = mount->dev->read (mount->dev->major_num, mount->dev->minor_num, 0, 1024, (char *)ext2_superblock);
+  int superblock_offset = 1024;
+  int superblock_size = 1024;
+  int rb = mount->dev->read (mount->dev->major_num, mount->dev->minor_num, superblock_offset, superblock_size, (char *)ext2_superblock);
   if (rb != 1024) {
     kprintf ("Cannot read superblock\n");
     goto cleanup;
   }
-  
-  
+
+
 
 
 
@@ -76,9 +78,9 @@ vfs_node_t *ext2_mount (struct vfs_mount *mount, device_t *dev, const char *path
   kprintf ("inodesInGroupCount    %04x\n", ext2_superblock->inodesInGroupCount);
   kprintf ("ext2Signature    %04x\n", ext2_superblock->ext2Signature);
   for (;;) ;
-  
+
   return NULL;
-  
+
 cleanup:
   // Thing went wrong when we are here. Do a cleanup
   if (ext2_superblock) kfree (ext2_superblock);
