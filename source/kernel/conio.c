@@ -35,13 +35,13 @@ void con_flush_block (console_t *console) {
 
   if (console->flush == CON_FLUSHMODE_PARTIAL) {
     // Get start offset
-    Uint32 offset = console->block_s_y * console->max_px*2 + console->block_s_x;
+    Uint32 offset = console->block_s_y * console->max_px * 2 + (console->block_s_x * 2);
 
     // Size of each row to copy
     Uint32 row_size = (console->block_e_x - console->block_s_x) * 2;
 
     // Copy all rows
-    for (y=console->block_s_y; y!=console->block_e_y; y++) {
+    for (y=console->block_s_y; y<=console->block_e_y; y++) {
       // Copy row
       memmove ((char *)0xF00B8000 + offset, console->buf + offset, row_size);
 
@@ -184,7 +184,7 @@ int con_scrollup (console_t *console) {
 int con_plot (console_t *console, int x, int y, char ch) {
   if (console == NULL) return ERR_CON_INVALID_CONSOLE;
 
-  int offset = (y * console->max_px + x) * 2;
+  int offset = (y * console->max_px) * 2 + (x * 2);
 
   console->buf[offset+0] = ch;             // Write character
   console->buf[offset+1] = console->attr;  // in the default attribute
