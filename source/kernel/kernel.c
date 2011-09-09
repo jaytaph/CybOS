@@ -131,6 +131,9 @@ void kernel_setup (int stack_start, int total_sys_memory, const char *boot_param
    */
   kprintf ("Init components: \n  [ ");
 
+  // @TODO: SOMEHOW, after the \n, things do not get printed correctly since we are on the last line. The \n makes that
+  // the screen will scroll up (a complete refresh), but everything after the \n isn't displayed?
+
   // Setup (new) global descriptor table
   kprintf ("GDT ");
   gdt_init ();
@@ -233,19 +236,19 @@ void mount_root_system (const char *boot_params) {
   // Mount "ROOT" as our system
   int ret = sys_mount (root_device_path, root_type, "ROOT", "/", MOUNTOPTION_REMOUNT);
   if (! ret) kpanic ("Error while mounting root filesystem from '%s'. Cannot continue!\n", root_device_path);
-  
-  
+
+
 
   kprintf ("-----------------------------------------\n");
   vfs_node_t *node1 = vfs_get_node_from_path ("ROOT:/");
   readdir (node1, 0);
   kprintf ("-----------------------------------------\n");
-    
+
   kprintf ("-----------------------------------------\n");
   vfs_node_t *node2 = vfs_get_node_from_path ("DEVICE:/");
   readdir (node2, 0);
   kprintf ("-----------------------------------------\n");
-  
+
   kprintf ("-----------------------------------------\n");
   sys_mount ("DEVICE:/IDE0C0D0P0", "ext2", "HARDDISK", "/", MOUNTOPTION_REMOUNT);
   vfs_node_t *node3 = vfs_get_node_from_path ("HARDDISK:/");
@@ -279,7 +282,7 @@ void start_init (const char *boot_params) {
     tprintf ("**** Cannot execute init. Halting system!");
     for (;;);
   }
-  
+
   // We cannot be here since execve() will overwrite the current task
   kdeadlock();
 }
@@ -438,14 +441,14 @@ void kernel_entry (int stack_start, int total_sys_memory, const char *boot_param
   kernel_setup (stack_start, total_sys_memory, boot_params);
   mount_root_system (boot_params);
   switch_to_usermode ();
-  
+
   // From this point on, don't use kprintf() since we are on ring3!
 
   if (!fork()) {
     // Child fork will run init (and does not return)
     start_init(boot_params);
   }
-   
+
   // PID 0 idles when no running process could be found
   for (;;) idle ();
 }

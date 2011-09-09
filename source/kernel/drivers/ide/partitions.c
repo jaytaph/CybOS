@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  *  File        : partitions.c
- *  Description : Partioning for ide devices
+ *  Description : Partitioning for ide devices
  *
  *
  *****************************************************************************/
@@ -47,6 +47,7 @@ void ide_read_partition_table (ide_drive_t *drive, Uint32 lba_sector) {
   for (i=0; i!=4; i++) {
     if (mbr->partition[i].system_id == 0) continue;
 
+/*
     kprintf ("Checking partition %d from sector %08X (%02X)\n", i, lba_sector, mbr->partition[i].system_id);
     kprintf ("Partition info:\n");
     kprintf ("boot : %02X\n", mbr->partition[i].boot);
@@ -55,6 +56,7 @@ void ide_read_partition_table (ide_drive_t *drive, Uint32 lba_sector) {
     kprintf ("size : %d\n", mbr->partition[i].size);
     kprintf ("end  : %d\n", mbr->partition[i].first_lba_sector + mbr->partition[i].size);
     kprintf ("\n");
+*/
 
     // Register device so we can access it
     device_t *device = (device_t *)kmalloc (sizeof (device_t));
@@ -69,7 +71,7 @@ void ide_read_partition_table (ide_drive_t *drive, Uint32 lba_sector) {
     device->open  = ide_partition_block_open;
     device->close = ide_partition_block_close;
     device->seek  = ide_partition_block_seek;
-    
+
     ide_partition_t *partition = (ide_partition_t *)kmalloc(sizeof(ide_partition_t));
     partition->drive = drive;
     partition->bootable = mbr->partition[i].boot;
@@ -77,7 +79,7 @@ void ide_read_partition_table (ide_drive_t *drive, Uint32 lba_sector) {
     partition->lba_size = mbr->partition[i].size;
     partition->lba_end = partition->lba_start + partition->lba_size;
     partition->system_id = mbr->partition[i].system_id;
-   
+
     device->data = (ide_partition_t *)partition;
 
     // Create device name
@@ -107,15 +109,15 @@ void ide_read_partition_table (ide_drive_t *drive, Uint32 lba_sector) {
 
 Uint32 ide_partition_block_read (Uint8 major, Uint8 minor, Uint32 offset, Uint32 size, char *buffer) {
   if (major != DEV_MAJOR_HDC) return 0;
-  
+
   device_t *device = device_get_device(major, minor);
   if (! device) return 0;
-  
+
   ide_partition_t *partition = (ide_partition_t *)device->data;
-  
+
   // We can (must) calculate the minor IDE node
   Uint8 ide_minor = minor / 16;
-  
+
 /*
   Layout minor node for IDE partitions: Cccd pppp
      C = controller (0 or 1)
@@ -123,24 +125,24 @@ Uint32 ide_partition_block_read (Uint8 major, Uint8 minor, Uint32 offset, Uint32
      d = drive (0 or 1)
      pppp = partition (0-16)
 */
-  
-  
+
+
   // if size > offset + size of disk, trunk size
   if (offset + size > (partition->lba_size * IDE_SECTOR_SIZE)) {
     kprintf ("Trunking size since we are out of partition bounds");
     size = (partition->lba_size * IDE_SECTOR_SIZE) - offset;
   }
-  
+
   // if offset > size of disk return 0
   if (offset > (partition->lba_end * IDE_SECTOR_SIZE)) {
     kprintf ("Trying to read outside partition bounds");
     return 0;
   }
-  
+
   Uint32 partition_offset = offset + (partition->lba_start * IDE_SECTOR_SIZE);
-  
+
   kprintf ("partition offset: %d\n", partition_offset);
-  
+
   return ide_block_read(DEV_MAJOR_IDE, ide_minor, partition_offset, size, buffer);
 }
 
