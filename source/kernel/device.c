@@ -10,13 +10,15 @@
 #include "vfs.h"
 
 // This entry holds ALL major devices
-device_t *devices;
+device_t *ll_devices;
 
 /**
  *
  */
 void device_init (void) {
-  devices = NULL;
+  ll_devices = NULL;
+
+  kprintf ("The size of device_t is %d bytes\n", sizeof(device_t));
 }
 
 
@@ -25,13 +27,13 @@ void device_init (void) {
  * @TODO: Use linked list for devices as well
  */
 int device_register (device_t *dev, const char *filename) {
-  device_t *tmp = devices;
+  device_t *tmp = ll_devices;
 
 //  kprintf ("device_register (device_t *dev, const char *%s) {\n", filename);
 
   // There are no devices yet, this is the first device. Special case
-  if (devices == NULL) {
-    devices = dev;
+  if (ll_devices == NULL) {
+    ll_devices = dev;
     dev->next = NULL;
   } else {
     // See if device already exists
@@ -41,7 +43,7 @@ int device_register (device_t *dev, const char *filename) {
     }
 
     // Send end of device list
-    tmp = devices;
+    tmp = ll_devices;
     while (tmp->next) tmp = (device_t *)tmp->next;
 
     // Add device to end
@@ -84,7 +86,7 @@ int device_unregister (device_t *dev) {
  *
  */
 device_t *device_get_device (int major_num, int minor_num) {
-  device_t *dev = devices;
+  device_t *dev = ll_devices;
 
   while (dev) {
     // Found?
