@@ -330,7 +330,7 @@ int sys_umount (const char *mount_point) {
  *
  */
 int sys_mount (const char *device_path, const char *fs_type, const char *mount, const char *path, int mount_options) {
-  device_t *dev_ptr;
+  device_t *dev_ptr = NULL;
   int i;
 
   // Find the filesystem itself (is it registered)
@@ -385,10 +385,9 @@ int sys_mount (const char *device_path, const char *fs_type, const char *mount, 
     // Error while doing fs specific mount init?
     if (! vfs_mount_table[i].supernode) return 0;
 
-    // @TODO: mutex this..
+    // @TODO: mutex this.. (@todo: why?)
     vfs_mount_table[i].enabled = 1;
 
-/*
     kprintf ("This system is currently mounted %d times\n", vfs_mount_table[i].system->mount_count);
 
     kprintf ("Mount table:\n");
@@ -396,7 +395,6 @@ int sys_mount (const char *device_path, const char *fs_type, const char *mount, 
       if (! vfs_mount_table[i].enabled) continue;
       kprintf ("%d  %-20s  %08s  %d\n", i, vfs_mount_table[i].mount, vfs_mount_table[i].system->info.tag, vfs_mount_table[i].system->mount_count);
     }
-*/
 
     // Return ok status
     return 1;
