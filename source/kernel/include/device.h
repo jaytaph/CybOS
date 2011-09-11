@@ -13,23 +13,22 @@
      * knows which driver is responsible for handling */
     #define DEV_MAJOR_MISC          0   // Misc devices (null, zero, rand etc)
     #define DEV_MAJOR_FDC           1   // Floppy disks
-    #define DEV_MAJOR_IDE           2   // Ide controllers
-    #define DEV_MAJOR_HDC           3   // Hard disks
+    #define DEV_MAJOR_IDE           2   // Ide controllers (ATA or ATAPI)
+    #define DEV_MAJOR_HDC           3   // Hard disks (partitioned block device)
     #define DEV_MAJOR_CONSOLES     10   // Consoles (3,0 = kconsole)    (@TODO: not used)
 
     typedef struct {
       Uint8  major_num;            // Major device node
       Uint8  minor_num;            // Minor device node
       void   *data;                // Some data that might accompany the device
-      
+      struct device_t *next;       // Pointer to next device
+
       // Block device functions
       Uint32(*read)(Uint8 major, Uint8 minor, Uint32 offset, Uint32 size, char *buffer);
       Uint32(*write)(Uint8 major, Uint8 minor, Uint32 offset, Uint32 size, char *buffer);
       void (*open)(Uint8 major, Uint8 minor);
       void (*close)(Uint8 major, Uint8 minor);
       void (*seek)(Uint8 major, Uint8 minor, Uint32 offset, Uint8 direction);
-
-      struct device_t *next;            // Pointer to next device
     } device_t;
 
 
