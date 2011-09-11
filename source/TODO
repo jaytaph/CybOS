@@ -52,5 +52,5 @@ Things todo:
  ( ) create kmalloc_dma
  (*) kfree should accept void *, not Uint32
  (*) Create linked lists
- ( ) Major/Minor nodes should be Uint16
+ ( ) Major/Minor nodes should be Uint16 (?)
  (*) Fix conio partial flush with \n on last line of screen
