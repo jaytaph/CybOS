@@ -194,6 +194,7 @@ void kernel_setup (int stack_start, int total_sys_memory, const char *boot_param
   int ret = sys_mount (NULL, "devfs", "DEVICE", "/", 0);
   if (! ret) kpanic ("Error while mounting DevFS filesystem. Cannot continue!\n");
 
+
   // Start interrupts, needed because we now do IRQ's for floppy access
   sti ();
 
@@ -213,9 +214,6 @@ void kernel_setup (int stack_start, int total_sys_memory, const char *boot_param
   kprintf ("Kernel initialization done. Unable to free %d bytes.\n", _unfreeable_kmem);
 
   kprintf ("\n");
-
-  // Start interrupts here
-  sti ()
 }
 
 
@@ -254,7 +252,6 @@ void mount_root_system (const char *boot_params) {
   vfs_node_t *node3 = vfs_get_node_from_path ("HARDDISK:/");
   readdir (node3, 0);
   kprintf ("-----------------------------------------\n");
-
 }
 
 
