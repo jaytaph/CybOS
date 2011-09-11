@@ -335,7 +335,7 @@ void kdeadlock (void) {
 /************************************
  * Only print when we can print
  */
-int kprintf_help (char c, void **ptr) {
+int kprintf_helper (char c, void **ptr) {
   // Bochs debug output
 #ifdef __DEBUG__
   outb (0xE9, c);
@@ -357,7 +357,7 @@ void kprintf (const char *fmt, ...) {
   va_list args;
 
   va_start (args, fmt);
-  (void)do_printf (fmt, args, kprintf_help, NULL);
+  (void)do_printf (fmt, args, kprintf_helper, NULL);
   va_end (args);
 
   if (_kflush) con_flush (_kconsole);
@@ -394,7 +394,7 @@ void kpanic (const char *fmt, ...) {
 
   kprintf ("\n[KRN] KERNEL PANIC: ");
   va_start (args, fmt);
-  do_printf (fmt, args, kprintf_help, NULL);
+  do_printf (fmt, args, kprintf_helper, NULL);
   va_end (args);
 
   con_flush (_kconsole);
