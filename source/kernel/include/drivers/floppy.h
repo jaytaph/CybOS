@@ -93,7 +93,6 @@ enum FloppyCommands {
         Uint8 st0;
         Uint8 st1;
         Uint8 st2;
-        Uint8 st3;
         Uint8 track;
         Uint8 head;
         Uint8 sector;

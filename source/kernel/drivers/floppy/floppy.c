@@ -322,7 +322,6 @@ void fdc_read_floppy_sector_CHS (Uint32 cylinder, Uint32 head, Uint32 sector) {
   _currentDrive->result.st0    = fdc_recv_data ();
   _currentDrive->result.st1    = fdc_recv_data ();
   _currentDrive->result.st2    = fdc_recv_data ();
-  _currentDrive->result.st3    = fdc_recv_data ();
   _currentDrive->result.track  = fdc_recv_data ();
   _currentDrive->result.head   = fdc_recv_data ();
   _currentDrive->result.sector = fdc_recv_data ();
