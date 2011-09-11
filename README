@@ -1,1 +1,19 @@
-This is the standard readme file. It needs to be filled with some info about CybOS
+What is CybOS?
+--------------
+
+A simple operating system kernel written for educational purposes. Capable of doing more than 95% of all (hobby)OS'es, which is to say, still not much :) 
+
+Do not expect:
+- Something functional to replace your linux|macosx|windows box with.
+- Bugfree stuff.
+- A nice installation
+- 64bit in the near future
+- the spanish inquisition
+
+Expect:
+- Bootloader to bootstrap the kernel
+- A kernel capable of initializing most basic stuff (VMM, scheduling, disk I/O, vfs)
+
+Expect in the near future:
+- newlib port so we can write (userland) applications.
+- IPv4 support
