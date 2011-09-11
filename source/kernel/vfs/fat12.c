@@ -12,6 +12,7 @@
 #include "vfs.h"
 #include "vfs/fat12.h"
 #include "drivers/floppy.h"
+#include "device.h"
 
 // File operations
 static struct vfs_fileops fat12_fileops = {
