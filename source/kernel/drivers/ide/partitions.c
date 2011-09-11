@@ -35,28 +35,16 @@ void ide_read_partition_table (ide_drive_t *drive, Uint32 lba_sector) {
   ide_sector_read (drive, lba_sector, 1, buffer);
   if (lba_sector == 0 && (buffer[510] != 0x55 && buffer[511] != 0xAA)) return;   // No 55AA magic found
 
-/*
-  kprintf ("\n");
-  for (i=0; i!=64; i++) {
-    kprintf ("%02x ", (unsigned char)buffer[0x1BE + i]);
-    if (i % 16 == 15) kprintf ("\n");
-  }
-  kprintf ("\n");
-*/
-
   for (i=0; i!=4; i++) {
     if (mbr->partition[i].system_id == 0) continue;
 
-/*
-    kprintf ("Checking partition %d from sector %08X (%02X)\n", i, lba_sector, mbr->partition[i].system_id);
-    kprintf ("Partition info:\n");
-    kprintf ("boot : %02X\n", mbr->partition[i].boot);
-    kprintf ("id   : %02X\n", mbr->partition[i].system_id);
-    kprintf ("lba  : %d\n", mbr->partition[i].first_lba_sector);
-    kprintf ("size : %d\n", mbr->partition[i].size);
-    kprintf ("end  : %d\n", mbr->partition[i].first_lba_sector + mbr->partition[i].size);
-    kprintf ("\n");
-*/
+    kprintf ("P%d: boot : %02X  id: %02X   lba: %08d   size: %08d   end: %08d\n",
+            i,
+            mbr->partition[i].boot,
+            mbr->partition[i].system_id,
+            mbr->partition[i].first_lba_sector,
+            mbr->partition[i].size,
+            mbr->partition[i].first_lba_sector + mbr->partition[i].size);
 
     // Register device so we can access it
     device_t *device = (device_t *)kmalloc (sizeof (device_t));

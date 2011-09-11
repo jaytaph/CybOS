@@ -382,64 +382,64 @@ void ide_init (void) {
 
 /**
  * Can read larger blocks
- * 
+ *
  * @param major
  * @param minor
  * @param offset
  * @param size
  * @param buffer
- * @return 
+ * @return
  */
 Uint32 ide_block_read (Uint8 major, Uint8 minor, Uint32 offset, Uint32 size, char *buffer) {
   Uint32 lba_sector = offset / IDE_SECTOR_SIZE;
   char *tmpbuf[IDE_SECTOR_SIZE];
   Uint32 read_size = 0;
-  
+
   if (major != DEV_MAJOR_IDE) return 0;
-  
+
   // Fetch drive info from device
   device_t *device = device_get_device(major, minor);
-  ide_drive_t *drive = device->data;
+  ide_drive_t *drive = (ide_drive_t *)device->data;
   if (! drive || ! drive->enabled) {
     kprintf("Incorrect drive specified");
     return 0;
   }
-  
+
   // Read pre misaligned sector data
   if (offset % IDE_SECTOR_SIZE > 0) {
     Uint8 restcount = offset % IDE_SECTOR_SIZE;
     kprintf("ide preread(%d)\n", restcount);
     ide_sector_read(drive, lba_sector, 1, (char *)&tmpbuf);
     memcpy(buffer, &tmpbuf[restcount], 512-restcount);
-    
+
     read_size += restcount;
     lba_sector++;
     size -= restcount;
     buffer += restcount;
   }
-  
+
   // Read as many full sectors as possible
   while (size >= IDE_SECTOR_SIZE) {
     // Read full sectors
     ide_sector_read (drive, lba_sector, 1, buffer);
-    
+
     kprintf ("Size: %d\n", size);
-    
+
     read_size += IDE_SECTOR_SIZE;
     lba_sector++;
     size -= IDE_SECTOR_SIZE;
     buffer += IDE_SECTOR_SIZE;
   }
-  
+
   // Read post misaligned sector data
   if (size > 0) {
     kprintf ("ide postread(%d)", size);
     ide_sector_read(drive, lba_sector, 1, (char *)&tmpbuf);
     memcpy(buffer, &tmpbuf[0], size);
-    
+
     read_size += size;
   }
-  
+
   return read_size;
 }
 
