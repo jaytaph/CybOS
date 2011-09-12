@@ -54,3 +54,12 @@ Things todo:
  (*) Create linked lists
  ( ) Major/Minor nodes should be Uint16 (?)
  (*) Fix conio partial flush with \n on last line of screen
+ ( ) InfoFS: virtual system
+ ( ) infofs: process lists, mount lists
+ ( ) infofs: kernel messages ringbuffer
+ ( ) infofs: global information
+ ( ) devicefs: zero
+ ( ) devicefs: null
+ ( ) devicefs: random
+ ( ) kernel module loading (module info|add|remove)
+ ( ) infofs: module list (including kernel modules)
