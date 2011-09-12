@@ -8,6 +8,7 @@
 
 #include "drivers/ide.h"
 #include "drivers/ide_partitions.h"
+#include "device.h"
 #include "kernel.h"
 #include "kmem.h"
 #include "pci.h"
@@ -25,15 +26,18 @@ static int ide_partitions_count = 0;
 void ide_read_partition_table (ide_drive_t *drive, Uint32 lba_sector) {
   char buffer[512];
   int i;
-  struct ide_mbr *mbr = (struct ide_mbr *)buffer;
 
-  // Reset partition count to zero when we are browsing the MBR (sector 0)
+  /* Reset partition count to zero when we are browsing the MBR (sector 0). We could have entered
+   * this function through an extended partition, in which case we do not need to reset the count. */
   if (lba_sector == 0) ide_partitions_count = 0;
 
 //  kprintf ("Reading partition table on sector %08X\n", lba_sector);
 
   ide_sector_read (drive, lba_sector, 1, buffer);
   if (lba_sector == 0 && (buffer[510] != 0x55 && buffer[511] != 0xAA)) return;   // No 55AA magic found
+
+  // MBR points to buffer
+  struct ide_mbr *mbr = (struct ide_mbr *)buffer;
 
   for (i=0; i!=4; i++) {
     if (mbr->partition[i].system_id == 0) continue;
@@ -63,7 +67,7 @@ void ide_read_partition_table (ide_drive_t *drive, Uint32 lba_sector) {
     ide_partition_t *partition = (ide_partition_t *)kmalloc(sizeof(ide_partition_t));
     partition->drive = drive;
     partition->bootable = mbr->partition[i].boot;
-    partition->lba_start = mbr->partition[i].first_lba_sector;
+    partition->lba_start = lba_sector + mbr->partition[i].first_lba_sector;
     partition->lba_size = mbr->partition[i].size;
     partition->lba_end = partition->lba_start + partition->lba_size;
     partition->system_id = mbr->partition[i].system_id;
