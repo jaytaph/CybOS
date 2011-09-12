@@ -65,20 +65,28 @@ void dma_set_size (Uint8 channel, Uint16 size) {
  *
  */
 void dma_mask_channel (Uint8 channel) {
-    if (channel <= 4)
-        outb(DMA0_CHANMASK_REG, (1 << (channel-1)));
-    else
-        outb(DMA1_CHANMASK_REG, (1 << (channel-5)));
+
+		if (channel <= 4)
+		{
+			outb(DMA0_CHANMASK_REG, (1 << (channel - 1)));
+			return;
+		}
+
+	outb(DMA1_CHANMASK_REG, (1 << (channel - 5)));
 }
 
 /**
  *
  */
 void dma_unmask_channel (Uint8 channel) {
-    if (channel <= 4)
-        outb (DMA0_CHANMASK_REG, channel);
-    else
-        outb (DMA1_CHANMASK_REG, channel);
+
+		if (channel <= 4)
+		{
+			outb (DMA0_CHANMASK_REG, channel);
+			return;
+		}
+
+	outb (DMA1_CHANMASK_REG, channel);
 }
 
 
@@ -86,6 +94,7 @@ void dma_unmask_channel (Uint8 channel) {
  *
  */
 void dma_reset_flipflop (int dma) {
+
 	if (dma < 2) return;
 
 	outb ( (dma==0) ? DMA0_CLEARBYTE_FLIPFLOP_REG : DMA1_CLEARBYTE_FLIPFLOP_REG, 0xff);
@@ -110,13 +119,12 @@ void dma_unmask_all (){
  */
 void dma_set_mode (Uint8 channel, Uint8 mode) {
 	int dma = (channel < 4) ? 0 : 1;
-	int chan = (dma==0) ? channel : channel-4;
+	int chan = (dma == 0) ? channel : channel - 4;
 
 	dma_mask_channel (channel);
 	outb ( (channel < 4) ? (DMA0_MODE_REG) : DMA1_MODE_REG, chan | (mode) );
 	dma_unmask_all ();
 }
-
 
 /**
  *
@@ -125,15 +133,12 @@ void dma_set_read (Uint8 channel) {
 	dma_set_mode (channel, DMA_MODE_READ_TRANSFER | DMA_MODE_TRANSFER_SINGLE | DMA_MODE_MASK_AUTO);
 }
 
-
 /**
  *
  */
 void dma_set_write (Uint8 channel) {
 	dma_set_mode (channel, DMA_MODE_WRITE_TRANSFER | DMA_MODE_TRANSFER_SINGLE | DMA_MODE_MASK_AUTO);
 }
-
-
 
 /**
  *

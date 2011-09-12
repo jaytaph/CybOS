@@ -62,7 +62,7 @@
 
 
   // Functions
-  int idt_init (void);
+  unsigned int idt_init (void);
   Uint64 idt_create_descriptor (Uint32 offset, Uint16 selector, Uint8 flags);
 
   void idt_set_descriptor (int index, Uint64 descriptor);

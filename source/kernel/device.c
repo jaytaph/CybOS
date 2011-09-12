@@ -19,12 +19,11 @@ void device_init (void) {
   devices = NULL;
 }
 
-
 /**
  * Adds device entry to the device list and creates file system entry
  * @TODO: Use linked list for devices as well
  */
-int device_register (device_t *dev, const char *filename) {
+unsigned int device_register (device_t *dev, const char *filename) {
   device_t *tmp = devices;
 
 //  kprintf ("device_register (device_t *dev, const char *%s) {\n", filename);
@@ -61,7 +60,7 @@ int device_register (device_t *dev, const char *filename) {
 /**
  * Remove device from device list. Does not reclaim memory for device!
  */
-int device_unregister (device_t *dev) {
+unsigned int device_unregister (device_t *dev) {
   device_t *prev, *tmp;
   prev = NULL;
 

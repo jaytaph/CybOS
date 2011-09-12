@@ -10,7 +10,7 @@
 
 extern char **environ;
 
-  int sys_execve (regs_t *r, char *path, char **args, char **environ);
+  unsigned int sys_execve (regs_t *r, char *path, char **args, char **environ);
   int execve (char *path, char **args, char **environ);
 
 #endif //__EXEC_H__
