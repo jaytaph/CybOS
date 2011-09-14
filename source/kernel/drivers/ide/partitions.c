@@ -133,7 +133,7 @@ Uint32 ide_partition_block_read (Uint8 major, Uint8 minor, Uint32 offset, Uint32
 
   Uint32 partition_offset = offset + (partition->lba_start * IDE_SECTOR_SIZE);
 
-  kprintf ("partition offset: %d\n", partition_offset);
+//  kprintf ("partition offset: %d\n", partition_offset);
 
   return ide_block_read(DEV_MAJOR_IDE, ide_minor, partition_offset, size, buffer);
 }

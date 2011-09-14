@@ -106,7 +106,7 @@ void ide_port_read_buffer (ide_channel_t *channel, Uint8 reg, Uint32 buffer, Uin
 Uint32 ide_sector_read (ide_drive_t *drive, Uint32 lba_sector, Uint32 sector_count, char *buffer) {
   int ret;
 
-  kprintf ("\nide_sector_read (drive, %d, %d, %08X)\n", lba_sector, sector_count, buffer);
+//  kprintf ("\nide_sector_read (drive, %d, %d, %08X)\n", lba_sector, sector_count, buffer);
 
   // Not enabled drive
   if (! drive->enabled) return 0;
@@ -408,7 +408,7 @@ Uint32 ide_block_read (Uint8 major, Uint8 minor, Uint32 offset, Uint32 size, cha
   // Read pre misaligned sector data
   if (offset % IDE_SECTOR_SIZE > 0) {
     Uint8 restcount = offset % IDE_SECTOR_SIZE;
-    kprintf("ide preread(%d)\n", restcount);
+//    kprintf("ide preread(%d)\n", restcount);
     ide_sector_read(drive, lba_sector, 1, (char *)&tmpbuf);
     memcpy(buffer, &tmpbuf[restcount], 512-restcount);
 
@@ -423,7 +423,7 @@ Uint32 ide_block_read (Uint8 major, Uint8 minor, Uint32 offset, Uint32 size, cha
     // Read full sectors
     ide_sector_read (drive, lba_sector, 1, buffer);
 
-    kprintf ("Size: %d\n", size);
+//    kprintf ("Size: %d\n", size);
 
     read_size += IDE_SECTOR_SIZE;
     lba_sector++;
@@ -433,7 +433,7 @@ Uint32 ide_block_read (Uint8 major, Uint8 minor, Uint32 offset, Uint32 size, cha
 
   // Read post misaligned sector data
   if (size > 0) {
-    kprintf ("ide postread(%d)", size);
+//    kprintf ("ide postread(%d)", size);
     ide_sector_read(drive, lba_sector, 1, (char *)&tmpbuf);
     memcpy(buffer, &tmpbuf[0], size);
 
