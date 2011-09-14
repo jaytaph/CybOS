@@ -237,21 +237,35 @@ void mount_root_system (const char *boot_params) {
 
 
 
-  kprintf ("-----------------------------------------\n");
+/*
+  kprintf ("-I1----------------------------------------\n");
   vfs_node_t *node1 = vfs_get_node_from_path ("ROOT:/");
   readdir (node1, 0);
-  kprintf ("-----------------------------------------\n");
+  kprintf ("-F1----------------------------------------\n");
+*/
 
-  kprintf ("-----------------------------------------\n");
+  kprintf ("-I2----------------------------------------\n");
   vfs_node_t *node2 = vfs_get_node_from_path ("DEVICE:/");
   readdir (node2, 0);
-  kprintf ("-----------------------------------------\n");
+  kprintf ("-F2----------------------------------------\n");
 
-  kprintf ("-----------------------------------------\n");
-  sys_mount ("DEVICE:/IDE0C0D0P0", "ext2", "HARDDISK", "/", MOUNTOPTION_REMOUNT);
-  vfs_node_t *node3 = vfs_get_node_from_path ("HARDDISK:/");
+  kprintf ("-I3----------------------------------------\n");
+  sys_mount ("DEVICE:/IDE0C0D0P0", "ext2", "HARDDISK1", "/", MOUNTOPTION_REMOUNT);
+  vfs_node_t *node3 = vfs_get_node_from_path ("HARDDISK1:/");
   readdir (node3, 0);
-  kprintf ("-----------------------------------------\n");
+  kprintf ("-F3----------------------------------------\n");
+
+  kprintf ("-I4----------------------------------------\n");
+  sys_mount ("DEVICE:/IDE0C0D0P3", "ext2", "HARDDISK2", "/", MOUNTOPTION_REMOUNT);
+  vfs_node_t *node4 = vfs_get_node_from_path ("HARDDISK3:/");
+  readdir (node4, 0);
+  kprintf ("-F4----------------------------------------\n");
+
+  kprintf ("-I5----------------------------------------\n");
+  sys_mount ("DEVICE:/IDE0C0D0P4", "ext2", "HARDDISK3", "/", MOUNTOPTION_REMOUNT);
+  vfs_node_t *node5 = vfs_get_node_from_path ("HARDDISK3:/");
+  readdir (node5, 0);
+  kprintf ("-F5----------------------------------------\n");
 }
 
 
