@@ -46,7 +46,7 @@ typedef struct {
 /************************************************************************
  * Initialize the kernel memory manager.
  */
-int heap_init (void) {
+unsigned int heap_init (void) {
   int i;
 
   // Set temporary heap settings

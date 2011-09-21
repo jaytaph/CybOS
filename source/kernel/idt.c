@@ -154,7 +154,7 @@ Uint64 idt_get_descriptor (int index) {
 /********************************************************
  * Sets up the Interrupt Descriptor Table.
  */
-int idt_init (void) {
+unsigned int idt_init (void) {
   Uint64 idt;
   TIDTR idtr;
   int i;

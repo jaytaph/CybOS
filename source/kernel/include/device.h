@@ -32,8 +32,8 @@
     } device_t;
 
 
-  int device_register (device_t *dev, const char *filename);
-  int device_unregister (device_t *dev);
+  unsigned int device_register (device_t *dev, const char *filename);
+  unsigned int device_unregister (device_t *dev);
   void device_init (void);
   device_t *device_get_device (int major_num, int minor_num);
 

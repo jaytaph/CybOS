@@ -47,15 +47,11 @@
   void tprintf (const char *fmt, ...);
   int get_boot_parameter (const char *boot_parameters, const char *arg, char *buffer);
 
-
-
-
-
 /**
  *
  */
 void readdir (vfs_node_t *root, int depth) {
-//  kprintf ("readdir ()\n");
+  //kprintf ("readdir ()\n");
   vfs_dirent_t *unsafe_dirent;
   vfs_node_t *unsafe_node;
   vfs_dirent_t local_dirent;
@@ -66,30 +62,29 @@ void readdir (vfs_node_t *root, int depth) {
   // Never trust the vfs_node_t pointers!
   vfs_node_t local_root_node;
   memcpy (&local_root_node, root, sizeof (vfs_node_t));
-//kprintf ("readdir(): node copy\n");
+  //kprintf ("readdir(): node copy\n");
 
   while (unsafe_dirent = vfs_readdir (&local_root_node, index), unsafe_dirent != NULL) {
     index++;
-//    kprintf ("readdir(): Reading index %d\n", index);
+    //kprintf ("readdir(): Reading index %d\n", index);
 
     // Copy to local scope
     memcpy (&local_dirent, unsafe_dirent, sizeof (vfs_dirent_t));
 
     // File cannot be found (huh?)
-    unsafe_node = vfs_finddir (&local_root_node, local_dirent.name);
-    if (! unsafe_node) continue;
+    if ((unsafe_node = vfs_finddir (&local_root_node, local_dirent.name)) == FALSE) continue;
 
     // Copy to local scope
     memcpy (&local_node, unsafe_node, sizeof (vfs_node_t));
 
-    for (j=0; j!=depth; j++) kprintf ("  ");
-    if ((local_node.flags & FS_DIRECTORY) == FS_DIRECTORY)  {
+    for (j= 0; j != depth; j++) kprintf ("  ");
+    if ((local_node.flags & FS_DIRECTORY) == FS_DIRECTORY) {
       // This is a directory
       kprintf ("<%s>\n", local_node.name);
 
       // Read directory when it's not '.' or '..'
       if (strcmp (local_node.name, ".") != 0 && strcmp (local_node.name, "..") != 0) {
-        readdir (&local_node, depth+1);
+        readdir (&local_node, depth + 1);
       }
     } else {
       if ( (local_node.flags & FS_BLOCKDEVICE) == FS_BLOCKDEVICE ||
@@ -103,7 +98,7 @@ void readdir (vfs_node_t *root, int depth) {
     }
   } // while readdir (root, length)
 
-//  kprintf ("readdir() done\n");
+  //kprintf ("readdir() done\n");
 }
 
 
@@ -187,7 +182,7 @@ void kernel_setup (int stack_start, int total_sys_memory, const char *boot_param
   fat12_init ();
   // ext3_init ();  // @TODO: create ext3
 
-  int ret = sys_mount (NULL, "devfs", "DEVICE", "/", 0);
+  unsigned short int ret = sys_mount (NULL, "devfs", "DEVICE", "/", 0);
   if (! ret) kpanic ("Error while mounting DevFS filesystem. Cannot continue!\n");
 
   // Start interrupts, needed because we now do IRQ's for floppy access
@@ -230,7 +225,7 @@ void mount_root_system (const char *boot_params) {
   get_boot_parameter (boot_params, "root_type=", (char *)&root_type);
 
   // Mount "ROOT" as our system
-  int ret = sys_mount (root_device_path, root_type, "ROOT", "/", MOUNTOPTION_REMOUNT);
+  unsigned short int ret = sys_mount (root_device_path, root_type, "ROOT", "/", MOUNTOPTION_REMOUNT);
   if (! ret) kpanic ("Error while mounting root filesystem from '%s'. Cannot continue!\n", root_device_path);
 
 /*
@@ -241,9 +236,9 @@ void mount_root_system (const char *boot_params) {
 */
 }
 
-
 char queue_find_item_str[20];
-int queue_find_item (const void *item) {
+
+unsigned int queue_find_item (const void *item) {
   kprintf ("inside queue_find_item: Browsing item '%s'\n", item);
   if (strcmp (item, queue_find_item_str) == 0) {
     kprintf ("Found a match!\n");

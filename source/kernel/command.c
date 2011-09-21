@@ -27,7 +27,7 @@ char descriptortypes[][50] = {
  *
  * In  : con_idx = index number of the console.
  */
-int cmd_print_gdt (int con_idx)
+unsigned int cmd_print_gdt (int con_idx)
 {
   /*
   TGDTR tmp_gdtr;
