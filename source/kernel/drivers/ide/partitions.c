@@ -42,6 +42,7 @@ void ide_read_partition_table (ide_drive_t *drive, Uint32 lba_sector) {
   for (i=0; i!=4; i++) {
     if (mbr->partition[i].system_id == 0) continue;
 
+/*
     kprintf ("P%d: boot : %02X  id: %02X   lba: %08d   size: %08d   end: %08d\n",
             i,
             mbr->partition[i].boot,
@@ -49,6 +50,7 @@ void ide_read_partition_table (ide_drive_t *drive, Uint32 lba_sector) {
             mbr->partition[i].first_lba_sector,
             mbr->partition[i].size,
             mbr->partition[i].first_lba_sector + mbr->partition[i].size);
+*/
 
     // Register device so we can access it
     device_t *device = (device_t *)kmalloc (sizeof (device_t));
@@ -101,6 +103,8 @@ void ide_read_partition_table (ide_drive_t *drive, Uint32 lba_sector) {
 
 Uint32 ide_partition_block_read (Uint8 major, Uint8 minor, Uint32 offset, Uint32 size, char *buffer) {
   if (major != DEV_MAJOR_HDC) return 0;
+
+//  kprintf("ide_partition_block_read(%08X (%04X)\n", offset, size);
 
   device_t *device = device_get_device(major, minor);
   if (! device) return 0;
