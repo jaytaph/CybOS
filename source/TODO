@@ -63,3 +63,4 @@ Things todo:
  ( ) devicefs: random
  ( ) kernel module loading (module info|add|remove)
  ( ) infofs: module list (including kernel modules)
+ ( ) ext2: refactor ext2 structures into "common" values (i_inode etc)

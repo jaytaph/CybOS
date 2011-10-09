@@ -33,10 +33,12 @@ cp ../binary/boot/bootlvl2.bin /tmp/fat12mnt/SYSTEM/BOOTLVL2.BIN
 cp ../binary/kernel/cybos32.bin /tmp/fat12mnt/SYSTEM/CYBOS32.BIN
 cp ../binary/apps/init.bin /tmp/fat12mnt/SYSTEM/INIT.BIN
 
+# Dummy items
 touch /tmp/fat12mnt/SYSTEM/BIN/MC.BIN
 touch /tmp/fat12mnt/APPS/MC.BIN
 touch /tmp/fat12mnt/APPS/MC.BIN
 
+# A document
 echo "Hello world" > /tmp/fat12mnt/DOCS/DOCUMENT.TXT
 
 # Unmount
