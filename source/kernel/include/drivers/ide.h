@@ -114,7 +114,7 @@
     char                enabled;             // Enabled or not (in case no extra drive on the IDE cable)
     struct ide_channel  *channel;            // Pointer to the channel this drive is on. You can find the
                                              // controller at *drive->channel->controller
-    char                drive_nr;            // Master drive (IDE_DRIVE_MASTER) or slave drive (IDE_DRIVE_SLAVE)
+    Uint8               drive_nr;            // Master drive (IDE_DRIVE_MASTER) or slave drive (IDE_DRIVE_SLAVE)
     char                type;                // ata (IDE_DRIVE_TYPE_ATAPI) or atapi (IDE_DRIVE_TYPE_ATAPI)
     Uint32              size;                // Size in sectors
     Uint16              signature;
@@ -127,7 +127,7 @@
 
   // Primary or secondary master channels
   typedef struct ide_channel {
-    char                   channel_nr;       // Is this a primary or secondary channel (IDE_CHANNEL_PRIMARY / IDE_CHANNEL_SECONDARY)
+    Uint8                  channel_nr;       // Is this a primary or secondary channel (IDE_CHANNEL_PRIMARY / IDE_CHANNEL_SECONDARY)
     struct ide_controller  *controller;      // Pointer to the controller this channel is on
 
     Uint16                 base;             // Base port address
@@ -143,7 +143,7 @@
    * be supported. Allthough there is a MAX_IDE_CONTROLLERS limit in cybos at the moment */
   typedef struct ide_controller {
     char                enabled;             // Needed because we don't use a linked list
-    char                controller_nr;
+    Uint8                controller_nr;
     struct ide_channel  channel[4];          // Channels (everybody tells only 2, but bochs has 4?)
   } ide_controller_t;
 
