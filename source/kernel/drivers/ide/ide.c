@@ -164,12 +164,12 @@ void ide_sleep (ide_channel_t *channel, int ms) {
  */
 void ide_init_drive (ide_drive_t *drive) {
   char type = IDE_DRIVE_TYPE_ATA;
-  char ide_buffer[512];
+  char ide_buffer[512];         // @TODO: kmalloc
   char err = 0;
   char status;
   int i;
 
-//  kprintf ("    ide_init_drive()\n");
+//  kprintf ("    ide_init_drive() : %d \n", drive->channel->controller->controller_nr);
 
   // Default, drive is not enabled
   drive->enabled = 0;
@@ -309,16 +309,16 @@ void ide_init_controller (ide_controller_t *ctrl, pci_device_t *pci_dev, Uint16 
   bar[4] = pci_config_get_dword (pci_dev, 0x20) & 0xFFFFFFFC;
 
   // Set standard info for channel 0 (master)
-  int i;
-  for (i=0; i!=IDE_CONTROLLER_MAX_CHANNELS; i++) {
-    ctrl->channel[i].channel_nr = i;
-    ctrl->channel[i].base = io_port[i*2+0];
-    ctrl->channel[i].dev_ctl = io_port[i*2+1] + 4;
-    ctrl->channel[i].bm_ide = bar[4] + 0;
-    ctrl->channel[i].pci = pci_dev;
-
-    ctrl->channel->controller = ctrl;
-    ide_init_channel (&ctrl->channel[i]);
+  int channel_nr;
+  for (channel_nr=0; channel_nr != IDE_CONTROLLER_MAX_CHANNELS; channel_nr++) {
+//    kprintf ("Checking controller channel %d\n", channel_nr);
+    ctrl->channel[channel_nr].channel_nr = channel_nr;
+    ctrl->channel[channel_nr].base = io_port[channel_nr*2+0];
+    ctrl->channel[channel_nr].dev_ctl = io_port[channel_nr*2+1] + 4;
+    ctrl->channel[channel_nr].bm_ide = bar[4] + 0;
+    ctrl->channel[channel_nr].pci = pci_dev;
+    ctrl->channel[channel_nr].controller = ctrl;   // Link back to controller from the channel
+    ide_init_channel (&ctrl->channel[channel_nr]);
   }
 
   // Enable this controller
@@ -357,7 +357,8 @@ void ide_init (void) {
 
 //  kprintf ("ide_init() done\n");
 
-
+/*
+  // print controller information
   int i,j,k;
   for (i=0; i!=MAX_IDE_CONTROLLERS; i++) {
     if (! ide_controllers[i].enabled) continue;
@@ -375,6 +376,7 @@ void ide_init (void) {
       }
     }
   }
+*/
 
 }
 
@@ -394,6 +396,8 @@ Uint32 ide_block_read (Uint8 major, Uint8 minor, Uint32 offset, Uint32 size, cha
   Uint32 lba_sector = offset / IDE_SECTOR_SIZE;
   char *tmpbuf[IDE_SECTOR_SIZE];
   Uint32 read_size = 0;
+
+//  kprintf("ide_block_read(%08X (%04X)\n", offset, size);
 
   if (major != DEV_MAJOR_IDE) return 0;
 
