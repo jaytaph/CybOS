@@ -125,13 +125,13 @@ Uint32 ide_partition_block_read (Uint8 major, Uint8 minor, Uint32 offset, Uint32
 
   // if size > offset + size of disk, trunk size
   if (offset + size > (partition->lba_size * IDE_SECTOR_SIZE)) {
-    kprintf ("Trunking size since we are out of partition bounds");
+    kprintf ("Trunking size since we are out of partition bounds\n");
     size = (partition->lba_size * IDE_SECTOR_SIZE) - offset;
   }
 
   // if offset > size of disk return 0
   if (offset > (partition->lba_end * IDE_SECTOR_SIZE)) {
-    kprintf ("Trying to read outside partition bounds");
+    kprintf ("Trying to read outside partition bounds\n");
     return 0;
   }
 

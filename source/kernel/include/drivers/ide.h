@@ -122,7 +122,9 @@
     Uint32              command_sets;
     char                model[41];           // Model of the drive
 
-    char                lba48;            // Device supports LBA48 instead of only LBA28
+    char                lba48;               // Device supports LBA48 instead of only LBA28
+
+    char                databuf[IDE_SECTOR_SIZE];    // Simple data structure that holds temporary data for 1 sector at most
   } ide_drive_t;
 
   // Primary or secondary master channels

@@ -63,6 +63,8 @@ Uint8 ide_port_read (ide_channel_t *channel, Uint8 reg) {
 int ide_polling (ide_channel_t *channel, char advanced_check) {
   int i;
 
+//  kprintf("ide_polling()\n");
+
   // 400 uSecond delay by reading the altstatus port 4 times
   for (i=0; i<4; i++) ide_port_read (channel, IDE_REG_ALTSTATUS);
 
@@ -164,7 +166,6 @@ void ide_sleep (ide_channel_t *channel, int ms) {
  */
 void ide_init_drive (ide_drive_t *drive) {
   char type = IDE_DRIVE_TYPE_ATA;
-  char ide_buffer[512];         // @TODO: kmalloc
   char err = 0;
   char status;
   int i;
@@ -204,30 +205,24 @@ void ide_init_drive (ide_drive_t *drive) {
   }
 
   // Read device identification
-  ide_port_read_buffer(drive->channel, IDE_REG_DATA, (Uint32)ide_buffer, 128);
-
-/*
-  for (i=0; i!=128; i++) {
-    kprintf ("%02X ", (Uint8)ide_buffer[i]);
-    if (i % 16 == 15) kprintf ("\n");
-  }
-*/
+  char *ide_info = (char *)kmalloc(512);
+  ide_port_read_buffer(drive->channel, IDE_REG_DATA, (Uint32)ide_info, 128);
 
   // Read device parameters
   drive->enabled      = 1;
   drive->type         = type;
-  drive->signature    = *(Uint16 *)(ide_buffer + IDE_IDENT_DEVICETYPE);
-  drive->capabilities = *(Uint16 *)(ide_buffer + IDE_IDENT_CAPABILITIES);
-  drive->command_sets = *(Uint32 *)(ide_buffer + IDE_IDENT_COMMANDSETS);
+  drive->signature    = *(Uint16 *)(ide_info + IDE_IDENT_DEVICETYPE);
+  drive->capabilities = *(Uint16 *)(ide_info + IDE_IDENT_CAPABILITIES);
+  drive->command_sets = *(Uint32 *)(ide_info + IDE_IDENT_COMMANDSETS);
 
   // Get drive size
   if (drive->command_sets & (1 << 26)) {
     // Device uses 48-Bit Addressing:
-    drive->size  = *(Uint32 *)(ide_buffer + IDE_IDENT_MAX_LBA);
+    drive->size  = *(Uint32 *)(ide_info + IDE_IDENT_MAX_LBA);
     drive->lba48 = 1;
   } else {
     // Device uses CHS or 28-bit Addressing
-    drive->size  = *(Uint32 *)(ide_buffer + IDE_IDENT_MAX_LBA);
+    drive->size  = *(Uint32 *)(ide_info + IDE_IDENT_MAX_LBA);
     drive->lba48 = 0;
   }
 
@@ -236,10 +231,12 @@ void ide_init_drive (ide_drive_t *drive) {
 
   // Get identification string
   for (i=0; i<40; i+=2) {
-    drive->model[i] = ide_buffer[IDE_IDENT_MODEL + i + 1];
-    drive->model[i+1] = ide_buffer[IDE_IDENT_MODEL + i];
+    drive->model[i] = ide_info[IDE_IDENT_MODEL + i + 1];
+    drive->model[i+1] = ide_info[IDE_IDENT_MODEL + i];
   }
   drive->model[40] = 0; // terminate string
+
+  kfree(ide_info);
 
 
 
@@ -393,11 +390,9 @@ void ide_init (void) {
  * @return
  */
 Uint32 ide_block_read (Uint8 major, Uint8 minor, Uint32 offset, Uint32 size, char *buffer) {
+//  kprintf("ide_block_read(%08X (%04X))\n", offset, size);
   Uint32 lba_sector = offset / IDE_SECTOR_SIZE;
-  char *tmpbuf[IDE_SECTOR_SIZE];
   Uint32 read_size = 0;
-
-//  kprintf("ide_block_read(%08X (%04X)\n", offset, size);
 
   if (major != DEV_MAJOR_IDE) return 0;
 
@@ -413,8 +408,8 @@ Uint32 ide_block_read (Uint8 major, Uint8 minor, Uint32 offset, Uint32 size, cha
   if (offset % IDE_SECTOR_SIZE > 0) {
     Uint8 restcount = offset % IDE_SECTOR_SIZE;
 //    kprintf("ide preread(%d)\n", restcount);
-    ide_sector_read(drive, lba_sector, 1, (char *)&tmpbuf);
-    memcpy(buffer, &tmpbuf[restcount], 512-restcount);
+    ide_sector_read(drive, lba_sector, 1, (char *)drive->databuf);
+    memcpy(buffer, &drive->databuf[restcount], 512-restcount);
 
     read_size += restcount;
     lba_sector++;
@@ -438,8 +433,8 @@ Uint32 ide_block_read (Uint8 major, Uint8 minor, Uint32 offset, Uint32 size, cha
   // Read post misaligned sector data
   if (size > 0) {
 //    kprintf ("ide postread(%d)", size);
-    ide_sector_read(drive, lba_sector, 1, (char *)&tmpbuf);
-    memcpy(buffer, &tmpbuf[0], size);
+    ide_sector_read(drive, lba_sector, 1, (char *)drive->databuf);
+    memcpy(buffer, &drive->databuf[0], size);
 
     read_size += size;
   }
