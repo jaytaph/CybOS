@@ -53,48 +53,89 @@ vfs_node_t filenode;   // Entry that gets returned by ext2_finddir
 
 
 /**
- * Converts a block number to LBA sectors
+ * Converts a block number to LBA sector
  *
  * @param mount
  * @param inode_block
  * @return
  */
-Uint32 ext2_block2diskoffset(struct vfs_mount *mount, Uint32 inode_block) {
+Uint32 ext2_block2diskoffset(struct vfs_mount *mount, Uint32 ext2_block) {
   ext2_info_t *ext2_info = mount->fs_data;
+//  kprintf("b2d: %d\n", ext2_block);
   // @TODO: Do we really want to fixate sector size here?
-  return inode_block * ext2_info->sectors_per_block * IDE_SECTOR_SIZE;
+  return ext2_block * ext2_info->sectors_per_block * IDE_SECTOR_SIZE;
 }
-
 
 
 /**
- * Returns the block number where the inode can be found
+ * Reads one or more ext2 blocks into memory
  *
  * @param mount
- * @param inode_nr
- * @return
+ * @param block_num
+ * @param block_count
+ * @param buffer
+ * @return 0 when something is wrong
  */
-Uint32 ext2_inode2block(struct vfs_mount *mount, Uint32 inode_nr) {
+int ext2_read_block(struct vfs_mount *mount, int block_num, int block_count, char *buffer) {
   ext2_info_t *ext2_info = mount->fs_data;
 
-
-  // @TODO: Optimize: cache the block groups instead of kmalloc/kfree them
-  // continuously. We have to make sure we don't get into trouble with multiple
-  // filesystems that use the same code (maybe a block-buffer per mount?)
-
-  // Find block which this inode resides in
-  Uint32 block_group = (inode_nr - 1) / ext2_info->superblock->inodesInGroupCount;
-  if (block_group > ext2_info->group_descriptor_count) return NULL;
-
-
-  ext2_blockdescriptor_t *group_descriptor = &ext2_info->block_descriptor[block_group];
-
-  // Found the correct block group descriptor, now calculate the actual inode block
-  return group_descriptor->inodeTableStart;
+  // Convert block inti
+  Uint32 offset = ext2_block2diskoffset(mount, block_num);
+  Uint32 size = block_count * ext2_info->block_size;
+  return (mount->dev->read (mount->dev->major_num, mount->dev->minor_num, offset, size, buffer) == size);
 }
 
+/**
+ * Allocates and loads a block.
+ *
+ * NOTE, you need to free this block yourself
+ *
+ * @param mount
+ * @param offset
+ * @param size
+ * @return
+ */
+void *ext2_allocate_and_read_block(struct vfs_mount *mount, int block_num, int block_count) {
+  ext2_info_t *ext2_info = mount->fs_data;
 
+  // Allocate buffer
+  void *buffer = kmalloc(block_count * ext2_info->block_size);
+  if (!buffer) return NULL;
+  memset(buffer, 0, block_count * ext2_info->block_size);
 
+  // Read from block
+  if (! ext2_read_block(mount, block_num, block_count, buffer)) {
+      // Error while reading
+      kfree(buffer);
+      return NULL;
+  }
+
+  return buffer;
+}
+
+/**
+ * NOTE, you need to free this block yourself
+ *
+ * @param mount
+ * @param offset
+ * @param size
+ * @return
+ */
+void *ext2_allocate_and_read_offset(struct vfs_mount *mount, int offset, int size) {
+  // Allocate buffer
+  void *buffer = kmalloc(size);
+  if (!buffer) return NULL;
+  memset(buffer, 0, size);
+
+  // Read direct from offset/size
+  if (mount->dev->read (mount->dev->major_num, mount->dev->minor_num, offset, size, buffer) != size) {
+      // Error while reading
+      kfree(buffer);
+      return NULL;
+  }
+
+  return buffer;
+}
 
 /**
  * Read inode from disk
@@ -114,26 +155,37 @@ ext2_inode_t *ext2_read_inode(struct vfs_mount *mount, Uint32 inode_nr) {
     return NULL;
   }
 
-  // Locate and read inode block
-  Uint32 inode_block = ext2_inode2block(mount, inode_nr);
-  char *data_block = kmalloc (ext2_info->block_size);
-  memset (data_block, 0, ext2_info->block_size);
+  // Find the blockgroup in which this inode resides
+  Uint32 block_group = (inode_nr - 1) / ext2_info->superblock->inodesInGroupCount;
+  if (block_group > ext2_info->group_descriptor_count) return NULL;
 
-  Uint32 diskoffset = ext2_block2diskoffset(mount, inode_block);
-  int rb = mount->dev->read (mount->dev->major_num, mount->dev->minor_num, diskoffset, ext2_info->block_size, data_block);
-  if (rb != ext2_info->block_size) {
+  // @TODO: Inode size must be checked from superblock (version 1+)
+
+  // We will only read 1 block: the block that has actually got our inode data
+  Uint32 inodes_per_block = ext2_info->block_size / 128;
+  Uint32 block_offset = ((inode_nr - 1) % ext2_info->superblock->inodesInGroupCount) / inodes_per_block;
+
+  // Find the actual start of inodes in this group
+  ext2_blockdescriptor_t *group_descriptor = &ext2_info->block_descriptor[block_group];
+  Uint32 inode_block = group_descriptor->inodeTableStart + block_offset;
+
+  // Find the offset of the inode inside the block
+  Uint32 inode_index = (((inode_nr - 1) % ext2_info->superblock->inodesInGroupCount) % inodes_per_block) * 128;
+
+
+  // Read the block that holds our inode
+  char *data_block;
+  if (! (data_block = ext2_allocate_and_read_block(mount, inode_block, 1))) {
     kprintf ("Error: could not read inode from device %d:%d", mount->dev->major_num, mount->dev->minor_num);
     return NULL;
   }
 
-
   // Read inode entry from block
-  // @TODO: Inode size must be checked from superblock (version 1+)
-  Uint32 inode_offset = ((inode_nr - 1) % ext2_info->superblock->inodesInGroupCount) * 128;
-
-  // Copy inode to new inode
   ext2_inode_t *inode = (ext2_inode_t *)kmalloc(sizeof(ext2_inode_t));
-  memcpy(inode, data_block+inode_offset, sizeof(ext2_inode_t));
+  memcpy(inode, (char *)data_block+inode_index, sizeof(ext2_inode_t));
+
+  // Free data block
+  kfree(data_block);
 
   // And return
   return inode;
@@ -146,35 +198,6 @@ ext2_inode_t *ext2_read_inode(struct vfs_mount *mount, Uint32 inode_nr) {
 
 
 
-// Allocates and loads a block
-void *ext2_load_block(struct vfs_mount *mount, int offset, int size) {
-  // Allocate buffer
-  void *block = kmalloc (size);
-  if (!block) return NULL;
-  memset (block, 0, size);
-
-  int rb = mount->dev->read (mount->dev->major_num, mount->dev->minor_num, offset, size, (char *)block);
-  if (rb != size) return NULL;
-
-  return block;
-}
-
-/**
- * Reads one or more ext2 blocks into memory
- *
- * @param mount
- * @param block_num
- * @param block_count
- * @param buffer
- * @return
- */
-int ext2_read_block(struct vfs_mount *mount, int block_num, int block_count, char *buffer) {
-  ext2_info_t *ext2_info = mount->fs_data;
-
-  Uint32 offset = ext2_block2diskoffset(mount, block_num);
-  Uint32 size = block_count * ext2_info->block_size;
-  return mount->dev->read (mount->dev->major_num, mount->dev->minor_num, offset, size, buffer);
-}
 
 
 /**
@@ -189,7 +212,7 @@ vfs_node_t *ext2_mount (struct vfs_mount *mount, device_t *dev, const char *path
   ext2_info_t *ext2_info = mount->fs_data;
 
   // Load superblock
-  if (! (ext2_info->superblock = ext2_load_block(mount, 1024, 1024))) goto cleanup;
+  if (! (ext2_info->superblock = ext2_allocate_and_read_offset(mount, 1024, 1024))) goto cleanup;
 
 
   // Check filesystem
@@ -197,6 +220,7 @@ vfs_node_t *ext2_mount (struct vfs_mount *mount, device_t *dev, const char *path
     switch(ext2_info->superblock->errorHandling) {
       case 1 :
                 kprintf("Warning: EXT2 filesystem has errors.\n");
+                break;
       case 2 :
                 kpanic("Remounting EXT2 filesystem in RO mode (but this is not yet implemented\n");
                 break;
@@ -210,14 +234,13 @@ vfs_node_t *ext2_mount (struct vfs_mount *mount, device_t *dev, const char *path
 
   // Precalc some values
   ext2_info->block_size = 1024 << ext2_info->superblock->blockSizeLog2;
-  ext2_info->group_size =
   ext2_info->group_descriptor_count = ext2_info->superblock->firstDataBlock + 1;
   ext2_info->group_count = ext2_info->superblock->inodeCount / ext2_info->superblock->inodesInGroupCount;
-  ext2_info->sectors_per_block = ext2_info->block_size / 512;
+  ext2_info->sectors_per_block = ext2_info->block_size / IDE_SECTOR_SIZE ;
   ext2_info->first_group_start = ext2_info->group_descriptor_count + ext2_info->sectors_per_block;
 
   // Load other blocks that are needed a lot
-  if (! (ext2_info->block_descriptor = ext2_load_block(mount, EXT2_BLOCKGROUPDESCRIPTOR_BLOCK * ext2_info->block_size, ext2_info->block_size))) goto cleanup;
+  if (! (ext2_info->block_descriptor = ext2_allocate_and_read_offset(mount, EXT2_BLOCKGROUPDESCRIPTOR_BLOCK * ext2_info->block_size, ext2_info->block_size))) goto cleanup;
 
   // Create and return root node
   ext2_inode_t *inode = ext2_read_inode(mount, EXT2_ROOT_INO);
@@ -390,8 +413,7 @@ vfs_node_t *ext2_finddir (vfs_node_t *node, const char *name) {
     if (inode->directPointerBlock[i] == 0) break;
 
     // Read blocks from disk into buffer
-    Uint32 rb = ext2_read_block(node->mount, inode->directPointerBlock[i], 1, buffer);
-    if (rb != ext2_info->block_size) {
+    if (! ext2_read_block(node->mount, inode->directPointerBlock[i], 1, buffer)) {
       kprintf("Ext2: cannot read complete block\n");
       kfree(buffer);
       kfree(inode);
@@ -403,9 +425,13 @@ vfs_node_t *ext2_finddir (vfs_node_t *node, const char *name) {
   }
 
 
-  // Iterate until we find the
-  while (ext2_dir->inode_nr > 0 && strcmp((char *)&ext2_dir->name, name) != 0) {
-    ext2_dir += ext2_dir->rec_len;
+
+  // Iterate until we find the correct name
+  Uint8 namelen = strlen(name);
+  while (ext2_dir->inode_nr > 0 &&
+         strncmp((char *)&ext2_dir->name, name, namelen) != 0 &&
+         ext2_dir->name_len != namelen) {
+    ext2_dir = (ext2_dir_t *)( (void *)ext2_dir + ext2_dir->rec_len );
   }
 
   // Could not find entry
@@ -428,7 +454,7 @@ vfs_node_t *ext2_finddir (vfs_node_t *node, const char *name) {
   strncpy((char *)filenode.name, (char *)&ext2_dir->name, ext2_dir->name_len);
   filenode.owner = file_inode->uid;
   filenode.length = file_inode->sizeLow; // @TODO: 32bit.
-  filenode.flags = (file_inode->flags & EXT2_S_IFDIR) ? FS_DIRECTORY : FS_FILE;
+  filenode.flags = ((file_inode->typeAndPermissions & EXT2_S_IFDIR) == EXT2_S_IFDIR) ? FS_DIRECTORY : FS_FILE;
 
   kfree(buffer);
   kfree(inode);
@@ -460,7 +486,7 @@ vfs_dirent_t *ext2_readdir (vfs_node_t *node, Uint32 index) {
 
   // Read the directory blocks
   for (i=0; i!=inode->sizeLow / ext2_info->block_size; i++) {
-    // @TODO: We don't do indirect blocks now
+    // @TODO: We don't do indirect blocks now, sorry
     if (i > 11) {
       kprintf ("Ext2: we can only read direct blocks\n");
       kfree(buffer);
@@ -471,9 +497,10 @@ vfs_dirent_t *ext2_readdir (vfs_node_t *node, Uint32 index) {
     // Block 0 encountered, reached end of blocks
     if (inode->directPointerBlock[i] == 0) break;
 
+//    kprintf("IDPB[%d]: %d\n", i, inode->directPointerBlock[i]);
+
     // Read blocks from disk into buffer
-    Uint32 rb = ext2_read_block(node->mount, inode->directPointerBlock[i], 1, buffer);
-    if (rb != ext2_info->block_size) {
+    if (! ext2_read_block(node->mount, inode->directPointerBlock[i], 1, buffer)) {
       kprintf("Ext2: cannot read complete block\n");
       kfree(buffer);
       kfree(inode);
@@ -486,8 +513,8 @@ vfs_dirent_t *ext2_readdir (vfs_node_t *node, Uint32 index) {
 
 
   // Iterate through N directory entries
-  while (index != 0) {
-    if (ext2_dir->inode_nr == 0) {
+  while (index > 0) {
+    if (ext2_dir->inode_nr == 0 || ext2_dir->name_len == 0) {
       // No more inodes found (index too large probably)
       kfree(buffer);
       kfree(inode);
@@ -495,7 +522,8 @@ vfs_dirent_t *ext2_readdir (vfs_node_t *node, Uint32 index) {
     }
 
     // Goto next entry
-    ext2_dir += ext2_dir->rec_len;
+    kprintf ("[%d] Rec_len: %d (Inode: %d)\n", index, ext2_dir->rec_len, ext2_dir->inode_nr);
+    ext2_dir = (ext2_dir_t *)( (void *)ext2_dir + ext2_dir->rec_len );
 
     index--;
   }

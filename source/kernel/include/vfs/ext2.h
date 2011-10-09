@@ -147,7 +147,7 @@ typedef struct {
     Uint16      rec_len;
     Uint8       name_len;
     Uint8       file_type;
-    char        *name;
+    char        name[];
 } ext2_dir_t;
 
 
@@ -160,7 +160,6 @@ typedef struct {
 
     // Precalced values
     Uint32                  block_size;
-    Uint32                  group_size;
     Uint32                  group_count;
     Uint32                  sectors_per_block;
     Uint32                  first_group_start;

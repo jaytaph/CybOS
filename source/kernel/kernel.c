@@ -56,7 +56,7 @@
  *
  */
 void readdir (vfs_node_t *root, int depth) {
-//  kprintf ("readdir ()\n");
+  kprintf ("readdir(): Reading index (%s) %d at depth %d\n", root->name, root->inode_nr, depth);
   vfs_dirent_t *unsafe_dirent;
   vfs_node_t *unsafe_node;
   vfs_dirent_t local_dirent;
@@ -71,7 +71,7 @@ void readdir (vfs_node_t *root, int depth) {
 
   while (unsafe_dirent = vfs_readdir (&local_root_node, index), unsafe_dirent != NULL) {
     index++;
-//    kprintf ("readdir(): Reading index %d\n", index);
+    kprintf ("readdir(): Reading index %d\n", index);
 
     // Copy to local scope
     memcpy (&local_dirent, unsafe_dirent, sizeof (vfs_dirent_t));
@@ -86,7 +86,7 @@ void readdir (vfs_node_t *root, int depth) {
     for (j=0; j!=depth; j++) kprintf ("  ");
     if ((local_node.flags & FS_DIRECTORY) == FS_DIRECTORY)  {
       // This is a directory
-      kprintf ("<%s>\n", local_node.name);
+      kprintf ("<%s> (%d bytes)\n", local_node.name, local_node.length);
 
       // Read directory when it's not '.' or '..'
       if (strcmp (local_node.name, ".") != 0 && strcmp (local_node.name, "..") != 0) {
@@ -235,26 +235,27 @@ void mount_root_system (const char *boot_params) {
   int ret = sys_mount (root_device_path, root_type, "ROOT", "/", MOUNTOPTION_REMOUNT);
   if (! ret) kpanic ("Error while mounting root filesystem from '%s'. Cannot continue!\n", root_device_path);
 
-
-
-/*
-  kprintf ("-I1----------------------------------------\n");
-  vfs_node_t *node1 = vfs_get_node_from_path ("ROOT:/");
-  readdir (node1, 0);
-  kprintf ("-F1----------------------------------------\n");
-*/
-
-  kprintf ("-I2----------------------------------------\n");
-  vfs_node_t *node2 = vfs_get_node_from_path ("DEVICE:/");
-  readdir (node2, 0);
-  kprintf ("-F2----------------------------------------\n");
-
   kprintf ("-I3----------------------------------------\n");
   sys_mount ("DEVICE:/IDE0C0D0P0", "ext2", "HARDDISK1", "/", MOUNTOPTION_REMOUNT);
   vfs_node_t *node3 = vfs_get_node_from_path ("HARDDISK1:/");
   readdir (node3, 0);
   kprintf ("-F3----------------------------------------\n");
 
+
+/*
+
+  kprintf ("-I1----------------------------------------\n");
+  vfs_node_t *node1 = vfs_get_node_from_path ("ROOT:/");
+  readdir (node1, 0);
+  kprintf ("-F1----------------------------------------\n");
+
+  kprintf ("-I2----------------------------------------\n");
+  vfs_node_t *node2 = vfs_get_node_from_path ("DEVICE:/");
+  readdir (node2, 0);
+  kprintf ("-F2----------------------------------------\n");
+*/
+
+/*
   kprintf ("-I4----------------------------------------\n");
   sys_mount ("DEVICE:/IDE0C0D0P3", "ext2", "HARDDISK2", "/", MOUNTOPTION_REMOUNT);
   vfs_node_t *node4 = vfs_get_node_from_path ("HARDDISK3:/");
@@ -266,6 +267,12 @@ void mount_root_system (const char *boot_params) {
   vfs_node_t *node5 = vfs_get_node_from_path ("HARDDISK3:/");
   readdir (node5, 0);
   kprintf ("-F5----------------------------------------\n");
+*/
+
+  kprintf ("THE END!\n");
+  for (;;) ;
+
+
 }
 
 

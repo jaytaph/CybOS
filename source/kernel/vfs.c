@@ -273,7 +273,7 @@ vfs_node_t *vfs_get_node_from_path (const char *path) {
     /* Cur_node MUST be a directory, since the next thing we read is a directory component
      * and we still have something left on the path */
     if ((cur_node->flags & 0x7) != FS_DIRECTORY) {
-      kprintf ("component is not a directory\n\n");
+//      kprintf ("component is not a directory\n\n");
       return NULL;
     }
 
@@ -301,7 +301,7 @@ vfs_node_t *vfs_get_node_from_path (const char *path) {
     // Find the entry if it exists
     cur_node = vfs_finddir (cur_node, component);
     if (! cur_node) {
-      kprintf ("component not found\n\n");
+//      kprintf ("component not found\n\n");
       return NULL;   // Cannot find node... error :(
     }
   }
@@ -388,6 +388,7 @@ int sys_mount (const char *device_path, const char *fs_type, const char *mount, 
     // @TODO: mutex this.. (@todo: why?)
     vfs_mount_table[i].enabled = 1;
 
+/*
     kprintf ("This system is currently mounted %d times\n", vfs_mount_table[i].system->mount_count);
 
     kprintf ("Mount table:\n");
@@ -395,6 +396,7 @@ int sys_mount (const char *device_path, const char *fs_type, const char *mount, 
       if (! vfs_mount_table[i].enabled) continue;
       kprintf ("%d  %-20s  %08s  %d\n", i, vfs_mount_table[i].mount, vfs_mount_table[i].system->info.tag, vfs_mount_table[i].system->mount_count);
     }
+*/
 
     // Return ok status
     return 1;
