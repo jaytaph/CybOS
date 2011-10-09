@@ -10,6 +10,7 @@
 #include "vfs.h"
 
 // This entry holds ALL major devices
+// @TODO: This should done through a queue (ll)
 device_t *ll_devices;
 
 /**
@@ -17,8 +18,6 @@ device_t *ll_devices;
  */
 void device_init (void) {
   ll_devices = NULL;
-
-  kprintf ("The size of device_t is %d bytes\n", sizeof(device_t));
 }
 
 
