@@ -88,7 +88,7 @@ void vfs_close(vfs_node_t *node) {
 /**
  *
  */
-struct dirent *vfs_readdir(vfs_node_t *node, Uint32 index) {
+int vfs_readdir(vfs_node_t *node, Uint32 index, struct dirent *target_dirent) {
 //  kprintf ("vfs_readdir (%s, %d) : ", node->name, index);
 
   // Check if it's a directory
@@ -101,18 +101,18 @@ struct dirent *vfs_readdir(vfs_node_t *node, Uint32 index) {
 //    kprintf ("Not fileops or fileops->readdir\n");
     return NULL;
   }
-  return node->fileops->readdir (node, index);
+  return node->fileops->readdir (node, index, target_dirent);
 }
 
 /**
  *
  */
-vfs_node_t *vfs_finddir (vfs_node_t *node, const char *name) {
+int vfs_finddir (vfs_node_t *node, const char *name, vfs_node_t *target_node) {
   // Check if it's a directory
   if ((node->flags & 0x7) != FS_DIRECTORY) return NULL;
 
   if (! node->fileops || ! node->fileops->finddir) return NULL;
-  return node->fileops->finddir (node, name);
+  return node->fileops->finddir (node, name, target_node);
 }
 
 /**
@@ -239,7 +239,7 @@ vfs_mount_t *vfs_get_mount_from_path (const char *path) {
 /**
  *
  */
-vfs_node_t *vfs_get_node_from_path (const char *path) {
+int vfs_get_node_from_path (const char *path, vfs_node_t *node) {
   char component[255];
   int cs;
 
@@ -250,30 +250,32 @@ vfs_node_t *vfs_get_node_from_path (const char *path) {
   vfs_mount_t *mount = vsf_get_mount (path, &path_suffix);
   if (mount == NULL) return NULL;
 
+
 //  kprintf ("VFS_GNFP Mount: '%s'\n", mount->mount);
 //  kprintf ("PATH: '%s'\n", path_suffix);
-
-  // Start with the supernode (the only in-memory node needed)
-  vfs_node_t *cur_node = mount->supernode;
-  cur_node->mount = mount;
 
   // This is a absolute path, start from root node (don't care
   char *c = path_suffix;
   if (*c != '/') return NULL;   // Must be absolute
 
+  // Start with the supernode (the only in-memory node needed)
+  memcpy (node, mount->supernode, sizeof(vfs_node_t));
+  node->mount = mount;  // @TODO Is this needed? Not already present in supernode?
+
   c++;
 
-  /* *c points to the first directory/file AFTER the '/' and cur_node is the supernode.
-   * Start browsing all directories and move to that node */
+  /* *c points to the first directory/file AFTER the '/' and node is the supernode.
+   * Start browsing all directories and move to that node
+   */
 
   // From this point, it's relative again
   while (*c) {
     if (*c == '/') c++;   // Skip directory separator if one is found (including root separator)
 
-    /* Cur_node MUST be a directory, since the next thing we read is a directory component
+    /* node MUST be a directory, since the next thing we read is a directory component
      * and we still have something left on the path */
-    if ((cur_node->flags & 0x7) != FS_DIRECTORY) {
-      kprintf ("component is not a directory\n\n");
+    if ((node->flags & 0x7) != FS_DIRECTORY) {
+//      kprintf ("component is not a directory\n\n");
       return NULL;
     }
 
@@ -286,7 +288,7 @@ vfs_node_t *vfs_get_node_from_path (const char *path) {
     // Increase to next entry (starting at the directory separator)
     c+=cs;
 
-//    kprintf ("Next component: '%s' (from inode %d)\n", component, cur_node->inode_nr);
+//    kprintf ("Next component: '%s' (from inode %d)\n", component, node->inode_nr);
 
     // Dot directory, skip since we stay on the same node
     if (strcmp (component, ".") == 0) continue;   // We could vfs_finddir deal with it, or do it ourself, we are faster
@@ -299,15 +301,16 @@ vfs_node_t *vfs_get_node_from_path (const char *path) {
     }
 
     // Find the entry if it exists
-    cur_node = vfs_finddir (cur_node, component);
-    if (! cur_node) {
-      kprintf ("component not found\n\n");
+    vfs_node_t new_node;
+    if (! vfs_finddir (node, component, &new_node)) {
+//      kprintf ("component not found\n\n");
       return NULL;   // Cannot find node... error :(
     }
+    memcpy(node, &new_node, sizeof(vfs_node_t));
   }
 
 //  kprintf ("All done.. returning vfs inode: %d\n\n", cur_node->inode_nr);
-  return cur_node;
+  return 1;
 }
 
 
@@ -330,7 +333,7 @@ int sys_umount (const char *mount_point) {
  *
  */
 int sys_mount (const char *device_path, const char *fs_type, const char *mount, const char *path, int mount_options) {
-  device_t *dev_ptr;
+  device_t *dev_ptr = NULL;
   int i;
 
   // Find the filesystem itself (is it registered)
@@ -348,13 +351,13 @@ int sys_mount (const char *device_path, const char *fs_type, const char *mount, 
   // Some filesystems do not have a device (cybfs, devfs etc)
   if (device_path != NULL) {
     // Check device
-    vfs_node_t *dev_node = vfs_get_node_from_path (device_path);
-    if (! dev_node) return 0;   // Path not found
+    vfs_node_t dev_node;
+    if (! vfs_get_node_from_path (device_path, &dev_node)) return 0; // Path not found
 
     // Cannot mount device if it's not a block device
-    if ((dev_node->flags & 0x7) != FS_BLOCKDEVICE) return 0;
+    if ((dev_node.flags & 0x7) != FS_BLOCKDEVICE) return 0;
 
-    dev_ptr = device_get_device (dev_node->major_num, dev_node->minor_num);
+    dev_ptr = device_get_device (dev_node.major_num, dev_node.minor_num);
     if (! dev_ptr) return 0;    // Cannot find the device registered to this file
   }
 
@@ -385,7 +388,7 @@ int sys_mount (const char *device_path, const char *fs_type, const char *mount, 
     // Error while doing fs specific mount init?
     if (! vfs_mount_table[i].supernode) return 0;
 
-    // @TODO: mutex this..
+    // @TODO: mutex this.. (@todo: why?)
     vfs_mount_table[i].enabled = 1;
 
 /*
@@ -406,5 +409,7 @@ int sys_mount (const char *device_path, const char *fs_type, const char *mount, 
   // Could not find a free slot
   return 0;
 }
+
+
 
 

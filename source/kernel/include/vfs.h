@@ -36,6 +36,7 @@
     // Forward declaration for next structures
     struct vfs_node;
     struct vfs_mount;
+    struct dirent;
 
 
     // Holds all possible file operations on files inside a FS
@@ -44,8 +45,8 @@
       Uint32(*write)(struct vfs_node *, Uint32, Uint32, char *);
       void (*open)(struct vfs_node *);
       void (*close)(struct vfs_node *);
-      struct dirent * (*readdir)(struct vfs_node *, Uint32);
-      struct vfs_node * (*finddir)(struct vfs_node *, const char *);
+      int (*readdir)(struct vfs_node *, Uint32, struct dirent *);
+      int (*finddir)(struct vfs_node *, const char *, struct vfs_node *);
       void (*mknod)(struct vfs_node *, const char *, char, Uint8, Uint8);
     };
 
@@ -119,8 +120,8 @@
     void vfs_create (vfs_node_t *node, const char *name);
     void vfs_open (vfs_node_t *node);
     void vfs_close (vfs_node_t *node);
-    vfs_dirent_t *vfs_readdir (vfs_node_t *node, Uint32 index);
-    vfs_node_t *vfs_finddir (vfs_node_t *node, const char *name);
+    int vfs_readdir (vfs_node_t *node, Uint32 index, vfs_dirent_t *target_dirent);
+    int vfs_finddir (vfs_node_t *node, const char *name, vfs_node_t *target_node);
     void vfs_mknod (struct vfs_node *node, const char *name, char device_type, Uint8 major_node, Uint8 minor_node);
 
     // Filesystem registration functionality
@@ -131,9 +132,8 @@
     int sys_mount (const char *device_path, const char *fs_type, const char *mount, const char *path, int mount_options);
     int sys_umount (const char *mount_point);
 
-
     // @TODO: remove
-    vfs_node_t *vfs_get_node_from_path (const char *path);
+    int vfs_get_node_from_path (const char *path, vfs_node_t *node);
     vfs_mount_t *vfs_get_mount_from_path (const char *path);
 
     // VFS init function

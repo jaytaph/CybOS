@@ -7,6 +7,7 @@
  *****************************************************************************/
 
 #include "drivers/floppy.h"
+#include "device.h"
 #include "kernel.h"
 #include "kmem.h"
 
@@ -321,7 +322,6 @@ void fdc_read_floppy_sector_CHS (Uint32 cylinder, Uint32 head, Uint32 sector) {
   _currentDrive->result.st0    = fdc_recv_data ();
   _currentDrive->result.st1    = fdc_recv_data ();
   _currentDrive->result.st2    = fdc_recv_data ();
-  _currentDrive->result.st3    = fdc_recv_data ();
   _currentDrive->result.track  = fdc_recv_data ();
   _currentDrive->result.head   = fdc_recv_data ();
   _currentDrive->result.sector = fdc_recv_data ();
@@ -397,9 +397,12 @@ Uint32 fdc_block_read (Uint8 major, Uint8 minor, Uint32 offset, Uint32 size, cha
   // Unknown minor device (ie: drive to read from)
   if (minor < 0 || minor > 3) return 0;
 
+  device_t *device = device_get_device(major, minor);
+  if (! device) return 0;
+
   // Switch to wanted drive
 //  kprintf ("Switch active drive\n");
-  fdc_switch_active_drive (&fdc->drives[minor], 0);
+  fdc_switch_active_drive ((fdc_drive_t *)device->data, 0);
 
   // Find out starting sector (plus rest)
   Uint32 lba_sector = offset / 512;
@@ -412,7 +415,7 @@ Uint32 fdc_block_read (Uint8 major, Uint8 minor, Uint32 offset, Uint32 size, cha
   }
 
   // Read complete sector into temporary buffer
-  fdc_read_floppy_sector (&fdc->drives[minor], lba_sector, (char *)&tmpbuf);
+  fdc_read_floppy_sector ((fdc_drive_t *)device->data, lba_sector, (char *)&tmpbuf);
 
   // Copy the part of the buffer we need
 //  kprintf ("fdc_block_read(): Returning from %d to %d (%d bytes)\n", rest_data, rest_data+size, size);
@@ -469,6 +472,7 @@ void fdc_init_drive (fdc_t *fdc, Uint8 drive_num, Uint8 drive_type) {
   device_t *device = (device_t *)kmalloc (sizeof (device_t));
   device->major_num = DEV_MAJOR_FDC;
   device->minor_num = (fdc->controller_num * 2) + drive_num;
+  device->data = (fdc_drive_t *)&fdc->drives[drive_num];
 
   device->read = fdc_block_read;
   device->write = fdc_block_write;

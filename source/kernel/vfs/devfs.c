@@ -50,9 +50,6 @@ const devfs_file_t devfs_default_layout[] = {
                                         { 0,  0, "devfs-root", DEVFS_TYPE_DIRECTORY, 0, 0 },
                                        };
 
-vfs_dirent_t devfs_rd_dirent;
-vfs_node_t devfs_fd_node;
-
 
 /**
  * Intializes CybFS filesystem
@@ -81,7 +78,7 @@ void devfs_init () {
 /**
  * Read directory entry X (numerical dir seek)
  */
-vfs_dirent_t *devfs_readdir (vfs_node_t *dirnode, Uint32 index) {
+int devfs_readdir (vfs_node_t *dirnode, Uint32 index, vfs_dirent_t *target_dirent) {
   int i, found;
 
 //  kprintf ("devfs_readdir(%s, %d)\n", dirnode->name, index);
@@ -113,17 +110,17 @@ vfs_dirent_t *devfs_readdir (vfs_node_t *dirnode, Uint32 index) {
   if (! found) return NULL;
 
 //kprintf ("Populating dirent\n");
-  devfs_rd_dirent.inode_nr = found;
-  strcpy (devfs_rd_dirent.name, devfs_nodes[found].name);
+  target_dirent->inode_nr = found;
+  strcpy (target_dirent->name, devfs_nodes[found].name);
 //kprintf ("Done Populating dirent\n");
-  return &devfs_rd_dirent;
+  return 1;
 }
 
 
 /**
  * Return directory entry 'name' (basically associative dir seek)
  */
-vfs_node_t *devfs_finddir (vfs_node_t *dirnode, const char *name) {
+int devfs_finddir (vfs_node_t *dirnode, const char *name, vfs_node_t *target_node) {
   Uint32 index, i;
 
 //  kprintf ("devfs_finddir (%s, %s);\n", dirnode->name, name);
@@ -149,29 +146,29 @@ vfs_node_t *devfs_finddir (vfs_node_t *dirnode, const char *name) {
   if (index == 0) return NULL;
 
   // Fill VFS structure with devfs information
-  devfs_fd_node.inode_nr = index;
-  strcpy (devfs_fd_node.name, devfs_nodes[index].name);
-  devfs_fd_node.owner = 0;
-  devfs_fd_node.length = 0;
-  devfs_fd_node.major_num = devfs_nodes[index].major_num;
-  devfs_fd_node.minor_num = devfs_nodes[index].minor_num;
+  target_node->inode_nr = index;
+  strcpy (target_node->name, devfs_nodes[index].name);
+  target_node->owner = 0;
+  target_node->length = 0;
+  target_node->major_num = devfs_nodes[index].major_num;
+  target_node->minor_num = devfs_nodes[index].minor_num;
   switch (devfs_nodes[index].type) {
     case DEVFS_TYPE_DIRECTORY :
-                            devfs_fd_node.flags = FS_DIRECTORY;
+                            target_node->flags = FS_DIRECTORY;
                             break;
     case DEVFS_TYPE_BLOCK_DEV :
-                            devfs_fd_node.flags = FS_BLOCKDEVICE;
+                            target_node->flags = FS_BLOCKDEVICE;
                             break;
     case DEVFS_TYPE_CHAR_DEV :
-                            devfs_fd_node.flags = FS_CHARDEVICE;
+                            target_node->flags = FS_CHARDEVICE;
                             break;
   }
 
   // Copy the mount information from the parent
-  devfs_fd_node.fileops = &devfs_fileops;   // Everything here is handled by CybFS of course
+  target_node->fileops = &devfs_fileops;   // Everything here is handled by CybFS of course
 
-  // Return structure
-  return &devfs_fd_node;
+  // Return status
+  return 1;
 }
 
 /**

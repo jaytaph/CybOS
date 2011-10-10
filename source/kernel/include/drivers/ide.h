@@ -106,6 +106,7 @@
 */
 
 
+  #define   IDE_SECTOR_SIZE     512     // Size of a sector (@TODO: Atapi CDROM sector sizes?)
   #define   IDE_MAX_PARITIONS   16      // Maximum 16 partitions per drive (because of node numbers)
 
   // Slave or master drive (either atapi or ata)
@@ -113,7 +114,7 @@
     char                enabled;             // Enabled or not (in case no extra drive on the IDE cable)
     struct ide_channel  *channel;            // Pointer to the channel this drive is on. You can find the
                                              // controller at *drive->channel->controller
-    char                drive_nr;            // Master drive (IDE_DRIVE_MASTER) or slave drive (IDE_DRIVE_SLAVE)
+    Uint8               drive_nr;            // Master drive (IDE_DRIVE_MASTER) or slave drive (IDE_DRIVE_SLAVE)
     char                type;                // ata (IDE_DRIVE_TYPE_ATAPI) or atapi (IDE_DRIVE_TYPE_ATAPI)
     Uint32              size;                // Size in sectors
     Uint16              signature;
@@ -121,12 +122,14 @@
     Uint32              command_sets;
     char                model[41];           // Model of the drive
 
-    char                lba48;            // Device supports LBA48 instead of only LBA28
+    char                lba48;               // Device supports LBA48 instead of only LBA28
+
+    char                databuf[IDE_SECTOR_SIZE];    // Simple data structure that holds temporary data for 1 sector at most
   } ide_drive_t;
 
   // Primary or secondary master channels
   typedef struct ide_channel {
-    char                   channel_nr;       // Is this a primary or secondary channel (IDE_CHANNEL_PRIMARY / IDE_CHANNEL_SECONDARY)
+    Uint8                  channel_nr;       // Is this a primary or secondary channel (IDE_CHANNEL_PRIMARY / IDE_CHANNEL_SECONDARY)
     struct ide_controller  *controller;      // Pointer to the controller this channel is on
 
     Uint16                 base;             // Base port address
@@ -142,7 +145,7 @@
    * be supported. Allthough there is a MAX_IDE_CONTROLLERS limit in cybos at the moment */
   typedef struct ide_controller {
     char                enabled;             // Needed because we don't use a linked list
-    char                controller_nr;
+    Uint8                controller_nr;
     struct ide_channel  channel[4];          // Channels (everybody tells only 2, but bochs has 4?)
   } ide_controller_t;
 
@@ -165,7 +168,7 @@
   void ide_block_close(Uint8 major, Uint8 minor);
   void ide_block_seek(Uint8 major, Uint8 minor, Uint32 offset, Uint8 direction);
 
-  Uint8 ide_sector_read (ide_drive_t *drive, Uint32 lba_sector, Uint32 count, char *buffer);
+  Uint32 ide_sector_read (ide_drive_t *drive, Uint32 lba_sector, Uint32 count, char *buffer);
 
 
 

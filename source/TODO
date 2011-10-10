@@ -14,17 +14,22 @@ Things todo:
  (*) IDT GDT through kmalloc instead of fixed addresses
  (*) idletask (and others) on ring3
  (*) Signals
- (*) Stack onto heap instead of 0xE0000000
+ (-) Stack onto heap instead of 0xE0000000
  (*) DMA
  (*) Floppy controler
- (*) VFS
- (*) EXT2
- (*) FAT12
- (*) CybFS
- ( ) FAT16
- ( ) FAT32
- ( ) VFAT
+ (*) Virtual File System
+ (*) VFS: EXT2
+ (*) VFS: FAT12
+ (*) VFS: CybFS
+ ( ) VFS: FAT16
+ ( ) VFS: FAT32
+ ( ) VFS: VFAT
+ ( ) VFS: Joliet
+ ( ) VFS: ISO9660
+ ( ) VFS: UDF
+ ( ) VFS: RockRidge
  (*) ATA controller
+ ( ) ATAPI controller
  ( ) Network driver
  ( ) IPv4 Stack
  (-) Kernel.bin gzip
@@ -32,7 +37,7 @@ Things todo:
  ( ) Errors should be done better. (errno.h)
  ( ) Fix all TODO's and @TODO's
  (*) Timer init
- ( ) Create VFS node caches (root:inodenr linked list)
+ ( ) Create VFS block/inode/direcrtory buffer caches (LRU?)
  (?) mount() func has obsolete *dev parameter (already present in *mount)
  (*) move the vfs_mount_t structure to to vfs_node_t
  (*) Refactor vfs_node_t .minorNum -> minor_num
@@ -41,9 +46,21 @@ Things todo:
  ( ) bootinfo_printf ()  prints info depending on level
  ( ) bootparam  boot_info=0-5 (boot debug info)
  ( ) VGA (800x600) boot screen
- (-) Exec()
- (-) ELF loader
+ (*) Exec()
+ (*) ELF loader
  (-) faster updates on screen (remove flush / optimize)
  ( ) create kmalloc_dma
  (*) kfree should accept void *, not Uint32
  (*) Create linked lists
+ ( ) Major/Minor nodes should be Uint16 (?)
+ (*) Fix conio partial flush with \n on last line of screen
+ ( ) InfoFS: virtual system
+ ( ) infofs: process lists, mount lists
+ ( ) infofs: kernel messages ringbuffer
+ ( ) infofs: global information
+ ( ) devicefs: zero
+ ( ) devicefs: null
+ ( ) devicefs: random
+ ( ) kernel module loading (module info|add|remove)
+ ( ) infofs: module list (including kernel modules)
+ ( ) ext2: refactor ext2 structures into "common" values (i_inode etc)

@@ -18,6 +18,9 @@
 #include "io.h"
 
 
+// Address of video memory
+#define VIDMEM_ADDRESS  0xF00B8000
+
 
 /**
  *
@@ -30,20 +33,20 @@ void con_flush_block (console_t *console) {
 
   // Complete flush
   if (console->flush == CON_FLUSHMODE_WHOLESCREEN) {
-    memmove ((char *)0xF00B8000, console->buf, console->size-(console->max_px*2));
+    memmove ((char *)VIDMEM_ADDRESS, console->buf, console->size);
   }
 
   if (console->flush == CON_FLUSHMODE_PARTIAL) {
     // Get start offset
-    Uint32 offset = console->block_s_y * console->max_px*2 + console->block_s_x;
+    Uint32 offset = console->block_s_y * console->max_px * 2 + (console->block_s_x * 2);
 
     // Size of each row to copy
     Uint32 row_size = (console->block_e_x - console->block_s_x) * 2;
 
     // Copy all rows
-    for (y=console->block_s_y; y!=console->block_e_y; y++) {
+    for (y=console->block_s_y; y<=console->block_e_y; y++) {
       // Copy row
-      memmove ((char *)0xF00B8000 + offset, console->buf + offset, row_size);
+      memmove ((char *)VIDMEM_ADDRESS + offset, console->buf + offset, row_size);
 
       // Goto next row
       offset += console->max_px*2;
@@ -145,21 +148,18 @@ int con_clrscr (console_t *console) {
  * Out : -1 on error, 1 on OK
  */
 int con_scrollup (console_t *console) {
-  int size, start;
+  int start;
 
   if (console == NULL) return ERR_CON_INVALID_CONSOLE;
-
-  // Calculate size of the move (note: we don't move the first line)
-  size = console->size - (console->max_px*2);
 
   // Starting offset of the move
   start = console->max_px * 2;
 
   // Move from starting offset to 0 in the buffer.
-  memmove (console->buf+0, console->buf+start, size);
+  memmove (console->buf+0, console->buf+start, console->size - start);
 
   // Empty the line which is now double on screen
-  memset (console->buf+size, 0, start);
+  memset (console->buf + console->size - start, 0, start);
 
   // The whole screen must be flushed
   con_set_complete_flush (console);
@@ -184,7 +184,7 @@ int con_scrollup (console_t *console) {
 int con_plot (console_t *console, int x, int y, char ch) {
   if (console == NULL) return ERR_CON_INVALID_CONSOLE;
 
-  int offset = (y * console->max_px + x) * 2;
+  int offset = ((y * console->max_px) * 2) + (x * 2);
 
   console->buf[offset+0] = ch;             // Write character
   console->buf[offset+1] = console->attr;  // in the default attribute
@@ -349,7 +349,7 @@ int con_update_screen (console_t *console) {
     // Copy buffer to the screen, except for the last line and add ctrltab-bar there
     con_set_complete_flush (console);
     con_flush_block (console);
-    memmove ((char *)0xF00B8000+((console->max_py-1)*console->max_px*2), ctrltab_bar, (console->max_px*2));
+    memmove ((char *)VIDMEM_ADDRESS+((console->max_py-1)*console->max_px*2), ctrltab_bar, (console->max_px*2));
 
   } else {
     con_flush_block (console);

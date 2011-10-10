@@ -27,10 +27,9 @@ Uint32 load_binary_elf (const char *path) {
 
 //  debug_vmm = 1;
 
-  vfs_node_t *node = vfs_get_node_from_path (path);
-  if (! node) return 0;
-
-  vfs_read (node, 0, sizeof (elf32_ehdr), (char *)&hdr);
+  vfs_node_t node;
+  if (! vfs_get_node_from_path (path, &node)) return 0;
+  vfs_read (&node, 0, sizeof (elf32_ehdr), (char *)&hdr);
 
 /*
   int i;
@@ -76,12 +75,12 @@ Uint32 load_binary_elf (const char *path) {
   // Version 2 must also be current elf spec
   if (hdr.e_version != EV_CURRENT) return 0;
 
-//  if (! elf_do_program_header (node, hdr)) return 0;
+//  if (! elf_do_program_header (&node, hdr)) return 0;
 
   // Don't care about sections yet
- elf_init_string_section (node, hdr);
- if (! elf_do_section_header (node, hdr)) return 0;
- 
+ elf_init_string_section (&node, hdr);
+ if (! elf_do_section_header (&node, hdr)) return 0;
+
   return hdr.e_entry;
 }
 
@@ -164,11 +163,11 @@ int elf_do_section_header (vfs_node_t *node, elf32_ehdr hdr) {
 
   for (i=0; i!=hdr.e_shnum; i++, sh_ptr++) {
 //    kprintf ("Buffer ptr: %08X\n", sh_ptr);
-    
+
     // Didn't find an address or size
     if (! sh_ptr->sh_addr || ! sh_ptr->sh_size) continue;
 
-    
+
 /*
     kprintf ("sh_name      : %04X (%s)\n", sh_ptr->sh_name, elf_get_section_string (sh_ptr->sh_name));
     kprintf ("sh_type      : %04X\n", sh_ptr->sh_type);
@@ -181,7 +180,7 @@ int elf_do_section_header (vfs_node_t *node, elf32_ehdr hdr) {
     kprintf ("sh_addralign : %04X\n", sh_ptr->sh_addralign);
     kprintf ("sh_entsize   : %04X\n", sh_ptr->sh_entsize);
 */
-        
+
     switch (sh_ptr->sh_type) {
       case SHT_PROGBITS :
         // @TODO: should be malloc()?
@@ -245,7 +244,7 @@ int elf_do_program_header (vfs_node_t *node, elf32_ehdr hdr) {
     if (ph_ptr->p_type == PT_LOAD) {
       Uint32 phys_address;
       char *buffer = (char *)kmalloc_pageboundary_physical (ph_ptr->p_memsz, &phys_address);
-      
+
       // We allocated a buffer, make sure this buffer has the correct virtual address
       kprintf ("Allocated memory onto %08X (%d bytes)\n", ph_ptr->p_vaddr, ph_ptr->p_memsz);
       allocate_virtual_memory (phys_address, ph_ptr->p_memsz, ph_ptr->p_vaddr);

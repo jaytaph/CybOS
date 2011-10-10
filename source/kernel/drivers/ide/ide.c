@@ -11,6 +11,7 @@
 #include "drivers/ide_ata.h"
 #include "drivers/ide_atapi.h"
 #include "drivers/ide_partitions.h"
+#include "device.h"
 #include "kernel.h"
 #include "kmem.h"
 #include "pci.h"
@@ -62,6 +63,8 @@ Uint8 ide_port_read (ide_channel_t *channel, Uint8 reg) {
 int ide_polling (ide_channel_t *channel, char advanced_check) {
   int i;
 
+//  kprintf("ide_polling()\n");
+
   // 400 uSecond delay by reading the altstatus port 4 times
   for (i=0; i<4; i++) ide_port_read (channel, IDE_REG_ALTSTATUS);
 
@@ -99,12 +102,13 @@ void ide_port_read_buffer (ide_channel_t *channel, Uint8 reg, Uint32 buffer, Uin
 
 
 /**
- * Read specified number of sectors from drive into buffer
+ * Read specified number of sectors from drive into buffer,
+ * returns number of sectors read
  */
-Uint8 ide_sector_read (ide_drive_t *drive, Uint32 lba_sector, Uint32 count, char *buffer) {
+Uint32 ide_sector_read (ide_drive_t *drive, Uint32 lba_sector, Uint32 sector_count, char *buffer) {
   int ret;
 
-//  kprintf ("\nide_sector_read (drive, %d, %d, %08X)\n", lba_sector, count, buffer);
+//  kprintf ("\nide_sector_read (drive, %d, %d, %08X)\n", lba_sector, sector_count, buffer);
 
   // Not enabled drive
   if (! drive->enabled) return 0;
@@ -113,9 +117,9 @@ Uint8 ide_sector_read (ide_drive_t *drive, Uint32 lba_sector, Uint32 count, char
   if (lba_sector > drive->size) return 0;
 
   if (drive->type == IDE_DRIVE_TYPE_ATA) {
-    ret = ide_ata_access (IDE_DIRECTION_READ, drive, lba_sector, count, buffer);
+    ret = ide_ata_access (IDE_DIRECTION_READ, drive, lba_sector, sector_count, buffer);
   } else if (drive->type == IDE_DRIVE_TYPE_ATAPI) {
-    ret = ide_atapi_access (IDE_DIRECTION_READ, drive, lba_sector, count, buffer);
+    ret = ide_atapi_access (IDE_DIRECTION_READ, drive, lba_sector, sector_count, buffer);
   } else {
     kpanic ("Unknown type (neither ATA nor ATAPI)");
   }
@@ -162,12 +166,11 @@ void ide_sleep (ide_channel_t *channel, int ms) {
  */
 void ide_init_drive (ide_drive_t *drive) {
   char type = IDE_DRIVE_TYPE_ATA;
-  char ide_buffer[512];
   char err = 0;
   char status;
   int i;
 
-//  kprintf ("    ide_init_drive()\n");
+//  kprintf ("    ide_init_drive() : %d \n", drive->channel->controller->controller_nr);
 
   // Default, drive is not enabled
   drive->enabled = 0;
@@ -202,30 +205,24 @@ void ide_init_drive (ide_drive_t *drive) {
   }
 
   // Read device identification
-  ide_port_read_buffer(drive->channel, IDE_REG_DATA, (Uint32)ide_buffer, 128);
-
-/*
-  for (i=0; i!=128; i++) {
-    kprintf ("%02X ", (Uint8)ide_buffer[i]);
-    if (i % 16 == 15) kprintf ("\n");
-  }
-*/
+  char *ide_info = (char *)kmalloc(512);
+  ide_port_read_buffer(drive->channel, IDE_REG_DATA, (Uint32)ide_info, 128);
 
   // Read device parameters
   drive->enabled      = 1;
   drive->type         = type;
-  drive->signature    = *(Uint16 *)(ide_buffer + IDE_IDENT_DEVICETYPE);
-  drive->capabilities = *(Uint16 *)(ide_buffer + IDE_IDENT_CAPABILITIES);
-  drive->command_sets = *(Uint32 *)(ide_buffer + IDE_IDENT_COMMANDSETS);
+  drive->signature    = *(Uint16 *)(ide_info + IDE_IDENT_DEVICETYPE);
+  drive->capabilities = *(Uint16 *)(ide_info + IDE_IDENT_CAPABILITIES);
+  drive->command_sets = *(Uint32 *)(ide_info + IDE_IDENT_COMMANDSETS);
 
   // Get drive size
   if (drive->command_sets & (1 << 26)) {
     // Device uses 48-Bit Addressing:
-    drive->size  = *(Uint32 *)(ide_buffer + IDE_IDENT_MAX_LBA);
+    drive->size  = *(Uint32 *)(ide_info + IDE_IDENT_MAX_LBA);
     drive->lba48 = 1;
   } else {
     // Device uses CHS or 28-bit Addressing
-    drive->size  = *(Uint32 *)(ide_buffer + IDE_IDENT_MAX_LBA);
+    drive->size  = *(Uint32 *)(ide_info + IDE_IDENT_MAX_LBA);
     drive->lba48 = 0;
   }
 
@@ -234,10 +231,12 @@ void ide_init_drive (ide_drive_t *drive) {
 
   // Get identification string
   for (i=0; i<40; i+=2) {
-    drive->model[i] = ide_buffer[IDE_IDENT_MODEL + i + 1];
-    drive->model[i+1] = ide_buffer[IDE_IDENT_MODEL + i];
+    drive->model[i] = ide_info[IDE_IDENT_MODEL + i + 1];
+    drive->model[i+1] = ide_info[IDE_IDENT_MODEL + i];
   }
   drive->model[40] = 0; // terminate string
+
+  kfree(ide_info);
 
 
 
@@ -245,6 +244,7 @@ void ide_init_drive (ide_drive_t *drive) {
   device_t *device = (device_t *)kmalloc (sizeof (device_t));
   device->major_num = DEV_MAJOR_IDE;
   device->minor_num = (drive->channel->controller->controller_nr << 3) + (drive->channel->channel_nr << 1) + drive->drive_nr;
+  device->data = (ide_drive_t *)drive;
 
   device->read = ide_block_read;
   device->write = ide_block_write;
@@ -306,16 +306,16 @@ void ide_init_controller (ide_controller_t *ctrl, pci_device_t *pci_dev, Uint16 
   bar[4] = pci_config_get_dword (pci_dev, 0x20) & 0xFFFFFFFC;
 
   // Set standard info for channel 0 (master)
-  int i;
-  for (i=0; i!=IDE_CONTROLLER_MAX_CHANNELS; i++) {
-    ctrl->channel[i].channel_nr = i;
-    ctrl->channel[i].base = io_port[i*2+0];
-    ctrl->channel[i].dev_ctl = io_port[i*2+1] + 4;
-    ctrl->channel[i].bm_ide = bar[4] + 0;
-    ctrl->channel[i].pci = pci_dev;
-
-    ctrl->channel->controller = ctrl;
-    ide_init_channel (&ctrl->channel[i]);
+  int channel_nr;
+  for (channel_nr=0; channel_nr != IDE_CONTROLLER_MAX_CHANNELS; channel_nr++) {
+//    kprintf ("Checking controller channel %d\n", channel_nr);
+    ctrl->channel[channel_nr].channel_nr = channel_nr;
+    ctrl->channel[channel_nr].base = io_port[channel_nr*2+0];
+    ctrl->channel[channel_nr].dev_ctl = io_port[channel_nr*2+1] + 4;
+    ctrl->channel[channel_nr].bm_ide = bar[4] + 0;
+    ctrl->channel[channel_nr].pci = pci_dev;
+    ctrl->channel[channel_nr].controller = ctrl;   // Link back to controller from the channel
+    ide_init_channel (&ctrl->channel[channel_nr]);
   }
 
   // Enable this controller
@@ -354,7 +354,8 @@ void ide_init (void) {
 
 //  kprintf ("ide_init() done\n");
 
-
+/*
+  // print controller information
   int i,j,k;
   for (i=0; i!=MAX_IDE_CONTROLLERS; i++) {
     if (! ide_controllers[i].enabled) continue;
@@ -372,31 +373,93 @@ void ide_init (void) {
       }
     }
   }
+*/
 
 }
 
 
 
-
+/**
+ * Can read larger blocks
+ *
+ * @param major
+ * @param minor
+ * @param offset
+ * @param size
+ * @param buffer
+ * @return
+ */
 Uint32 ide_block_read (Uint8 major, Uint8 minor, Uint32 offset, Uint32 size, char *buffer) {
-  kprintf ("ide_block_read(%d, %d, %d, %d, %08X)\n", major, minor, offset, size, buffer);
-  kprintf ("read from IDE not supported yet\n");
-  return 0;
+//  kprintf("ide_block_read(%08X (%04X))\n", offset, size);
+  Uint32 lba_sector = offset / IDE_SECTOR_SIZE;
+  Uint32 read_size = 0;
+
+  if (major != DEV_MAJOR_IDE) return 0;
+
+  // Fetch drive info from device
+  device_t *device = device_get_device(major, minor);
+  ide_drive_t *drive = (ide_drive_t *)device->data;
+  if (! drive || ! drive->enabled) {
+    kprintf("Incorrect drive specified");
+    return 0;
+  }
+
+  // Read pre misaligned sector data
+  if (offset % IDE_SECTOR_SIZE > 0) {
+    Uint8 restcount = offset % IDE_SECTOR_SIZE;
+//    kprintf("ide preread(%d)\n", restcount);
+    ide_sector_read(drive, lba_sector, 1, (char *)drive->databuf);
+    memcpy(buffer, &drive->databuf[restcount], 512-restcount);
+
+    read_size += restcount;
+    lba_sector++;
+    size -= restcount;
+    buffer += restcount;
+  }
+
+  // Read as many full sectors as possible
+  while (size >= IDE_SECTOR_SIZE) {
+    // Read full sectors
+    ide_sector_read (drive, lba_sector, 1, buffer);
+
+//    kprintf ("Size: %d\n", size);
+
+    read_size += IDE_SECTOR_SIZE;
+    lba_sector++;
+    size -= IDE_SECTOR_SIZE;
+    buffer += IDE_SECTOR_SIZE;
+  }
+
+  // Read post misaligned sector data
+  if (size > 0) {
+//    kprintf ("ide postread(%d)", size);
+    ide_sector_read(drive, lba_sector, 1, (char *)drive->databuf);
+    memcpy(buffer, &drive->databuf[0], size);
+
+    read_size += size;
+  }
+
+  return read_size;
 }
+
 Uint32 ide_block_write (Uint8 major, Uint8 minor, Uint32 offset, Uint32 size, char *buffer) {
+  if (major != DEV_MAJOR_IDE) return 0;
   kprintf ("ide_block_write(%d, %d, %d, %d, %08X)\n", major, minor, offset, size, buffer);
   kprintf ("write to IDE not supported yet\n");
   return 0;
 }
 void ide_block_open(Uint8 major, Uint8 minor) {
+  if (major != DEV_MAJOR_IDE) return;
   kprintf ("ide_block_open(%d, %d)\n", major, minor);
   // Doesn't do anything. Device already open?
 }
 void ide_block_close(Uint8 major, Uint8 minor) {
+  if (major != DEV_MAJOR_IDE) return;
   kprintf ("ide_block_close(%d, %d)\n", major, minor);
   // Doesn't do anything. Device never closes?
 }
 void ide_block_seek(Uint8 major, Uint8 minor, Uint32 offset, Uint8 direction) {
+  if (major != DEV_MAJOR_IDE) return;
   kprintf ("ide_block_seek(%d, %d, %d, %d)\n", major, minor, offset, direction);
   // Doesn't do anything.
 }

@@ -12,6 +12,7 @@
 #include "vfs.h"
 #include "vfs/fat12.h"
 #include "drivers/floppy.h"
+#include "device.h"
 
 // File operations
 static struct vfs_fileops fat12_fileops = {
@@ -41,8 +42,10 @@ static vfs_node_t fat12_supernode = {
   .major_num = 0,
   .minor_num = 0,
   .fileops = &fat12_fileops,
+  .mount = NULL,
 };
 
+// @TODO: We run into trouble when we mount separate ext2 systems???
 vfs_dirent_t dirent;   // Entry that gets returned by fat12_readdir
 vfs_node_t filenode;   // Entry that gets returned by fat12_finddir
 
@@ -614,115 +617,3 @@ Uint16 fat12_get_next_cluster (fat12_fat_t *fat, Uint16 cluster) {
 
   return next_cluster;
 }
-
-
-/**
- * Read (partial) file data. Halts on last sector or end of byte_count
- *
- * Note: when hitting end of file, it will read the whole remaining sector (but never
- * more than byte_count).
- *
- * File A is 600 bytes.
- *   (file, buffer, 600) reads 600 bytes
- *   (file, buffer, 800) reads 800 bytes (200 padding)
- *   (file, buffer, 2000) reads 1024 bytes (424 padding, no more since no more clusters
- *                        for that file.
- */
-/*
-void obs_fat12_read_file_data (fat12_file_t *file, char *buffer, Uint32 byte_count) {
-  fat12_fatinfo_t *fat12_info = node->mount->fs_data; // Alias for easier usage
-
-  // No file, no read
-  if (! file) return;
-
-  char *bufptr = buffer;
-
-  // Number of bytes
-  Uint32 bytes_left = byte_count;
-
-  // Buffer to hold 1 cluster
-  char *cluster = (char *)kmalloc (fat12_info->bpb->BytesPerSector * fat12_info->bpb->SectorsPerCluster);
-
-  do {
-    // Read current cluster  @TODO: error when cluster size != sector size!
-    Uint32 offset = file->currentCluster * fat12_info->bpb->BytesPerSector;
-    mount->dev->read (mount->dev->major_num, mount->dev->minor_num, offset, fat12_info->bpb->BytesPerSector, cluster);
-
-    // Do we have some bytes left in this cluster? Read them all by default
-    int count = 512-file->currentClusterOffset;
-
-    // Are we reading too much, read less
-    if (count < bytes_left) count = bytes_left;
-
-    // Transfer what we need to read to buffer
-    memcpy (bufptr, cluster, count);
-    bufptr += count; // Set next position
-
-    // Add count to cluster offset
-    file->currentClusterOffset += count;
-
-    // Offset larger than cluster size, get next cluster
-    if (file->currentClusterOffset >= 512) {
-      file->currentCluster = fat12_get_next_cluster (fat12_info->fat, file->currentCluster);
-
-      // No more clusters, we have reached end of file
-      if (file->currentCluster < 2 || file->currentCluster >= 0xFF8) file->eof = 1;
-    }
-
-    // Wrap cluster offset
-    file->currentClusterOffset %= 512;
-
-    // Repeat until we have reached end of file (no more clusters or no more bytes left)
-  } while (!file->eof || bytes_left > 0);
-
-  // Free temporary cluster buffer
-  kfree (cluster);
-}
-*/
-
-/**
- *
- */
-/*
-fat12_file_t *obs_fat12_find_subdir (vfs_mount_t *mount, fat12_file_t *file, const char *dirName) {
-  char dosName[12];
-  int i;
-
-  // Convert filename to FAT name
-  fat12_convert_c_to_dos_filename (dirName, dosName);
-
-  // Do as long as we have file entries (always padded on sector which is always divved by 512)
-  while (! file->eof) {
-    char buf[512];
-    obs_fat12_read_file_data (mount, file, buf, 512);
-
-    // Browse all entries
-    fat12_dirent_t *dirptr = (fat12_dirent_t *)&buf;
-    for (i=0; i!=512 / sizeof (fat12_dirent_t); i++) {
-      // Filename is 0, no more entries (only padding and this is the last sector
-      if (dirptr->Filename[0] == 0) return NULL;
-
-      // check if this is the correct directory entry
-      if (strncmp ((char *)dirptr->Filename, dirName, 11) == 0) {
-        // Create tmpfile
-        fat12_file_t *tmpfile = (fat12_file_t *)kmalloc (sizeof(fat12_file_t));
-
-        // Set info
-        strcpy (tmpfile->name, dirName);
-        tmpfile->eof = 0;
-        tmpfile->length = dirptr->FileSize;
-        tmpfile->offset = 0;
-        tmpfile->flags = (dirptr->Attrib == 0x10) ? FS_DIRECTORY : FS_FILE;
-        tmpfile->currentCluster = dirptr->FirstCluster;
-        tmpfile->currentClusterOffset = 0;
-        return tmpfile;
-      }
-      // Try next directory entry
-      dirptr++;
-    }
-  }
-
-  // Nothing found
-  return NULL;
-}
-*/
