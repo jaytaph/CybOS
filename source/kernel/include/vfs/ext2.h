@@ -173,8 +173,8 @@ typedef struct {
   Uint32 ext2_write (vfs_node_t *node, Uint32 offset, Uint32 size, char *buffer);
   void ext2_open (vfs_node_t *node);
   void ext2_close (vfs_node_t *node);
-  vfs_dirent_t *ext2_readdir (vfs_node_t *node, Uint32 index);
-  vfs_node_t *ext2_finddir (vfs_node_t *node, const char *name);
+  int ext2_readdir (vfs_node_t *node, Uint32 index, vfs_dirent_t *target_dirent);
+  int ext2_finddir (vfs_node_t *node, const char *name, vfs_node_t *target_node);
 
   vfs_node_t *ext2_mount (struct vfs_mount *mount, device_t *dev, const char *path);
   void ext2_umount (struct vfs_mount *mount);

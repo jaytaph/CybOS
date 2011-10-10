@@ -45,12 +45,6 @@ static vfs_node_t ext2_supernode = {
 };
 
 
-// @TODO: We run into trouble when we mount separate ext2 systems???
-vfs_dirent_t dirent;   // Entry that gets returned by ext2_readdir
-vfs_node_t filenode;   // Entry that gets returned by ext2_finddir
-
-
-
 
 /**
  * Converts a block number to LBA sector
@@ -379,7 +373,7 @@ void ext2_init (void) {
 
 
 
-vfs_node_t *ext2_finddir (vfs_node_t *node, const char *name) {
+int ext2_finddir (vfs_node_t *node, const char *name, vfs_node_t *target_node) {
   ext2_info_t *ext2_info = node->mount->fs_data;
   Uint32 i;
 
@@ -396,6 +390,7 @@ vfs_node_t *ext2_finddir (vfs_node_t *node, const char *name) {
 
   // Allocate buffer
   char *buffer = (char *)kmalloc(inode->sizeLow);
+  char *buf_ptr = buffer;
   ext2_dir_t *ext2_dir = (ext2_dir_t *)buffer;
 
 
@@ -413,7 +408,7 @@ vfs_node_t *ext2_finddir (vfs_node_t *node, const char *name) {
     if (inode->directPointerBlock[i] == 0) break;
 
     // Read blocks from disk into buffer
-    if (! ext2_read_block(node->mount, inode->directPointerBlock[i], 1, buffer)) {
+    if (! ext2_read_block(node->mount, inode->directPointerBlock[i], 1, buf_ptr)) {
       kprintf("Ext2: cannot read complete block\n");
       kfree(buffer);
       kfree(inode);
@@ -421,16 +416,17 @@ vfs_node_t *ext2_finddir (vfs_node_t *node, const char *name) {
     }
 
     // Store next data here
-    buffer += ext2_info->block_size;
+    buf_ptr += ext2_info->block_size;
   }
 
 
 
   // Iterate until we find the correct name
   Uint8 namelen = strlen(name);
-  while (ext2_dir->inode_nr > 0 &&
-         strncmp((char *)&ext2_dir->name, name, namelen) != 0 &&
-         ext2_dir->name_len != namelen) {
+  while (ext2_dir->inode_nr != 0 &&
+         ext2_dir->name_len != namelen &&
+         strncmp(name, (char *)&ext2_dir->name, ext2_dir->name_len) != 0) {
+
     ext2_dir = (ext2_dir_t *)( (void *)ext2_dir + ext2_dir->rec_len );
   }
 
@@ -447,24 +443,24 @@ vfs_node_t *ext2_finddir (vfs_node_t *node, const char *name) {
   ext2_inode_t *file_inode = ext2_read_inode(node->mount, ext2_dir->inode_nr);
 
   // Copy node info into new node
-  memcpy (&filenode, node, sizeof (vfs_node_t));
+  memcpy (target_node, node, sizeof (vfs_node_t));
 
   // Set correct values for new inode
-  filenode.inode_nr = ext2_dir->inode_nr;
-  strncpy((char *)filenode.name, (char *)&ext2_dir->name, ext2_dir->name_len);
-  filenode.owner = file_inode->uid;
-  filenode.length = file_inode->sizeLow; // @TODO: 32bit.
-  filenode.flags = ((file_inode->typeAndPermissions & EXT2_S_IFDIR) == EXT2_S_IFDIR) ? FS_DIRECTORY : FS_FILE;
+  target_node->inode_nr = ext2_dir->inode_nr;
+  strncpy((char *)target_node->name, (char *)&ext2_dir->name, ext2_dir->name_len);
+  target_node->owner = file_inode->uid;
+  target_node->length = file_inode->sizeLow; // @TODO: 32bit.
+  target_node->flags = ((file_inode->typeAndPermissions & EXT2_S_IFDIR) == EXT2_S_IFDIR) ? FS_DIRECTORY : FS_FILE;
 
   kfree(buffer);
   kfree(inode);
   kfree(file_inode);
 
-  return &filenode;
+  return 1;
 }
 
 
-vfs_dirent_t *ext2_readdir (vfs_node_t *node, Uint32 index) {
+int ext2_readdir (vfs_node_t *node, Uint32 index, vfs_dirent_t *target_dirent) {
   ext2_info_t *ext2_info = node->mount->fs_data;
   Uint32 i;
 
@@ -479,10 +475,14 @@ vfs_dirent_t *ext2_readdir (vfs_node_t *node, Uint32 index) {
   // and afterwards we iterate through it. I can't even begin to describe how
   // bad this method is.
 
+  // But since we don't have a fixed length, we always must start at the
+  // first block. But let's merge the whole system: load a block, iterate
+  // through the block, if found, we're done. Not found, continue...
+
   // Allocate buffer
   char *buffer = (char *)kmalloc(inode->sizeLow);
+  char *buf_ptr = buffer;
   ext2_dir_t *ext2_dir = (ext2_dir_t *)buffer;
-
 
   // Read the directory blocks
   for (i=0; i!=inode->sizeLow / ext2_info->block_size; i++) {
@@ -500,7 +500,7 @@ vfs_dirent_t *ext2_readdir (vfs_node_t *node, Uint32 index) {
 //    kprintf("IDPB[%d]: %d\n", i, inode->directPointerBlock[i]);
 
     // Read blocks from disk into buffer
-    if (! ext2_read_block(node->mount, inode->directPointerBlock[i], 1, buffer)) {
+    if (! ext2_read_block(node->mount, inode->directPointerBlock[i], 1, buf_ptr)) {
       kprintf("Ext2: cannot read complete block\n");
       kfree(buffer);
       kfree(inode);
@@ -508,31 +508,34 @@ vfs_dirent_t *ext2_readdir (vfs_node_t *node, Uint32 index) {
     }
 
     // Store next data here
-    buffer += ext2_info->block_size;
+    buf_ptr += ext2_info->block_size;
   }
 
-
   // Iterate through N directory entries
-  while (index > 0) {
-    if (ext2_dir->inode_nr == 0 || ext2_dir->name_len == 0) {
+  while (1) {
+    if (ext2_dir->inode_nr == 0) {
       // No more inodes found (index too large probably)
       kfree(buffer);
       kfree(inode);
       return NULL;
     }
 
-    // Goto next entry
-    kprintf ("[%d] Rec_len: %d (Inode: %d)\n", index, ext2_dir->rec_len, ext2_dir->inode_nr);
-    ext2_dir = (ext2_dir_t *)( (void *)ext2_dir + ext2_dir->rec_len );
+    // Break when we have reached our index
+    if (index <= 0) break;
 
+    // Decrease index
     index--;
+
+    // Goto next entry
+//    kprintf ("[%d] Rec_len: %d (Inode: %d)\n", index, ext2_dir->rec_len, ext2_dir->inode_nr);
+    ext2_dir = (ext2_dir_t *)( (void *)ext2_dir + ext2_dir->rec_len );
   }
 
   // ext2_dir points to correct directory
-  strncpy((char *)dirent.name, (char *)&ext2_dir->name, ext2_dir->name_len);
-  dirent.inode_nr = ext2_dir->inode_nr;
+  strncpy((char *)target_dirent->name, (char *)&ext2_dir->name, ext2_dir->name_len);
+  target_dirent->inode_nr = ext2_dir->inode_nr;
 
   kfree(buffer);
   kfree(inode);
-  return &dirent;
+  return 1;
 }

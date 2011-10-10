@@ -56,55 +56,48 @@
  *
  */
 void readdir (vfs_node_t *root, int depth) {
-  kprintf ("readdir(): Reading index (%s) %d at depth %d\n", root->name, root->inode_nr, depth);
-  vfs_dirent_t *unsafe_dirent;
-  vfs_node_t *unsafe_node;
-  vfs_dirent_t local_dirent;
-  vfs_node_t local_node;
+//  kprintf ("readdir(): Reading index (%s) %d at depth %d\n", root->name, root->inode_nr, depth);
+  vfs_dirent_t dirent;
+  vfs_node_t node;
   int index = 0;
   int j;
 
+/*
   // Never trust the vfs_node_t pointers!
   vfs_node_t local_root_node;
   memcpy (&local_root_node, root, sizeof (vfs_node_t));
 //kprintf ("readdir(): node copy\n");
+*/
 
-  while (unsafe_dirent = vfs_readdir (&local_root_node, index), unsafe_dirent != NULL) {
+  while (vfs_readdir (root, index, &dirent)) {
+//    kprintf ("readdir(%d): Reading index %d\n", depth, index);
     index++;
-    kprintf ("readdir(): Reading index %d\n", index);
-
-    // Copy to local scope
-    memcpy (&local_dirent, unsafe_dirent, sizeof (vfs_dirent_t));
 
     // File cannot be found (huh?)
-    unsafe_node = vfs_finddir (&local_root_node, local_dirent.name);
-    if (! unsafe_node) continue;
-
-    // Copy to local scope
-    memcpy (&local_node, unsafe_node, sizeof (vfs_node_t));
+    if (! vfs_finddir (root, dirent.name, &node)) continue;
 
     for (j=0; j!=depth; j++) kprintf ("  ");
-    if ((local_node.flags & FS_DIRECTORY) == FS_DIRECTORY)  {
+    if ((node.flags & FS_DIRECTORY) == FS_DIRECTORY)  {
       // This is a directory
-      kprintf ("<%s> (%d bytes)\n", local_node.name, local_node.length);
+      kprintf ("<%s> (%d bytes)\n", node.name, node.length);
 
       // Read directory when it's not '.' or '..'
-      if (strcmp (local_node.name, ".") != 0 && strcmp (local_node.name, "..") != 0) {
-        readdir (&local_node, depth+1);
+      if (strcmp (node.name, ".") != 0 && strcmp (node.name, "..") != 0) {
+        readdir (&node, depth+1);
       }
     } else {
-      if ( (local_node.flags & FS_BLOCKDEVICE) == FS_BLOCKDEVICE ||
-           (local_node.flags & FS_CHARDEVICE) == FS_CHARDEVICE) {
+      if ( (node.flags & FS_BLOCKDEVICE) == FS_BLOCKDEVICE ||
+           (node.flags & FS_CHARDEVICE) == FS_CHARDEVICE) {
         // This is a device
-        kprintf ("%s  (Device %d:%d)\n", local_node.name, local_node.major_num, local_node.minor_num);
+        kprintf ("%s  (Device %d:%d)\n", node.name, node.major_num, node.minor_num);
       } else {
         // This is a file
-        kprintf ("%s  (%d bytes)\n", local_node.name, local_node.length);
+        kprintf ("%s  (%d bytes)\n", node.name, node.length);
       }
     }
   } // while readdir (root, length)
 
-//  kprintf ("readdir() done\n");
+//  kprintf ("readdir(%d) done\n", depth);
 }
 
 
@@ -221,6 +214,8 @@ void kernel_setup (int stack_start, int total_sys_memory, const char *boot_param
  *
  */
 void mount_root_system (const char *boot_params) {
+  vfs_node_t node;
+
   // Find root device or panic when not found
   char root_device_path[255];
   if (! get_boot_parameter (boot_params, "root=", (char *)&root_device_path)) {
@@ -237,35 +232,35 @@ void mount_root_system (const char *boot_params) {
 
   kprintf ("-I3----------------------------------------\n");
   sys_mount ("DEVICE:/IDE0C0D0P0", "ext2", "HARDDISK1", "/", MOUNTOPTION_REMOUNT);
-  vfs_node_t *node3 = vfs_get_node_from_path ("HARDDISK1:/");
-  readdir (node3, 0);
+  vfs_get_node_from_path ("HARDDISK1:/", &node);
+  readdir (&node, 0);
   kprintf ("-F3----------------------------------------\n");
 
 
 /*
 
   kprintf ("-I1----------------------------------------\n");
-  vfs_node_t *node1 = vfs_get_node_from_path ("ROOT:/");
-  readdir (node1, 0);
+  vfs_get_node_from_path ("ROOT:/", &node);
+  readdir (&node, 0);
   kprintf ("-F1----------------------------------------\n");
 
   kprintf ("-I2----------------------------------------\n");
-  vfs_node_t *node2 = vfs_get_node_from_path ("DEVICE:/");
-  readdir (node2, 0);
+  vfs_get_node_from_path ("DEVICE:/", &node);
+  readdir (&node2, 0);
   kprintf ("-F2----------------------------------------\n");
 */
 
 /*
   kprintf ("-I4----------------------------------------\n");
   sys_mount ("DEVICE:/IDE0C0D0P3", "ext2", "HARDDISK2", "/", MOUNTOPTION_REMOUNT);
-  vfs_node_t *node4 = vfs_get_node_from_path ("HARDDISK3:/");
-  readdir (node4, 0);
+  vfs_get_node_from_path ("HARDDISK3:/", &node);
+  readdir (&node4, 0);
   kprintf ("-F4----------------------------------------\n");
 
   kprintf ("-I5----------------------------------------\n");
   sys_mount ("DEVICE:/IDE0C0D0P4", "ext2", "HARDDISK3", "/", MOUNTOPTION_REMOUNT);
-  vfs_node_t *node5 = vfs_get_node_from_path ("HARDDISK3:/");
-  readdir (node5, 0);
+  vfs_get_node_from_path ("HARDDISK3:/", &node);
+  readdir (&node, 0);
   kprintf ("-F5----------------------------------------\n");
 */
 
