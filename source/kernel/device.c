@@ -64,7 +64,7 @@ int device_register (device_t *dev, const char *filename) {
  * Remove device from device list. Does not reclaim memory for device!
  */
 int device_unregister (device_t *dev) {
-  device_t *prev, *tmp;
+  device_t *prev, *tmp = dev;
   prev = NULL;
 
   while (tmp) {

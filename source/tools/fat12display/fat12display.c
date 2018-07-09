@@ -48,7 +48,7 @@ void display_bpb () {
     printf ("  Drive number          : %d\n", bpb->DriveNumber);
     printf ("  Reserved              : %d\n", bpb->Reserved);
     printf ("  Ext Boot sig          : %X\n", bpb->ExtendedBootSignature);
-    printf ("  Serial                : %d\n", bpb->SerialNumber);
+    printf ("  Serial                : %X\n", bpb->SerialNumber);
     printf ("  Volume label          : "); print_str(bpb->VolumeLabel, 11);
     printf ("  Fat system type       : "); print_str(bpb->FatSystemType, 8);
     printf ("\n\n");

@@ -2,7 +2,7 @@
 
 .PHONY: kernel boot apps
 
-all: kernel boot apps install
+all: kernel boot install apps
 
 clean:
 	echo [Clean]

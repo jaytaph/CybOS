@@ -46,11 +46,11 @@ BPB_Start:
         ; SINCE WE DIRECTLY READ FROM DISK, SOMETIMES THE SECTORS DOES NOT FIT
         ; 0x24 == 4800
         BootLevel2Sectors:
-            dd 0x00000027           ; LBA sector 36
-            dd 0x00000028           ; If boot level 2 is more than 5120 bytes, we need to load
-            dd 0x00000029           ; the rest of the sectors in the start of boot level 2
-            dd 0x0000002A
-            dd 0x0000002B
+            dd 0x00000023           ; LBA sector 36
+            dd 0x00000024           ; If boot level 2 is more than 5120 bytes, we need to load
+            dd 0x00000025           ; the rest of the sectors in the start of boot level 2
+            dd 0x00000026
+            dd 0x00000027
             dd 0x00000000
             dd 0x00000000
             dd 0x00000000
